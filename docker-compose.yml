@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: axioma-postgres
+    environment:
+      POSTGRES_DB: axioma_erp
+      POSTGRES_USER: axioma_user
+      POSTGRES_PASSWORD: axioma_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - axioma_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axioma_user -d axioma_erp"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  axioma_postgres_data:

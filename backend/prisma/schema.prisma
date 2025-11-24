@@ -1,0 +1,557 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 🏢 TENANTS (Clientes del SaaS)
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  planType  String   @default("basic") @map("plan_type")
+  status    String   @default("active")
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenantUsers       TenantUser[]
+  documentTypes     DocumentType[]
+  entities          Entity[]
+  productCategories ProductCategory[]
+  productBrands     ProductBrand[]
+  customerCategories CustomerCategory[]
+  taxes             Tax[]
+  paymentMethods    PaymentMethod[]
+  vatConditions     VatCondition[]
+  products          Product[]
+  documents         Document[]
+  documentItems     DocumentItem[]
+  warehouses        Warehouse[]
+  stockMovements    StockMovement[]
+  stockAdjustments  StockAdjustment[]
+
+  @@map("tenants")
+}
+
+// 👤 USUARIOS
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  tenantUsers      TenantUser[]
+  createdDocuments Document[] @relation("DocumentCreatedBy")
+  updatedDocuments Document[] @relation("DocumentUpdatedBy")
+  stockMovements   StockMovement[]
+  stockAdjustments StockAdjustment[]
+
+  @@map("users")
+}
+
+// 🔐 RELACIÓN TENANT-USER
+model TenantUser {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  userId      String   @map("user_id")
+  role        String
+  permissions Json     @default("[]")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@map("tenant_users")
+}
+
+// 📋 TIPOS DE DOCUMENTO
+model DocumentType {
+  id                    String   @id @default(cuid())
+  tenantId              String   @map("tenant_id")
+  code                  String
+  name                  String
+  description           String?
+  documentType          String   @default("OTHER") @map("document_type") // INVOICE, CREDIT_NOTE, DEBIT_NOTE, RECEIPT, ORDER, QUOTE, OTHER
+  prefix                String?
+  requiresAuthorization Boolean  @default(false) @map("requires_authorization")
+  hasElectronicBilling  Boolean  @default(false) @map("has_electronic_billing")
+  category              String?
+  config                Json     @default("{}")
+  workflowConfig        Json     @default("{}") @map("workflow_config")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@unique([tenantId, code])
+  @@map("document_types")
+}
+
+// 🏢 ENTIDADES (Pueden ser clientes, proveedores o ambos)
+model Entity {
+  id               String   @id @default(cuid())
+  tenantId         String   @map("tenant_id")
+  code             String?
+  name             String
+  taxId            String?  @map("tax_id")
+  email            String?
+  phone            String?
+  addressLine1     String?  @map("address_line1")
+  addressLine2     String?  @map("address_line2")
+  city             String?
+  state            String?
+  postalCode       String?  @map("postal_code")
+  country          String   @default("AR")
+  // Roles que puede tener la entidad
+  isCustomer       Boolean  @default(false) @map("is_customer")
+  isSupplier       Boolean  @default(false) @map("is_supplier")
+  isEmployee       Boolean  @default(false) @map("is_employee")
+  category         String?
+  currency         String   @default("ARS")
+  // Configuración para clientes
+  customerPaymentTerms Int?   @map("customer_payment_terms")
+  customerCreditLimit  Decimal? @map("customer_credit_limit") @db.Decimal(15, 2)
+  // Configuración para proveedores
+  supplierPaymentTerms Int?   @map("supplier_payment_terms")
+  supplierCategory     String? @map("supplier_category")
+  // Configuración para empleados
+  employeePosition     String? @map("employee_position")
+  employeeSalary       Decimal? @map("employee_salary") @db.Decimal(15, 2)
+  // Datos fiscales
+  cuit                 String?
+  ivaCondition         String? @map("iva_condition")
+  grossIncomeNumber    String? @map("gross_income_number")
+  businessActivity     String? @map("business_activity")
+  metadata         Json     @default("{}")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant               Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customerCategories   EntityCustomerCategory[]
+  documents            Document[]
+  deliveryAddresses    EntityDeliveryAddress[]
+
+  @@unique([tenantId, code])
+  @@map("entities")
+}
+
+// 📍 DIRECCIONES DE ENTREGA
+model EntityDeliveryAddress {
+  id           String  @id @default(cuid())
+  entityId     String  @map("entity_id")
+  name         String
+  addressLine1 String  @map("address_line1")
+  addressLine2 String? @map("address_line2")
+  city         String
+  state        String
+  postalCode   String? @map("postal_code")
+  isDefault    Boolean @default(false) @map("is_default")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@map("entity_delivery_addresses")
+}
+
+// 🏷️ CATEGORÍAS DE PRODUCTOS
+model ProductCategory {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  description String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products ProductCategoryProduct[]
+
+  @@unique([tenantId, name])
+  @@map("product_categories")
+}
+
+// 🏢 MARCAS DE PRODUCTOS
+model ProductBrand {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  name      String
+  description String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products ProductBrandProduct[]
+
+  @@unique([tenantId, name])
+  @@map("product_brands")
+}
+
+// 🎯 CATEGORÍAS DE CLIENTES
+model CustomerCategory {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  name               String
+  description        String?
+  discountPercentage Decimal? @default(0) @map("discount_percentage") @db.Decimal(5, 2)
+  paymentTerms       Int?     @map("payment_terms")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entities EntityCustomerCategory[]
+
+  @@unique([tenantId, name])
+  @@map("customer_categories")
+}
+
+// 🧾 IMPUESTOS
+model Tax {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  rate        Decimal  @db.Decimal(5, 2)
+  taxType     String   @map("tax_type") // VAT, INCOME, GROSS_INCOME, OTHER
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("taxes")
+}
+
+// 💳 FORMAS DE PAGO
+model PaymentMethod {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  name              String
+  description       String?
+  paymentType       String   @map("payment_type") // CASH, TRANSFER, CHECK, CARD, OTHER
+  requiresReference Boolean  @default(false) @map("requires_reference")
+  daysToCollection  Int?     @default(0) @map("days_to_collection")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@map("payment_methods")
+}
+
+// 💼 CONDICIONES DE IVA
+model VatCondition {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  code        String
+  description String?
+  taxRate     Decimal? @map("tax_rate") @db.Decimal(5, 2)
+  isExempt    Boolean  @default(false) @map("is_exempt")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@map("vat_conditions")
+}
+
+// 📦 PRODUCTOS
+model Product {
+  id           String  @id @default(cuid())
+  tenantId     String  @map("tenant_id")
+  sku          String
+  name         String
+  description  String?
+  barcode      String?
+  costPrice    Decimal @default(0) @map("cost_price") @db.Decimal(15, 4)
+  salePrice    Decimal @default(0) @map("sale_price") @db.Decimal(15, 4)
+  currency     String  @default("ARS")
+  trackStock   Boolean @default(true) @map("track_stock")
+  currentStock Decimal @default(0) @map("current_stock") @db.Decimal(15, 4)
+  minStock     Decimal @default(0) @map("min_stock") @db.Decimal(15, 4)
+  weight       Decimal? @db.Decimal(10, 3)
+  weightUnit   String? @map("weight_unit")
+  dimensions   String?
+  notes        String?
+  metadata     Json    @default("{}")
+  isActive     Boolean @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productCategories   ProductCategoryProduct[]
+  productBrands       ProductBrandProduct[]
+  documentItems       DocumentItem[]
+  warehouseStocks     WarehouseStock[]
+  stockMovements      StockMovement[]
+
+  @@unique([tenantId, sku])
+  @@map("products")
+}
+
+// 📄 DOCUMENTOS
+model Document {
+  id                   String   @id @default(cuid())
+  tenantId             String   @map("tenant_id")
+  documentTypeId       String   @map("document_type_id")
+  number               String
+  displayNumber        String?  @map("display_number")
+  documentDate         DateTime @default(now()) @map("document_date") @db.Date
+  dueDate              DateTime? @map("due_date") @db.Date
+  entityId             String?  @map("entity_id")
+  entityName           String?  @map("entity_name")
+  subtotal             Decimal  @default(0) @db.Decimal(15, 2)
+  taxAmount            Decimal  @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount          Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
+  currency             String   @default("ARS")
+  status               String   @default("draft")
+  workflowStage        String?  @map("workflow_stage")
+  metadata             Json     @default("{}")
+  referenceDocumentId  String?  @map("reference_document_id")
+  createdBy            String   @map("created_by")
+  updatedBy            String?  @map("updated_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documentType      DocumentType   @relation(fields: [documentTypeId], references: [id])
+  entity            Entity?        @relation(fields: [entityId], references: [id])
+  referenceDocument Document?      @relation("DocumentReference", fields: [referenceDocumentId], references: [id])
+  referencedBy      Document[]     @relation("DocumentReference")
+  creator           User           @relation("DocumentCreatedBy", fields: [createdBy], references: [id])
+  updater           User?          @relation("DocumentUpdatedBy", fields: [updatedBy], references: [id])
+  items             DocumentItem[]
+
+  @@unique([tenantId, documentTypeId, number])
+  @@map("documents")
+}
+
+// 📝 ÍTEMS DE DOCUMENTO
+model DocumentItem {
+  id              String  @id @default(cuid())
+  tenantId        String  @map("tenant_id")
+  documentId      String  @map("document_id")
+  lineNumber      Int     @map("line_number")
+  productId       String? @map("product_id")
+  productSku      String? @map("product_sku")
+  description     String
+  quantity        Decimal @db.Decimal(15, 4)
+  unitPrice       Decimal @map("unit_price") @db.Decimal(15, 4)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  lineTotal       Decimal @map("line_total") @db.Decimal(15, 2)
+  taxRate         Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  metadata        Json    @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  product  Product? @relation(fields: [productId], references: [id])
+
+  @@map("document_items")
+}
+
+// 🏭 ALMACENES
+model Warehouse {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  code        String
+  name        String
+  description String?
+  address     String?
+  isActive    Boolean  @default(true) @map("is_active")
+  isDefault   Boolean  @default(false) @map("is_default")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouseStocks WarehouseStock[]
+  stockMovements  StockMovement[]
+  stockAdjustments StockAdjustment[]
+
+  @@unique([tenantId, code])
+  @@map("warehouses")
+}
+
+// 📊 STOCK POR ALMACÉN
+model WarehouseStock {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  warehouseId   String   @map("warehouse_id")
+  productId     String   @map("product_id")
+  quantity      Decimal  @db.Decimal(15, 4)
+  reservedQty   Decimal  @default(0) @map("reserved_qty") @db.Decimal(15, 4)
+  availableQty  Decimal  @map("available_qty") @db.Decimal(15, 4)
+  lastMovement  DateTime? @map("last_movement")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([warehouseId, productId])
+  @@map("warehouse_stocks")
+}
+
+// 📦 MOVIMIENTOS DE STOCK
+model StockMovement {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  warehouseId     String   @map("warehouse_id")
+  productId       String   @map("product_id")
+  movementType    String   @map("movement_type") // IN, OUT, TRANSFER
+  quantity        Decimal  @db.Decimal(15, 4)
+  unitCost        Decimal? @map("unit_cost") @db.Decimal(15, 4)
+  totalCost       Decimal? @map("total_cost") @db.Decimal(15, 4)
+  documentType    String?  @map("document_type")
+  documentId      String?  @map("document_id")
+  referenceNumber String?  @map("reference_number")
+  notes           String?
+  userId          String   @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, warehouseId, productId])
+  @@index([tenantId, createdAt])
+  @@map("stock_movements")
+}
+
+// 🔧 AJUSTES DE INVENTARIO
+model StockAdjustment {
+  id            String   @id @default(cuid())
+  tenantId      String   @map("tenant_id")
+  adjustmentNumber String @map("adjustment_number")
+  warehouseId   String   @map("warehouse_id")
+  adjustmentDate DateTime @map("adjustment_date") @db.Date
+  reason        String
+  status        String   @default("draft") // draft, approved, cancelled
+  notes         String?
+  totalValue    Decimal  @default(0) @map("total_value") @db.Decimal(15, 2)
+  approvedBy    String?  @map("approved_by")
+  approvedAt    DateTime? @map("approved_at")
+  createdBy     String   @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  creator   User      @relation(fields: [createdBy], references: [id])
+  items     StockAdjustmentItem[]
+
+  @@unique([tenantId, adjustmentNumber])
+  @@map("stock_adjustments")
+}
+
+// 📝 ITEMS DE AJUSTE
+model StockAdjustmentItem {
+  id              String  @id @default(cuid())
+  adjustmentId    String  @map("adjustment_id")
+  productId       String  @map("product_id")
+  currentQty      Decimal @map("current_qty") @db.Decimal(15, 4)
+  adjustedQty     Decimal @map("adjusted_qty") @db.Decimal(15, 4)
+  difference      Decimal @db.Decimal(15, 4)
+  unitCost        Decimal @map("unit_cost") @db.Decimal(15, 4)
+  totalValue      Decimal @map("total_value") @db.Decimal(15, 2)
+  reason          String?
+
+  // Relations
+  adjustment StockAdjustment @relation(fields: [adjustmentId], references: [id], onDelete: Cascade)
+
+  @@map("stock_adjustment_items")
+}
+
+// 🔗 RELACIONES M:N
+
+// Productos ↔ Categorías
+model ProductCategoryProduct {
+  id         String          @id @default(cuid())
+  productId  String          @map("product_id")
+  categoryId String          @map("category_id")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  // Relations
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, categoryId])
+  @@map("product_category_products")
+}
+
+// Productos ↔ Marcas
+model ProductBrandProduct {
+  id        String       @id @default(cuid())
+  productId String       @map("product_id")
+  brandId   String       @map("brand_id")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  brand   ProductBrand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, brandId])
+  @@map("product_brand_products")
+}
+
+// Entidades ↔ Categorías de Clientes
+model EntityCustomerCategory {
+  id                 String           @id @default(cuid())
+  entityId           String           @map("entity_id")
+  customerCategoryId String           @map("customer_category_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  entity           Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  customerCategory CustomerCategory @relation(fields: [customerCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, customerCategoryId])
+  @@map("entity_customer_categories")
+}
