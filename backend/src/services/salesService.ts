@@ -458,12 +458,14 @@ export class SalesService {
       tenantId: this.tenantId
     }
 
-    if (dateFrom) {
-      where.saleDate = { ...where.saleDate, gte: new Date(dateFrom) }
-    }
-
-    if (dateTo) {
-      where.saleDate = { ...where.saleDate, lte: new Date(dateTo) }
+    if (dateFrom || dateTo) {
+      where.saleDate = {}
+      if (dateFrom) {
+        where.saleDate.gte = new Date(dateFrom)
+      }
+      if (dateTo) {
+        where.saleDate.lte = new Date(dateTo)
+      }
     }
 
     if (customerId) {

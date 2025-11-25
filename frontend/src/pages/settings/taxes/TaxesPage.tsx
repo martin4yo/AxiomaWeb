@@ -253,7 +253,7 @@ export default function TaxesPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant="default">
+                        <Badge variant="info">
                           {getTaxTypeLabel(tax.taxType)}
                         </Badge>
                       </td>

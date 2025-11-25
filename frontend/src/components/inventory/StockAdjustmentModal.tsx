@@ -9,7 +9,7 @@ import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { TextArea } from '../ui/TextArea'
 import { inventoryApi } from '../../api/inventory'
-import { productApi } from '../../api/products'
+import { productsApi } from '../../api/products'
 import { useAuthStore } from '../../stores/authStore'
 
 const itemSchema = z.object({
@@ -68,7 +68,7 @@ export function StockAdjustmentModal({
   // Obtener productos
   const { data: products } = useQuery({
     queryKey: ['products', currentTenant?.slug],
-    queryFn: () => productApi.getProducts(currentTenant!.slug),
+    queryFn: () => productsApi.getProducts(),
     enabled: !!currentTenant
   })
 
@@ -185,7 +185,7 @@ export function StockAdjustmentModal({
                       }}
                     >
                       <option value="">Seleccionar producto</option>
-                      {products?.filter(p => p.trackStock).map((product) => (
+                      {products?.filter((p: any) => p.trackStock).map((product: any) => (
                         <option key={product.id} value={product.id}>
                           {product.name} - {product.sku}
                         </option>

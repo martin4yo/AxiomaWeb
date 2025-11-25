@@ -1,13 +1,12 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useState, useEffect } from 'react'
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
-import { TextArea } from '../ui/TextArea'
 import { Tabs } from '../ui/Tabs'
 import { useAuthStore } from '../../stores/authStore'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
@@ -145,7 +144,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
   }
 
   const setDefaultAddress = (index: number) => {
-    const updatedAddresses = deliveryAddresses.map((addr, i) => ({
+    const updatedAddresses = deliveryAddresses.map((addr: any, i: number) => ({
       ...addr,
       isDefault: i === index
     }))
@@ -471,7 +470,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
         </div>
       ) : (
         <div className="space-y-4">
-          {deliveryAddresses.map((address, index) => (
+          {deliveryAddresses.map((address: any, index: number) => (
             <div key={address.id || index} className="border border-gray-200 rounded-lg p-4">
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center space-x-2">

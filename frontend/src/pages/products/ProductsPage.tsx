@@ -54,11 +54,11 @@ export default function ProductsPage() {
     setSelectedProduct(null)
   }
 
-  const getStockStatus = (product: any) => {
+  const getStockStatus = (product: any): { label: string; color: 'error' | 'success' | 'warning' | 'info' } | null => {
     if (!product.trackStock) return null
-    if (product.currentStock === 0) return { label: 'Sin stock', color: 'error' }
-    if (product.currentStock <= product.minStock) return { label: 'Stock bajo', color: 'warning' }
-    return { label: 'Stock normal', color: 'success' }
+    if (product.currentStock === 0) return { label: 'Sin stock', color: 'error' as const }
+    if (product.currentStock <= product.minStock) return { label: 'Stock bajo', color: 'warning' as const }
+    return { label: 'Stock normal', color: 'success' as const }
   }
 
   const actions = [

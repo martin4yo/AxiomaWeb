@@ -1,7 +1,6 @@
 import { Menu } from '@headlessui/react'
 import { Bars3Icon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/stores/authStore'
-import Button from '@/components/ui/Button'
 
 interface HeaderProps {
   onMenuClick: () => void

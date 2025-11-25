@@ -338,7 +338,7 @@ export default function ReportsPage() {
             <div className="text-center py-8 text-gray-500">Cargando...</div>
           ) : salesByProductData?.salesByProduct && salesByProductData.salesByProduct.length > 0 ? (
             <div className="space-y-3">
-              {salesByProductData.salesByProduct.map((product) => {
+              {salesByProductData.salesByProduct.map((product: any) => {
                 const percentage = maxSalesAmount > 0
                   ? (Number(product.total_amount) / maxSalesAmount) * 100
                   : 0
@@ -456,7 +456,7 @@ export default function ReportsPage() {
 
                 {/* Stacked bars container */}
                 <div className="absolute inset-0 flex items-end justify-evenly" style={{ overflow: 'visible' }}>
-                  {evolutionDates.map((dayData, dateIndex) => {
+                  {evolutionDates.map((dayData) => {
                     const barWidth = Math.min(80, Math.max(40, (100 / evolutionDates.length) * 0.6))
                     let cumulativeHeight = 0
 
@@ -466,7 +466,7 @@ export default function ReportsPage() {
                         className="flex flex-col-reverse relative"
                         style={{ width: `${barWidth}px`, height: '100%' }}
                       >
-                        {dayData.products.map((product, prodIndex) => {
+                        {dayData.products.map((product) => {
                           const productHeight = (Number(product.amount) / maxEvolutionAmount) * 100
                           const color = productColors[allProducts.findIndex(p => p.product_id === product.product_id) % productColors.length]
                           cumulativeHeight += productHeight

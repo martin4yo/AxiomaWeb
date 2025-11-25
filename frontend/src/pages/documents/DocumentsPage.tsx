@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardBody } from '@/components/ui/Card'
+import { Card, CardBody } from '@/components/ui/Card'
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/Table'
 import Button from '@/components/ui/Button'
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'

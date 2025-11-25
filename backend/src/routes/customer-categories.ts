@@ -146,7 +146,7 @@ router.delete('/:id', authMiddleware, async (req, res, next) => {
 
     // Check if category has associated entities
     const entityCount = await req.tenantDb!.entityCustomerCategory.count({
-      where: { categoryId: req.params.id }
+      where: { customerCategoryId: req.params.id }
     })
 
     if (entityCount > 0) {

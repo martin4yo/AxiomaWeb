@@ -99,7 +99,7 @@ router.get('/sales-summary', authMiddleware, async (req, res, next) => {
     `
 
     // Si no hay resultados, devolver valores por defecto
-    const result = summary[0] || {
+    const result = (summary as any[])[0] || {
       total_sales: 0,
       total_amount: '0',
       average_sale: '0',

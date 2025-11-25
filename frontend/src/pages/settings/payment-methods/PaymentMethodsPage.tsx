@@ -214,7 +214,7 @@ export default function PaymentMethodsPage() {
                         <p className="text-sm text-gray-500 mt-1">{paymentMethod.description}</p>
                       )}
                       <div className="mt-2 space-y-1">
-                        <Badge variant="default" size="sm">
+                        <Badge variant="info" size="sm">
                           {getPaymentTypeLabel(paymentMethod.paymentType)}
                         </Badge>
                         {paymentMethod.daysToCollection > 0 && (

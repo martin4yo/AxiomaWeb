@@ -93,11 +93,11 @@ class InventoryService {
       }
     })
 
-    const totalStock = stocks.reduce((sum, stock) => {
+    const totalStock = stocks.reduce((sum: number, stock: any) => {
       return sum + Number(stock.quantity)
     }, 0)
 
-    const totalReserved = stocks.reduce((sum, stock) => {
+    const totalReserved = stocks.reduce((sum: number, stock: any) => {
       return sum + Number(stock.reservedQty)
     }, 0)
 
@@ -135,12 +135,12 @@ class InventoryService {
       }
     })
 
-    return products.filter(product => {
+    return products.filter((product: any) => {
       const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
         return sum + Number(stock.quantity)
       }, 0)
       return totalStock <= Number(product.minStock)
-    }).map(product => {
+    }).map((product: any) => {
       const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
         return sum + Number(stock.quantity)
       }, 0)
@@ -465,7 +465,7 @@ class InventoryService {
       }
     })
 
-    const totalValue = valuation.reduce((sum, item) => sum + item.totalValue, 0)
+    const totalValue = valuation.reduce((sum: number, item: any) => sum + item.totalValue, 0)
 
     return {
       items: valuation,

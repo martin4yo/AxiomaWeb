@@ -8,7 +8,7 @@ import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { TextArea } from '../ui/TextArea'
 import { inventoryApi } from '../../api/inventory'
-import { productApi } from '../../api/products'
+import { productsApi } from '../../api/products'
 import { useAuthStore } from '../../stores/authStore'
 
 const schema = z.object({
@@ -53,13 +53,12 @@ export function StockMovementModal({
     }
   })
 
-  const selectedWarehouse = watch('warehouseId')
   const selectedProduct = watch('productId')
 
   // Obtener productos
   const { data: products } = useQuery({
     queryKey: ['products', currentTenant?.slug],
-    queryFn: () => productApi.getProducts(currentTenant!.slug),
+    queryFn: () => productsApi.getProducts(),
     enabled: !!currentTenant
   })
 
@@ -115,7 +114,7 @@ export function StockMovementModal({
           {...register('productId')}
         >
           <option value="">Seleccionar producto</option>
-          {products?.map((product) => (
+          {products?.map((product: any) => (
             <option key={product.id} value={product.id}>
               {product.name} - {product.sku}
             </option>

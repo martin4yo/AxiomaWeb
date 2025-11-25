@@ -17,7 +17,7 @@ declare global {
         status: string
         settings: any
       }
-      tenantDb?: PrismaClient
+      tenantDb?: any
     }
   }
 }
@@ -76,19 +76,19 @@ export const tenantMiddleware = async (
             if (operation === 'create' || operation === 'createMany') {
               if (args.data) {
                 if (Array.isArray(args.data)) {
-                  args.data = args.data.map(item => ({ ...item, tenantId: tenant.id }))
+                  args.data = args.data.map((item: any) => ({ ...item, tenantId: tenant.id }))
                 } else {
-                  args.data.tenantId = tenant.id
+                  (args.data as any).tenantId = tenant.id
                 }
               }
             }
 
             // Add tenant filter to WHERE clauses (for non-create operations)
-            if (operation !== 'create' && operation !== 'createMany') {
-              if (args.where) {
-                args.where.tenantId = tenant.id
-              } else {
-                args.where = { tenantId: tenant.id }
+            if (operation !== 'create' && operation !== 'createMany' && operation !== 'createManyAndReturn') {
+              if ('where' in args && args.where) {
+                (args.where as any).tenantId = tenant.id
+              } else if ('where' in args) {
+                (args as any).where = { tenantId: tenant.id }
               }
             }
 

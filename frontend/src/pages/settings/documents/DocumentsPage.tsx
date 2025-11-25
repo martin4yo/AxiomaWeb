@@ -267,12 +267,12 @@ export default function DocumentsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant="default">
+                        <Badge variant="info">
                           {documentType.code}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant="default">
+                        <Badge variant="info">
                           {getDocumentTypeLabel(documentType.documentType)}
                         </Badge>
                       </td>

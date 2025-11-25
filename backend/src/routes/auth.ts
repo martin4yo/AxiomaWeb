@@ -34,7 +34,7 @@ const generateToken = (userId: string, email: string) => {
   return jwt.sign(
     { userId, email },
     jwtSecret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as jwt.SignOptions
   )
 }
 

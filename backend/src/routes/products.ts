@@ -162,6 +162,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
     const product = await req.tenantDb!.product.create({
       data: {
         ...data,
+        tenantId: req.tenant!.id,
         // Create relations with categories
         ...(categories && categories.length > 0 && {
           productCategories: {

@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../components/ui/TextArea'
-import { productCategoriesApi, type CreateProductCategoryData, type UpdateProductCategoryData } from '../../api/product-categories'
+import { productCategoriesApi } from '../../api/product-categories'
 
 const categorySchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),

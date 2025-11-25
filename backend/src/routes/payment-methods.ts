@@ -64,7 +64,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
     const paymentMethod = await req.tenantDb!.paymentMethod.create({
       data: {
         ...data,
-        tenantId: req.tenantId!
+        tenantId: req.tenant!.id
       }
     })
 

@@ -146,10 +146,13 @@ router.post('/', authMiddleware, async (req, res, next) => {
     }
 
     // Create entity with delivery addresses in a transaction
-    const entity = await req.tenantDb!.$transaction(async (tx) => {
+    const entity = await req.tenantDb!.$transaction(async (tx: any) => {
       // Create the entity
       const newEntity = await tx.entity.create({
-        data: entityData
+        data: {
+          ...entityData,
+          tenantId: req.tenant!.id
+        }
       })
 
       // Create delivery addresses if provided
@@ -190,6 +193,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
 router.put('/:id', authMiddleware, async (req, res, next) => {
   try {
     const data = entitySchema.partial().parse(req.body)
+    const { deliveryAddresses, ...entityData } = data
 
     // Check if entity exists
     const existing = await req.tenantDb!.entity.findUnique({
@@ -215,8 +219,32 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
 
     const entity = await req.tenantDb!.entity.update({
       where: { id: req.params.id },
-      data
+      data: entityData
     })
+
+    // Handle delivery addresses update separately if provided
+    if (deliveryAddresses !== undefined) {
+      // Delete existing addresses
+      await req.tenantDb!.entityDeliveryAddress.deleteMany({
+        where: { entityId: req.params.id }
+      })
+
+      // Create new addresses
+      if (deliveryAddresses && deliveryAddresses.length > 0) {
+        await req.tenantDb!.entityDeliveryAddress.createMany({
+          data: deliveryAddresses.map((addr, index) => ({
+            entityId: req.params.id,
+            name: addr.name,
+            addressLine1: addr.addressLine1,
+            addressLine2: addr.addressLine2,
+            city: addr.city,
+            state: addr.state,
+            postalCode: addr.postalCode,
+            isDefault: addr.isDefault || index === 0
+          }))
+        })
+      }
+    }
 
     res.json({
       message: 'Entity updated successfully',

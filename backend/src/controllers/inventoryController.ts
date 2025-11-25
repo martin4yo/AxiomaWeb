@@ -27,7 +27,7 @@ class InventoryController {
   async createWarehouse(req: Request, res: Response) {
     try {
       console.log('📦 Creating warehouse with data:', req.body)
-      console.log('🔑 Tenant ID:', req.tenantId)
+      console.log('🔑 Tenant ID:', req.tenant?.id)
       const warehouse = await inventoryService.createWarehouse(req.tenantDb, req.body)
       console.log('✅ Warehouse created:', warehouse)
       res.status(201).json(warehouse)
@@ -141,7 +141,7 @@ class InventoryController {
       const movement = await inventoryService.createMovement(
         req.tenantDb,
         req.body,
-        req.user.id
+        req.user!.id
       )
       res.status(201).json(movement)
     } catch (error) {
@@ -176,7 +176,7 @@ class InventoryController {
       const adjustment = await inventoryService.createAdjustment(
         req.tenantDb,
         req.body,
-        req.user.id
+        req.user!.id
       )
       res.status(201).json(adjustment)
     } catch (error) {
@@ -189,7 +189,7 @@ class InventoryController {
       const adjustment = await inventoryService.approveAdjustment(
         req.tenantDb,
         req.params.id,
-        req.user.id
+        req.user!.id
       )
       res.json(adjustment)
     } catch (error) {

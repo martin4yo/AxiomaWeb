@@ -27,6 +27,7 @@ interface Warehouse {
   id: string
   name: string
   code: string
+  isDefault?: boolean
 }
 
 interface PaymentMethod {
@@ -304,14 +305,14 @@ export default function NewSalePage() {
     }
   }
 
-  // Update discount
-  const updateDiscount = (lineId: string, discountPercent: number) => {
-    setCart(cart.map(item =>
-      item.lineId === lineId
-        ? { ...item, discountPercent, lineTotal: item.quantity * item.unitPrice * (1 - discountPercent / 100) }
-        : item
-    ))
-  }
+  // Update discount - reserved for future use
+  // const updateDiscount = (lineId: string, discountPercent: number) => {
+  //   setCart(cart.map(item =>
+  //     item.lineId === lineId
+  //       ? { ...item, discountPercent, lineTotal: item.quantity * item.unitPrice * (1 - discountPercent / 100) }
+  //       : item
+  //   ))
+  // }
 
   // Calculate totals
   const subtotal = cart.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0)
@@ -409,13 +410,13 @@ export default function NewSalePage() {
     }, 100)
   }
 
-  // Legacy function for backward compatibility
-  const handleQuickCashPayment = () => {
-    const cashMethod = paymentMethodsData?.find((pm: PaymentMethod) => pm.paymentType === 'CASH')
-    if (cashMethod) {
-      handleQuickPayment(cashMethod)
-    }
-  }
+  // Legacy function for backward compatibility - reserved for future use
+  // const handleQuickCashPayment = () => {
+  //   const cashMethod = paymentMethodsData?.find((pm: PaymentMethod) => pm.paymentType === 'CASH')
+  //   if (cashMethod) {
+  //     handleQuickPayment(cashMethod)
+  //   }
+  // }
 
   return (
     <div className="min-h-screen bg-gray-50 p-4">

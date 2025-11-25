@@ -184,6 +184,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
     // Create document with items
     const document = await req.tenantDb!.document.create({
       data: {
+        tenantId: req.tenant!.id,
         documentTypeId: data.documentTypeId,
         number: nextNumber,
         displayNumber: `${documentType.code}-${nextNumber}`,

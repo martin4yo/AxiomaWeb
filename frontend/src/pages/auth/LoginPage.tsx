@@ -1,3 +1,4 @@
+import { Card, CardBody, CardFooter } from '@/components/ui/Card'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -8,7 +9,6 @@ import { authService } from '@/services/authService'
 import { useAuthStore } from '@/stores/authStore'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Card, CardHeader, CardBody, CardFooter } from '@/components/ui/Card'
 
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),

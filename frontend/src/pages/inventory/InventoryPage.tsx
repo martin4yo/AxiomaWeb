@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query'
 import { PlusIcon, AdjustmentsHorizontalIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
-import { Button } from '../../components/ui/Button'
 import { InventoryTable } from '../../components/inventory/InventoryTable'
 import { StockMovementModal } from '../../components/inventory/StockMovementModal'
 import { StockAdjustmentModal } from '../../components/inventory/StockAdjustmentModal'
@@ -165,7 +164,7 @@ export function InventoryPage() {
               ⚠️ Productos con Stock Bajo ({lowStockCount})
             </h3>
             <div className="space-y-2">
-              {lowStock?.map((product) => (
+              {lowStock?.map((product: any) => (
                 <div
                   key={product.id}
                   className="flex items-center justify-between p-3 bg-red-50 rounded-lg"
