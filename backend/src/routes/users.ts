@@ -74,6 +74,29 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
+// GET /api/:tenantSlug/users/all - Listar todos los usuarios del sistema (para asignar a tenants)
+router.get('/all', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+      orderBy: {
+        email: 'asc',
+      },
+    })
+
+    res.json({ users })
+  } catch (error: any) {
+    console.error('Error al obtener usuarios:', error)
+    res.status(500).json({ error: 'Error al obtener usuarios' })
+  }
+})
+
 // GET /api/:tenantSlug/users/:id - Obtener un usuario espec�fico
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
@@ -348,28 +371,5 @@ router.put(
     }
   }
 )
-
-// GET /api/:tenantSlug/users/all - Listar todos los usuarios del sistema (para asignar a tenants)
-router.get('/all', authMiddleware, requireRole('admin'), async (req, res) => {
-  try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        isActive: true,
-      },
-      orderBy: {
-        email: 'asc',
-      },
-    })
-
-    res.json({ users })
-  } catch (error: any) {
-    console.error('Error al obtener usuarios:', error)
-    res.status(500).json({ error: 'Error al obtener usuarios' })
-  }
-})
 
 export default router
