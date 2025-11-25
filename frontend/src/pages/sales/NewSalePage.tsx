@@ -419,11 +419,11 @@ export default function NewSalePage() {
   // }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="p-6">
       {/* Header */}
-      <div className="w-full mb-6">
+      <div className="mb-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-gray-900">Nueva Venta</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Nueva Venta</h1>
           <button
             onClick={() => navigate('/sales')}
             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -434,7 +434,7 @@ export default function NewSalePage() {
       </div>
 
       {/* Main Content */}
-      <div className="w-full">
+      <div>
         <div className="grid grid-cols-12 gap-6">
           {/* Left Column - Product Search */}
           <div className="col-span-4 space-y-4">
