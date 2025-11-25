@@ -63,4 +63,9 @@ export const usersApi = {
     )
     return response.data
   },
+
+  getAllUsers: async (tenantSlug: string) => {
+    const response = await api.get<{ users: User[] }>(`/${tenantSlug}/users/all`)
+    return response.data.users
+  },
 }

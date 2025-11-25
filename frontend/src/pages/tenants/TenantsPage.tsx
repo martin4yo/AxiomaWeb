@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, UserGroupIcon } from '@heroicons/react/24/outline'
 import { Building2, CheckCircle, Star, AlertTriangle } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Badge } from '../../components/ui/Badge'
 import { TenantModal } from '../../components/tenants/TenantModal'
+import { ManageTenantUsersModal } from '../../components/tenants/ManageTenantUsersModal'
 import { tenantsApi, Tenant } from '../../api/tenants'
 import { useAuthStore } from '../../stores/authStore'
 
@@ -14,6 +15,7 @@ export function TenantsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
   const [showModal, setShowModal] = useState(false)
+  const [showUsersModal, setShowUsersModal] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState<Tenant | undefined>()
 
   const { data: tenants, isLoading } = useQuery({
@@ -34,6 +36,11 @@ export function TenantsPage() {
     setShowModal(true)
   }
 
+  const handleManageUsers = (tenant: Tenant) => {
+    setSelectedTenant(tenant)
+    setShowUsersModal(true)
+  }
+
   const handleDelete = (id: string) => {
     if (window.confirm('Esta seguro de desactivar este tenant?')) {
       deleteMutation.mutate(id)
@@ -42,6 +49,11 @@ export function TenantsPage() {
 
   const handleCloseModal = () => {
     setShowModal(false)
+    setSelectedTenant(undefined)
+  }
+
+  const handleCloseUsersModal = () => {
+    setShowUsersModal(false)
     setSelectedTenant(undefined)
   }
 
@@ -212,6 +224,14 @@ export function TenantsPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleManageUsers(tenant)}
+                            title="Gestionar Usuarios"
+                          >
+                            <UserGroupIcon className="h-4 w-4 text-blue-500" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEdit(tenant)}
                           >
                             <PencilIcon className="h-4 w-4" />
@@ -238,6 +258,12 @@ export function TenantsPage() {
         isOpen={showModal}
         onClose={handleCloseModal}
         tenant={selectedTenant}
+      />
+
+      <ManageTenantUsersModal
+        isOpen={showUsersModal}
+        onClose={handleCloseUsersModal}
+        tenant={selectedTenant || null}
       />
     </div>
   )
