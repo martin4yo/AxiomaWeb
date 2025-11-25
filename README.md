@@ -196,11 +196,39 @@ El sistema implementa multi-tenancy a nivel de fila usando `tenant_id` en todas 
 
 Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
 
+## 🚀 Deployment a Producción
+
+**IMPORTANTE**: Si ves el error `ERR_BLOCKED_BY_CLIENT` o referencias a `localhost` en producción, necesitas configurar correctamente las variables de entorno.
+
+Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
+
+### Quick Start para Deploy:
+
+1. **Configurar URL de producción**:
+   ```bash
+   # En tu plataforma de deployment (Vercel, Netlify, etc.)
+   VITE_API_URL=https://api.tudominio.com/api
+   ```
+
+2. **O crear .env.production.local**:
+   ```bash
+   cd frontend
+   cp .env.production .env.production.local
+   # Editar y actualizar VITE_API_URL con tu URL real
+   ```
+
+3. **Build con las variables correctas**:
+   ```bash
+   npm run build
+   ```
+
+**Nota**: Vite embebe las variables de entorno en tiempo de build, no de ejecución.
+
 ## 🆘 Soporte
 
 Si tienes problemas o preguntas:
 
-1. Revisa la documentación
+1. Revisa la documentación ([DEPLOYMENT.md](./DEPLOYMENT.md) para problemas de deployment)
 2. Busca en los issues existentes
 3. Crea un nuevo issue con detalles del problema
 
