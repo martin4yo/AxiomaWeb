@@ -127,7 +127,7 @@ router.get('/recent-sales', authMiddleware, async (req, res, next) => {
       take: 5,
     })
 
-    const formattedSales = recentSales.map(sale => ({
+    const formattedSales = recentSales.map((sale: any) => ({
       id: sale.id,
       documentType: sale.invoice?.documentType?.name || 'Venta',
       documentCode: sale.invoice?.documentType?.code || 'VTA',

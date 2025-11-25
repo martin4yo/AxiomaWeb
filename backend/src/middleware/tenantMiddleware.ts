@@ -74,24 +74,26 @@ export const tenantMiddleware = async (
 
             // Add tenant_id to CREATE operations
             if (operation === 'create' || operation === 'createMany') {
-              if (args.data) {
-                if (Array.isArray(args.data)) {
-                  args.data = args.data.map((item: any) => ({ ...item, tenantId: tenant.id }))
+              const argsWithData = args as any
+              if (argsWithData.data) {
+                if (Array.isArray(argsWithData.data)) {
+                  argsWithData.data = argsWithData.data.map((item: any) => ({ ...item, tenantId: tenant.id }))
                 } else {
-                  (args.data as any).tenantId = tenant.id
+                  argsWithData.data.tenantId = tenant.id
                 }
               }
             }
 
             // Add tenant filter to WHERE clauses (for non-create operations)
             if (operation !== 'create' && operation !== 'createMany' && operation !== 'createManyAndReturn') {
-              if (!args) {
-                args = {}
+              const argsWithWhere = args as any
+              if (!argsWithWhere) {
+                return query({ where: { tenantId: tenant.id } })
               }
-              if (args.where) {
-                (args.where as any).tenantId = tenant.id
+              if (argsWithWhere.where) {
+                argsWithWhere.where.tenantId = tenant.id
               } else {
-                (args as any).where = { tenantId: tenant.id }
+                argsWithWhere.where = { tenantId: tenant.id }
               }
             }
 
