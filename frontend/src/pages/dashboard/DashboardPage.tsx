@@ -194,7 +194,7 @@ const DashboardPage = () => {
           <CardBody>
             <div className="space-y-3">
               <button
-                onClick={() => navigate('/sales')}
+                onClick={() => navigate('/sales/new')}
                 className="w-full flex items-center p-3 text-left border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <ShoppingCartIcon className="w-5 h-5 text-gray-400 mr-3" />

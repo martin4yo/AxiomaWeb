@@ -23,9 +23,39 @@ const productSchema = z.object({
   weightUnit: z.string().optional(),
   dimensions: z.string().optional(),
   notes: z.string().optional(),
+  showInQuickAccess: z.boolean().default(false),
+  abbreviation: z.string().optional(),
   metadata: z.record(z.any()).default({}),
   categories: z.array(z.string()).optional(),
   brands: z.array(z.string()).optional()
+})
+
+// Get quick access products
+router.get('/quick-access', authMiddleware, async (req, res, next) => {
+  try {
+    const products = await req.tenantDb!.product.findMany({
+      where: {
+        showInQuickAccess: true,
+        isActive: true
+      },
+      select: {
+        id: true,
+        sku: true,
+        name: true,
+        abbreviation: true,
+        salePrice: true,
+        currentStock: true,
+        trackStock: true
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    })
+
+    res.json({ products })
+  } catch (error) {
+    next(error)
+  }
 })
 
 // Get top selling products

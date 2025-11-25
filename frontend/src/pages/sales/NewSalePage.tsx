@@ -17,6 +17,16 @@ interface Product {
   barcode?: string
 }
 
+interface QuickAccessProduct {
+  id: string
+  sku: string
+  name: string
+  abbreviation?: string
+  salePrice: number
+  trackStock: boolean
+  currentStock: number
+}
+
 interface Customer {
   id: string
   name: string
@@ -100,10 +110,13 @@ export default function NewSalePage() {
     }
   })
 
-  // Top selling products
-  const { data: topProductsData } = useQuery({
-    queryKey: ['topProducts'],
-    queryFn: () => productsApi.getTopSelling(5)
+  // Quick access products
+  const { data: quickAccessProductsData } = useQuery({
+    queryKey: ['quickAccessProducts'],
+    queryFn: async () => {
+      const response = await axios.get('/products/quick-access')
+      return response.data
+    }
   })
 
   // Product search - siempre muestra productos
@@ -213,37 +226,155 @@ export default function NewSalePage() {
   }
 
   // Add product from quick access - always creates new line
-  const addFromQuickAccess = (topProduct: TopProduct) => {
+  const addFromQuickAccess = (qaProduct: QuickAccessProduct) => {
     const product: Product = {
-      id: topProduct.id,
-      sku: topProduct.sku,
-      name: topProduct.name,
-      salePrice: Number(topProduct.sale_price),
+      id: qaProduct.id,
+      sku: qaProduct.sku,
+      name: qaProduct.name,
+      salePrice: Number(qaProduct.salePrice),
       costPrice: 0,
-      trackStock: true,
-      currentStock: Number(topProduct.current_stock)
+      trackStock: qaProduct.trackStock,
+      currentStock: Number(qaProduct.currentStock)
     }
     addProductToCart(product, true)
   }
 
-  // Handle Enter key to add product
-  const handleProductSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && productsData?.products && productsData.products.length > 0) {
-      // If there's exactly one result, add it
-      if (productsData.products.length === 1) {
-        addProductToCart(productsData.products[0])
+  // Check if string is an EAN barcode (8, 13, or 14 digits)
+  const isEANBarcode = (code: string) => {
+    return /^\d{8}$|^\d{13}$|^\d{14}$/.test(code)
+  }
+
+  // Parse barcode from scale (balanza)
+  const parseScaleBarcode = (barcode: string) => {
+    // Format: 20 + 0001 + 072935 + 7
+    // Pos 1-2 (idx 0-1): tipo de código (20)
+    // Pos 3-6 (idx 2-5): código de producto (4 dígitos)
+    // Pos 7-12 (idx 6-11): importe (6 dígitos)
+    // Pos 13 (idx 12): dígito verificador
+    if (barcode.length === 13 && barcode.startsWith('20')) {
+      const productCode = barcode.substring(2, 6) // positions 3-6 (4 digits)
+      const priceStr = barcode.substring(6, 12) // positions 7-12 (6 digits)
+      const price = parseInt(priceStr) // price as-is (e.g., 072935 -> 72935)
+
+      return {
+        isScaleBarcode: true,
+        productCode: productCode, // keep full string with leading zeros
+        price: price
       }
-      // If there are multiple results and the search term matches a SKU exactly, add that one
-      else {
-        const exactMatch = productsData.products.find(
-          (p: Product) => p.sku.toLowerCase() === productSearchTerm.toLowerCase() ||
-                         p.barcode?.toLowerCase() === productSearchTerm.toLowerCase()
-        )
-        if (exactMatch) {
-          addProductToCart(exactMatch)
+    }
+    return { isScaleBarcode: false, productCode: '', price: 0 }
+  }
+
+  // Handle Enter key to add product
+  const handleProductSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const searchTerm = productSearchTerm.trim()
+
+      // Check if it's an EAN barcode
+      if (isEANBarcode(searchTerm)) {
+        // Check if it's a scale barcode (starts with 20)
+        const scaleData = parseScaleBarcode(searchTerm)
+
+        if (scaleData.isScaleBarcode) {
+          // Search product by code for scale barcode
+          try {
+            const response = await axios.get('/products', {
+              params: {
+                search: scaleData.productCode,
+                limit: 10
+              }
+            })
+
+            if (response.data.products && response.data.products.length > 0) {
+              const product = response.data.products.find((p: Product) => p.sku === scaleData.productCode)
+
+              if (product) {
+                // Add to cart with custom price from barcode
+                const lineId = crypto.randomUUID()
+                setCart([...cart, {
+                  lineId,
+                  productId: product.id,
+                  productSku: product.sku,
+                  productName: product.name,
+                  quantity: 1,
+                  unitPrice: scaleData.price,
+                  discountPercent: 0,
+                  lineTotal: scaleData.price
+                }])
+
+                // Clear search and focus input
+                setProductSearchTerm('')
+                setTimeout(() => {
+                  inputRef.current?.focus()
+                }, 100)
+                return
+              }
+            }
+
+            // If product not found, show alert
+            alert(`Producto con código ${scaleData.productCode} no encontrado`)
+            setProductSearchTerm('')
+            inputRef.current?.focus()
+            return
+          } catch (error) {
+            console.error('Error searching product:', error)
+            alert('Error al buscar el producto')
+            setProductSearchTerm('')
+            inputRef.current?.focus()
+            return
+          }
         } else {
-          // Add the first result
+          // It's a regular EAN barcode - search by barcode field
+          try {
+            const response = await axios.get('/products', {
+              params: {
+                search: searchTerm,
+                limit: 100
+              }
+            })
+
+            if (response.data.products && response.data.products.length > 0) {
+              // Find exact barcode match
+              const product = response.data.products.find((p: Product) => p.barcode === searchTerm)
+
+              if (product) {
+                addProductToCart(product)
+                return
+              }
+            }
+
+            // If product not found by barcode, show alert
+            alert(`Producto con código de barras ${searchTerm} no encontrado`)
+            setProductSearchTerm('')
+            inputRef.current?.focus()
+            return
+          } catch (error) {
+            console.error('Error searching product:', error)
+            alert('Error al buscar el producto')
+            setProductSearchTerm('')
+            inputRef.current?.focus()
+            return
+          }
+        }
+      }
+
+      // Normal text search handling - this filters the list by code and name
+      if (productsData?.products && productsData.products.length > 0) {
+        // If there's exactly one result, add it
+        if (productsData.products.length === 1) {
           addProductToCart(productsData.products[0])
+        }
+        // If there are multiple results and the search term matches a SKU exactly, add that one
+        else {
+          const exactMatch = productsData.products.find(
+            (p: Product) => p.sku.toLowerCase() === searchTerm.toLowerCase()
+          )
+          if (exactMatch) {
+            addProductToCart(exactMatch)
+          } else {
+            // Add the first result
+            addProductToCart(productsData.products[0])
+          }
         }
       }
     }
@@ -419,144 +550,147 @@ export default function NewSalePage() {
   // }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Nueva Venta</h1>
-          <button
-            onClick={() => navigate('/sales')}
-            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-          >
-            Cancelar [ESC]
-          </button>
-        </div>
-      </div>
+    <>
+      <div className="p-6 h-screen flex flex-col">
+        {/* Main Content */}
+        <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
+        {/* Left Column - Product Search */}
+        <div className="col-span-4 flex flex-col gap-4 overflow-hidden">
+          {/* Header */}
+          <div className="flex-shrink-0">
+            <h1 className="text-2xl font-bold text-gray-900">Axioma Mini - Venta Mostrador</h1>
+          </div>
 
-      {/* Main Content */}
-      <div>
-        <div className="grid grid-cols-12 gap-6">
-          {/* Left Column - Product Search */}
-          <div className="col-span-4 space-y-4">
-            {/* Cliente y Almacén */}
-            <div className="bg-white rounded-lg shadow p-4 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cliente (opcional)
-                </label>
-                <select
-                  value={selectedCustomer?.id || ''}
-                  onChange={(e) => {
-                    const customer = customersData?.find((c: Customer) => c.id === e.target.value)
-                    setSelectedCustomer(customer || null)
-                  }}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  <option value="">Consumidor Final</option>
-                  {customersData?.map((customer: Customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Almacén
-                </label>
-                <select
-                  value={selectedWarehouse?.id || ''}
-                  onChange={(e) => {
-                    const warehouse = warehousesData?.find((w: Warehouse) => w.id === e.target.value)
-                    setSelectedWarehouse(warehouse || null)
-                  }}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                >
-                  {warehousesData?.map((warehouse: Warehouse) => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          {/* Cliente y Almacén */}
+          <div className="bg-white rounded-lg shadow p-4 space-y-3 flex-shrink-0">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cliente (opcional)
+              </label>
+              <select
+                value={selectedCustomer?.id || ''}
+                onChange={(e) => {
+                  const customer = customersData?.find((c: Customer) => c.id === e.target.value)
+                  setSelectedCustomer(customer || null)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="">Consumidor Final</option>
+                {customersData?.map((customer: Customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Product Search */}
-            <div className="bg-white rounded-lg shadow p-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Buscar Producto (SKU, nombre o código de barras)
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Almacén
               </label>
-              <input
-                ref={inputRef}
-                type="text"
-                value={productSearchTerm}
-                onChange={(e) => setProductSearchTerm(e.target.value)}
-                onKeyDown={handleProductSearchKeyDown}
-                placeholder="Escriba para buscar..."
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg p-3"
-                autoFocus
-              />
-
-              {/* Search Results - Siempre visible */}
-              <div className="mt-3 border border-gray-200 rounded-md max-h-[500px] overflow-y-auto">
-                {productsData?.products && productsData.products.length > 0 ? (
-                  productsData.products.map((product: Product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => addProductToCart(product)}
-                      className="w-full text-left p-3 hover:bg-blue-50 border-b border-gray-100 last:border-0 focus:outline-none focus:bg-blue-50"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-medium text-gray-900">{product.name}</div>
-                          <div className="text-sm text-gray-500">SKU: {product.sku}</div>
-                          {product.trackStock && (
-                            <div className="text-sm text-gray-500">Stock: {product.currentStock}</div>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <div className="text-lg font-semibold text-green-600">
-                            ${Number(product.salePrice).toFixed(2)}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-gray-500">
-                    {productSearchTerm ? 'No se encontraron productos' : 'Cargando productos...'}
-                  </div>
-                )}
-              </div>
+              <select
+                value={selectedWarehouse?.id || ''}
+                onChange={(e) => {
+                  const warehouse = warehousesData?.find((w: Warehouse) => w.id === e.target.value)
+                  setSelectedWarehouse(warehouse || null)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                {warehousesData?.map((warehouse: Warehouse) => (
+                  <option key={warehouse.id} value={warehouse.id}>
+                    {warehouse.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Right Column - Cart and Totals */}
-          <div className="col-span-8 space-y-4">
-            {/* Quick Access Bar */}
-            <div className="bg-white rounded-lg shadow p-3">
+          {/* Product Search */}
+          <div className="bg-white rounded-lg shadow p-4 flex-1 flex flex-col overflow-hidden">
+            <label className="block text-sm font-medium text-gray-700 mb-2 flex-shrink-0">
+              Buscar Producto (SKU, nombre o código de barras)
+            </label>
+            <input
+              ref={inputRef}
+              type="text"
+              value={productSearchTerm}
+              onChange={(e) => setProductSearchTerm(e.target.value)}
+              onKeyDown={handleProductSearchKeyDown}
+              placeholder="Escriba para buscar..."
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-lg p-3 flex-shrink-0"
+              autoFocus
+            />
+
+            {/* Search Results - Siempre visible */}
+            <div className="mt-3 border border-gray-200 rounded-md flex-1 overflow-y-auto">
+              {productsData?.products && productsData.products.length > 0 ? (
+                productsData.products.map((product: Product) => (
+                  <button
+                    key={product.id}
+                    onClick={() => addProductToCart(product)}
+                    className="w-full text-left p-3 hover:bg-blue-50 border-b border-gray-100 last:border-0 focus:outline-none focus:bg-blue-50"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium text-gray-900">{product.name}</div>
+                        <div className="text-sm text-gray-500">SKU: {product.sku}</div>
+                        {product.trackStock && (
+                          <div className="text-sm text-gray-500">Stock: {product.currentStock}</div>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-semibold text-green-600">
+                          ${Number(product.salePrice).toFixed(2)}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="p-4 text-center text-gray-500">
+                  {productSearchTerm ? 'No se encontraron productos' : 'Cargando productos...'}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column - Cart and Totals */}
+        <div className="col-span-8 flex flex-col gap-4 overflow-hidden">
+          {/* Quick Access Bar */}
+          <div className="bg-white rounded-lg shadow p-3 flex-shrink-0">
+            <div className="flex gap-2 justify-between">
               <div className="flex gap-2 overflow-x-auto">
-                {topProductsData?.products && topProductsData.products.length > 0 ? (
-                  topProductsData.products.map((product: TopProduct) => (
+                {quickAccessProductsData?.products && quickAccessProductsData.products.length > 0 ? (
+                  quickAccessProductsData.products.map((product: QuickAccessProduct) => (
                     <button
                       key={product.id}
                       onClick={() => addFromQuickAccess(product)}
                       className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg p-3 min-w-[140px] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                     >
-                      <div className="text-2xl font-bold mb-2">{product.sku}</div>
-                      <div className="text-xs opacity-90 truncate">{product.name}</div>
+                      <div className="text-2xl font-bold mb-1">{product.abbreviation || product.sku}</div>
+                      <div className="text-xs opacity-75">SKU: {product.sku}</div>
                     </button>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-500 py-2">Cargando productos más vendidos...</div>
+                  <div className="text-sm text-gray-500 py-2">No hay productos de acceso rápido</div>
                 )}
               </div>
-            </div>
 
-            {/* Cart Items */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+              {/* Botón Salir */}
+              <button
+                onClick={() => navigate('/sales')}
+                className="flex-shrink-0 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-lg p-3 min-w-[140px] transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+              >
+                <div className="text-2xl font-bold mb-1">SALIR</div>
+                <div className="text-xs opacity-75">ESC</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Cart Items */}
+          <div className="bg-white rounded-lg shadow flex-1 flex flex-col overflow-hidden">
+            <div className="p-4 space-y-2 flex-1 overflow-y-auto">
                 {cart.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">
                     No hay productos en el carrito
@@ -568,7 +702,7 @@ export default function NewSalePage() {
                         <div className="font-medium">{item.productName}</div>
                         <div className="text-sm text-gray-500">SKU: {item.productSku}</div>
                       </div>
-                      <div className="flex flex-col gap-1 min-w-[6rem]">
+                      <div className="flex flex-col gap-1 min-w-[7rem]">
                         <label className="text-sm font-medium text-gray-700 whitespace-nowrap text-right">Cantidad</label>
                         <input
                           ref={(el) => quantityRefs.current[item.lineId] = el}
@@ -578,12 +712,12 @@ export default function NewSalePage() {
                           value={item.quantity}
                           onChange={(e) => updateQuantity(item.lineId, e.target.value)}
                           onKeyDown={(e) => handleQuantityKeyDown(e, item.lineId)}
-                          className="w-24 text-xl font-bold text-center border-0 focus:ring-2 focus:ring-blue-500 rounded-md bg-gray-50"
+                          className="w-32 text-xl text-center focus:outline-none focus:ring-0 rounded-md bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           min="0.01"
                           step="0.01"
                         />
                       </div>
-                      <div className="flex flex-col gap-1 min-w-[7rem]">
+                      <div className="flex flex-col gap-1 min-w-[8rem]">
                         <label className="text-sm font-medium text-gray-700 whitespace-nowrap text-right">Precio</label>
                         <input
                           ref={(el) => priceRefs.current[item.lineId] = el}
@@ -592,7 +726,7 @@ export default function NewSalePage() {
                           value={item.unitPrice}
                           onChange={(e) => updatePrice(item.lineId, Number(e.target.value))}
                           onKeyDown={handlePriceKeyDown}
-                          className="w-28 text-xl font-bold text-right border-0 focus:ring-2 focus:ring-blue-500 rounded-md bg-gray-50"
+                          className="w-36 text-xl text-right focus:outline-none focus:ring-0 rounded-md bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                           min="0"
                           step="0.01"
                         />
@@ -603,7 +737,7 @@ export default function NewSalePage() {
                           type="text"
                           value={`$${Number(item.lineTotal).toFixed(2)}`}
                           readOnly
-                          className="w-32 text-xl font-bold text-right border-0 rounded-md bg-gray-50 text-gray-900"
+                          className="w-36 text-xl text-right rounded-md bg-gray-50 text-gray-900 focus:outline-none"
                         />
                       </div>
                       <button
@@ -619,8 +753,8 @@ export default function NewSalePage() {
               </div>
             </div>
 
-            {/* Totals */}
-            <div className="bg-white rounded-lg shadow p-6">
+            {/* Totals and Payment Methods */}
+            <div className="bg-white rounded-lg shadow p-6 flex-shrink-0">
               <div className="space-y-2">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal:</span>
@@ -850,6 +984,6 @@ export default function NewSalePage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

@@ -28,7 +28,9 @@ const schema = z.object({
   weight: z.number().optional(),
   weightUnit: z.string().default('kg'),
   dimensions: z.string().optional(),
-  notes: z.string().optional()
+  notes: z.string().optional(),
+  showInQuickAccess: z.boolean().default(false),
+  abbreviation: z.string().optional()
 })
 
 type FormData = z.infer<typeof schema>
@@ -81,13 +83,16 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
       minStock: 0,
       costPrice: 0,
       salePrice: 0,
-      weightUnit: 'kg'
+      weightUnit: 'kg',
+      showInQuickAccess: false,
+      abbreviation: ''
     }
   })
 
   const trackStock = watch('trackStock')
   const costPrice = watch('costPrice')
   const salePrice = watch('salePrice')
+  const showInQuickAccess = watch('showInQuickAccess')
 
   // Initialize form and selected categories/brands from product data
   useEffect(() => {
@@ -107,7 +112,9 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         weight: product.weight ? Number(product.weight) : undefined,
         weightUnit: product.weightUnit || 'kg',
         dimensions: product.dimensions || '',
-        notes: product.notes || ''
+        notes: product.notes || '',
+        showInQuickAccess: product.showInQuickAccess ?? false,
+        abbreviation: product.abbreviation || ''
       })
       // Map productCategories and productBrands from backend structure
       const categoryIds = product.productCategories?.map((pc: any) => pc.categoryId) || []
@@ -123,7 +130,9 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         minStock: 0,
         costPrice: 0,
         salePrice: 0,
-        weightUnit: 'kg'
+        weightUnit: 'kg',
+        showInQuickAccess: false,
+        abbreviation: ''
       })
       setSelectedCategories([])
       setSelectedBrands([])
@@ -390,6 +399,32 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
               {...register('notes')}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Acceso Rápido en Ventas */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Acceso Rápido en Ventas</h3>
+        <div className="space-y-4">
+          <label className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+              {...register('showInQuickAccess')}
+            />
+            <span className="text-sm font-medium text-gray-700">
+              Mostrar en acceso rápido en la página de ventas
+            </span>
+          </label>
+
+          {showInQuickAccess && (
+            <Input
+              label="Abreviatura (se muestra en lugar del código)"
+              placeholder="Ej: CAF, GAS, etc."
+              error={errors.abbreviation?.message}
+              {...register('abbreviation')}
+            />
+          )}
         </div>
       </div>
     </div>
