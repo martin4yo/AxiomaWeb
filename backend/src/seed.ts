@@ -142,11 +142,13 @@ async function main() {
       state: 'CABA',
       postalCode: '1043',
       country: 'AR',
-      entityType: 'CLIENT',
+      isCustomer: true,
+      isSupplier: false,
+      isEmployee: false,
       category: 'A',
       currency: 'ARS',
-      paymentTermsDays: 30,
-      creditLimit: 100000
+      customerPaymentTerms: 30,
+      customerCreditLimit: 100000
     },
     {
       code: 'CLI002',
@@ -159,11 +161,15 @@ async function main() {
       state: 'CABA',
       postalCode: '1425',
       country: 'AR',
-      entityType: 'BOTH',
+      isCustomer: true,
+      isSupplier: true,
+      isEmployee: false,
       category: 'B',
       currency: 'ARS',
-      paymentTermsDays: 45,
-      creditLimit: 50000
+      customerPaymentTerms: 45,
+      customerCreditLimit: 50000,
+      supplierPaymentTerms: 30,
+      supplierCategory: 'A'
     },
     {
       code: 'PRV001',
@@ -176,11 +182,13 @@ async function main() {
       state: 'CABA',
       postalCode: '1406',
       country: 'AR',
-      entityType: 'SUPPLIER',
+      isCustomer: false,
+      isSupplier: true,
+      isEmployee: false,
       category: 'A',
       currency: 'ARS',
-      paymentTermsDays: 30,
-      creditLimit: 0
+      supplierPaymentTerms: 30,
+      supplierCategory: 'A'
     }
   ]
 
@@ -209,8 +217,6 @@ async function main() {
       sku: 'LAPTOP001',
       name: 'Laptop Profesional',
       description: 'Laptop para uso profesional con 16GB RAM y SSD 512GB',
-      category: 'Electrónicos',
-      brand: 'TechBrand',
       costPrice: 80000,
       salePrice: 120000,
       currency: 'ARS',
@@ -222,8 +228,6 @@ async function main() {
       sku: 'MOUSE001',
       name: 'Mouse Inalámbrico',
       description: 'Mouse inalámbrico ergonómico',
-      category: 'Accesorios',
-      brand: 'TechBrand',
       costPrice: 2000,
       salePrice: 3500,
       currency: 'ARS',
@@ -235,8 +239,6 @@ async function main() {
       sku: 'CONS001',
       name: 'Consultoría IT',
       description: 'Servicio de consultoría en tecnología',
-      category: 'Servicios',
-      brand: '',
       costPrice: 0,
       salePrice: 8000,
       currency: 'ARS',
@@ -248,8 +250,6 @@ async function main() {
       sku: 'SOFT001',
       name: 'Licencia Software',
       description: 'Licencia anual de software empresarial',
-      category: 'Software',
-      brand: 'SoftCorp',
       costPrice: 15000,
       salePrice: 25000,
       currency: 'ARS',

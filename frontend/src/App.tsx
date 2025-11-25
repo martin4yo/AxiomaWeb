@@ -19,6 +19,8 @@ import SettingsDocumentsPage from '@/pages/settings/documents/DocumentsPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
 import ReportsPage from '@/pages/reports/ReportsPage'
+import { TenantsPage } from '@/pages/tenants/TenantsPage'
+import { UsersPage } from '@/pages/users/UsersPage'
 
 function App() {
   const { isAuthenticated, currentTenant, _hasHydrated } = useAuthStore()
@@ -61,6 +63,8 @@ function App() {
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="tenants" element={<TenantsPage />} />
+        <Route path="users" element={<UsersPage />} />
         <Route path="settings/taxes" element={<TaxesPage />} />
         <Route path="settings/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="settings/vat-conditions" element={<VatConditionsPage />} />

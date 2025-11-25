@@ -1,0 +1,70 @@
+import { api } from '../services/api'
+
+export interface Tenant {
+  id: string
+  name: string
+  slug: string
+  planType: 'free' | 'basic' | 'premium'
+  status: 'active' | 'inactive' | 'suspended'
+  settings: {
+    currency: string
+    timezone: string
+    dateFormat: string
+  }
+  createdAt: string
+  updatedAt: string
+  _count?: {
+    users: number
+  }
+}
+
+export interface CreateTenantData {
+  name: string
+  slug: string
+  planType?: 'free' | 'basic' | 'premium'
+  status?: 'active' | 'inactive' | 'suspended'
+  settings?: {
+    currency?: string
+    timezone?: string
+    dateFormat?: string
+  }
+}
+
+export interface UpdateTenantData {
+  name?: string
+  slug?: string
+  planType?: 'free' | 'basic' | 'premium'
+  status?: 'active' | 'inactive' | 'suspended'
+  settings?: {
+    currency?: string
+    timezone?: string
+    dateFormat?: string
+  }
+}
+
+export const tenantsApi = {
+  getTenants: async (tenantSlug: string) => {
+    const response = await api.get<{ tenants: Tenant[] }>(`/${tenantSlug}/tenants`)
+    return response.data.tenants
+  },
+
+  getTenant: async (tenantSlug: string, id: string) => {
+    const response = await api.get<{ tenant: Tenant }>(`/${tenantSlug}/tenants/${id}`)
+    return response.data.tenant
+  },
+
+  createTenant: async (tenantSlug: string, data: CreateTenantData) => {
+    const response = await api.post<{ tenant: Tenant }>(`/${tenantSlug}/tenants`, data)
+    return response.data.tenant
+  },
+
+  updateTenant: async (tenantSlug: string, id: string, data: UpdateTenantData) => {
+    const response = await api.put<{ tenant: Tenant }>(`/${tenantSlug}/tenants/${id}`, data)
+    return response.data.tenant
+  },
+
+  deleteTenant: async (tenantSlug: string, id: string) => {
+    const response = await api.delete<{ tenant: Tenant }>(`/${tenantSlug}/tenants/${id}`)
+    return response.data.tenant
+  },
+}

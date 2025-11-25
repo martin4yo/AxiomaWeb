@@ -10,6 +10,7 @@ import { tenantMiddleware } from './middleware/tenantMiddleware.js'
 // Routes
 import authRoutes from './routes/auth.js'
 import tenantRoutes from './routes/tenants.js'
+import userRoutes from './routes/users.js'
 import documentRoutes from './routes/documents.js'
 import entityRoutes from './routes/entities.js'
 import productRoutes from './routes/products.js'
@@ -63,6 +64,7 @@ app.use('/api/auth', authRoutes)
 // Tenant-scoped routes
 app.use('/api/:tenantSlug', tenantMiddleware)
 app.use('/api/:tenantSlug/tenants', tenantRoutes)
+app.use('/api/:tenantSlug/users', userRoutes)
 app.use('/api/:tenantSlug/documents', documentRoutes)
 app.use('/api/:tenantSlug/entities', entityRoutes)
 app.use('/api/:tenantSlug/products', productRoutes)
