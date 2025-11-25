@@ -21,6 +21,7 @@ import inventoryRoutes from './routes/inventoryRoutes.js'
 import salesRoutes from './routes/sales.js'
 import paymentMethodRoutes from './routes/payment-methods.js'
 import reportsRoutes from './routes/reports.js'
+import dashboardRoutes from './routes/dashboard.js'
 
 // Load environment variables
 config()
@@ -75,6 +76,7 @@ app.use('/api/:tenantSlug/inventory', inventoryRoutes)
 app.use('/api/:tenantSlug/sales', salesRoutes)
 app.use('/api/:tenantSlug/payment-methods', paymentMethodRoutes)
 app.use('/api/:tenantSlug/reports', reportsRoutes)
+app.use('/api', dashboardRoutes)
 
 // Error handling
 app.use(errorHandler)
