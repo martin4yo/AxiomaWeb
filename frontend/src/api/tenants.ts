@@ -67,4 +67,19 @@ export const tenantsApi = {
     const response = await api.delete<{ tenant: Tenant }>(`/${tenantSlug}/tenants/${id}`)
     return response.data.tenant
   },
+
+  getTenantUsers: async (tenantSlug: string, tenantId: string) => {
+    const response = await api.get(`/${tenantSlug}/tenants/${tenantId}/users`)
+    return response.data.users
+  },
+
+  assignUserToTenant: async (tenantSlug: string, tenantId: string, userId: string, role: string = 'user') => {
+    const response = await api.post(`/${tenantSlug}/tenants/${tenantId}/users`, { userId, role })
+    return response.data
+  },
+
+  removeUserFromTenant: async (tenantSlug: string, tenantId: string, tenantUserId: string) => {
+    const response = await api.delete(`/${tenantSlug}/tenants/${tenantId}/users/${tenantUserId}`)
+    return response.data
+  },
 }

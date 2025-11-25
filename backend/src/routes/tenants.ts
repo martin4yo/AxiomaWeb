@@ -249,4 +249,129 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 })
 
+// Get users of a tenant
+router.get('/:tenantId/users', authMiddleware, async (req, res, next) => {
+  try {
+    const { tenantId } = req.params
+
+    const tenantUsers = await prisma.tenantUser.findMany({
+      where: { tenantId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+          },
+        },
+      },
+    })
+
+    const usersWithRoles = tenantUsers.map(tu => ({
+      ...tu.user,
+      role: tu.role,
+      tenantUserId: tu.id,
+      tenantPermissions: tu.permissions,
+    }))
+
+    res.json({ users: usersWithRoles })
+  } catch (error: any) {
+    console.error('Error al obtener usuarios del tenant:', error)
+    res.status(500).json({ error: 'Error al obtener usuarios del tenant' })
+  }
+})
+
+// Assign user to tenant
+router.post('/:tenantId/users', authMiddleware, async (req, res, next) => {
+  try {
+    const { tenantId } = req.params
+    const { userId, role = 'user', permissions = [] } = req.body
+
+    // Verificar que el tenant existe
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+    })
+
+    if (!tenant) {
+      return res.status(404).json({ error: 'Tenant no encontrado' })
+    }
+
+    // Verificar que el usuario existe
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' })
+    }
+
+    // Verificar si ya existe la relación
+    const existingRelation = await prisma.tenantUser.findUnique({
+      where: {
+        tenantId_userId: {
+          tenantId,
+          userId,
+        },
+      },
+    })
+
+    if (existingRelation) {
+      return res.status(400).json({ error: 'El usuario ya está asignado a este tenant' })
+    }
+
+    // Crear la relación
+    const tenantUser = await prisma.tenantUser.create({
+      data: {
+        tenantId,
+        userId,
+        role,
+        permissions,
+        isActive: true,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+          },
+        },
+      },
+    })
+
+    res.json({
+      message: 'Usuario asignado al tenant exitosamente',
+      tenantUser: {
+        ...tenantUser.user,
+        role: tenantUser.role,
+        tenantUserId: tenantUser.id,
+        tenantPermissions: tenantUser.permissions,
+      },
+    })
+  } catch (error: any) {
+    console.error('Error al asignar usuario al tenant:', error)
+    res.status(500).json({ error: 'Error al asignar usuario al tenant' })
+  }
+})
+
+// Remove user from tenant
+router.delete('/:tenantId/users/:tenantUserId', authMiddleware, async (req, res, next) => {
+  try {
+    const { tenantUserId } = req.params
+
+    await prisma.tenantUser.delete({
+      where: { id: tenantUserId },
+    })
+
+    res.json({ message: 'Usuario removido del tenant exitosamente' })
+  } catch (error: any) {
+    console.error('Error al remover usuario del tenant:', error)
+    res.status(500).json({ error: 'Error al remover usuario del tenant' })
+  }
+})
+
 export default router

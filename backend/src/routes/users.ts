@@ -8,10 +8,10 @@ import { z } from 'zod'
 const router = Router({ mergeParams: true })
 const prisma = new PrismaClient()
 
-// Schemas de validación
+// Schemas de validaciï¿½n
 const createUserSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  email: z.string().email('Email invï¿½lido'),
+  password: z.string().min(6, 'La contraseï¿½a debe tener al menos 6 caracteres'),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   role: z.enum(['superadmin', 'admin', 'user']).default('user'),
@@ -29,7 +29,7 @@ const updateUserSchema = z.object({
 })
 
 const changePasswordSchema = z.object({
-  newPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  newPassword: z.string().min(6, 'La contraseï¿½a debe tener al menos 6 caracteres'),
 })
 
 // GET /api/:tenantSlug/users - Listar usuarios del tenant
@@ -74,7 +74,7 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 })
 
-// GET /api/:tenantSlug/users/:id - Obtener un usuario específico
+// GET /api/:tenantSlug/users/:id - Obtener un usuario especï¿½fico
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const tenantUser = await prisma.tenantUser.findFirst({
@@ -136,7 +136,7 @@ router.post(
       let user
 
       if (existingUser) {
-        // Verificar si ya está en este tenant
+        // Verificar si ya estï¿½ en este tenant
         const existingTenantUser = await prisma.tenantUser.findFirst({
           where: {
             tenantId: req.tenant!.id,
@@ -163,7 +163,7 @@ router.post(
         })
       }
 
-      // Crear relación con el tenant
+      // Crear relaciï¿½n con el tenant
       const tenantUser = await prisma.tenantUser.create({
         data: {
           tenantId: req.tenant!.id,
@@ -285,7 +285,7 @@ router.put(
 // DELETE /api/:tenantSlug/users/:id - Remover usuario del tenant
 router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => {
   try {
-    // Verificar que no sea el último admin
+    // Verificar que no sea el ï¿½ltimo admin
     const adminCount = await prisma.tenantUser.count({
       where: {
         tenantId: req.tenant!.id,
@@ -307,7 +307,7 @@ router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => 
 
     if (userToDelete.role === 'admin' && adminCount <= 1) {
       return res.status(400).json({
-        error: 'No se puede eliminar el último administrador del tenant'
+        error: 'No se puede eliminar el ï¿½ltimo administrador del tenant'
       })
     }
 
@@ -324,7 +324,7 @@ router.delete('/:id', authMiddleware, requireRole('admin'), async (req, res) => 
   }
 })
 
-// PUT /api/:tenantSlug/users/:id/password - Cambiar contraseña
+// PUT /api/:tenantSlug/users/:id/password - Cambiar contraseï¿½a
 router.put(
   '/:id/password',
   authMiddleware,
@@ -341,12 +341,35 @@ router.put(
         data: { passwordHash },
       })
 
-      res.json({ message: 'Contraseña actualizada correctamente' })
+      res.json({ message: 'Contraseï¿½a actualizada correctamente' })
     } catch (error: any) {
-      console.error('Error al cambiar contraseña:', error)
-      res.status(500).json({ error: 'Error al cambiar contraseña' })
+      console.error('Error al cambiar contraseï¿½a:', error)
+      res.status(500).json({ error: 'Error al cambiar contraseï¿½a' })
     }
   }
 )
+
+// GET /api/:tenantSlug/users/all - Listar todos los usuarios del sistema (para asignar a tenants)
+router.get('/all', authMiddleware, requireRole('admin'), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+      },
+      orderBy: {
+        email: 'asc',
+      },
+    })
+
+    res.json({ users })
+  } catch (error: any) {
+    console.error('Error al obtener usuarios:', error)
+    res.status(500).json({ error: 'Error al obtener usuarios' })
+  }
+})
 
 export default router
