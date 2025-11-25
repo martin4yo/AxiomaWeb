@@ -158,7 +158,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         <div className="flex flex-col flex-grow pt-5 bg-white border-r border-gray-200 overflow-y-auto">
           {/* Logo */}
           <div className="flex items-center flex-shrink-0 px-4">
-            <h1 className="text-xl font-bold text-primary-600">Axioma ERP</h1>
+            <h1 className="text-xl font-bold text-primary-600">Axioma Mini</h1>
           </div>
 
           {/* Navigation */}
@@ -178,7 +178,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         <div className="flex flex-col h-full">
           {/* Header with close button */}
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">Axioma ERP</h1>
+            <h1 className="text-xl font-bold text-primary-600">Axioma Mini</h1>
             <button
               type="button"
               className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"

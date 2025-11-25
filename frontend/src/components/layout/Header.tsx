@@ -26,7 +26,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
           <div className="flex items-center space-x-4">
             <div className="hidden lg:block">
               <h1 className="text-xl font-semibold text-gray-900">
-                Axioma ERP
+                Axioma Mini
               </h1>
             </div>
 
