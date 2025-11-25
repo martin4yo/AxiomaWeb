@@ -28,13 +28,13 @@ export interface RecentSale {
 }
 
 export const dashboardService = {
-  async getStats(): Promise<DashboardStats> {
-    const response = await api.get<DashboardStats>('/dashboard/stats')
+  async getStats(tenantSlug: string): Promise<DashboardStats> {
+    const response = await api.get<DashboardStats>(`/${tenantSlug}/dashboard/stats`)
     return response.data
   },
 
-  async getRecentSales(): Promise<RecentSale[]> {
-    const response = await api.get<RecentSale[]>('/dashboard/recent-sales')
+  async getRecentSales(tenantSlug: string): Promise<RecentSale[]> {
+    const response = await api.get<RecentSale[]>(`/${tenantSlug}/dashboard/recent-sales`)
     return response.data
   },
 }

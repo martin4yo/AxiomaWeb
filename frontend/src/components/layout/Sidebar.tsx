@@ -21,6 +21,7 @@ import {
   ClipboardDocumentListIcon,
   ReceiptPercentIcon,
   BuildingOffice2Icon,
+  LinkIcon,
 } from '@heroicons/react/24/outline'
 
 interface SidebarProps {
@@ -59,6 +60,7 @@ const navigation: NavigationItem[] = [
   },
   { name: 'Entidades', href: '/entities', icon: UserGroupIcon },
   { name: 'Documentos', href: '/documents', icon: DocumentTextIcon },
+  { name: 'Sucursales', href: '/branches', icon: BuildingOffice2Icon },
   { name: 'Reportes', href: '/reports', icon: ChartBarIcon },
   {
     name: 'Configuración',
@@ -71,6 +73,9 @@ const navigation: NavigationItem[] = [
       { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCardIcon },
       { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: BanknotesIcon },
       { name: 'Comprobantes', href: '/settings/documents', icon: ClipboardDocumentListIcon },
+      { name: 'Conexiones AFIP', href: '/settings/afip-connections', icon: LinkIcon },
+      { name: 'Puntos de Venta', href: '/settings/sales-points', icon: BuildingStorefrontIcon },
+      { name: 'Configuración de Comprobantes', href: '/settings/voucher-configurations', icon: CogIcon },
     ]
   },
 ]

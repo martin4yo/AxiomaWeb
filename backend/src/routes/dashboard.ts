@@ -1,14 +1,12 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { authMiddleware } from '../middleware/authMiddleware.js'
 
-const router = Router()
-const prisma = new PrismaClient()
+const router = Router({ mergeParams: true })
 
-// GET /api/:tenantSlug/dashboard/stats
-router.get('/:tenantSlug/dashboard/stats', async (req, res) => {
+// GET /dashboard/stats
+router.get('/stats', authMiddleware, async (req, res, next) => {
   try {
-    const { tenantSlug } = req.params
-    const tenantId = (req as any).tenantId
+    const tenantId = req.tenant!.id
 
     // Get current date info
     const now = new Date()
@@ -20,9 +18,8 @@ router.get('/:tenantSlug/dashboard/stats', async (req, res) => {
     const lastDayOfPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0)
 
     // Sales of current month
-    const currentMonthSales = await prisma.sale.aggregate({
+    const currentMonthSales = await req.tenantDb!.sale.aggregate({
       where: {
-        tenantId,
         status: { not: 'cancelled' },
         saleDate: {
           gte: firstDayOfMonth,
@@ -36,9 +33,8 @@ router.get('/:tenantSlug/dashboard/stats', async (req, res) => {
     })
 
     // Sales of previous month for comparison
-    const prevMonthSales = await prisma.sale.aggregate({
+    const prevMonthSales = await req.tenantDb!.sale.aggregate({
       where: {
-        tenantId,
         status: { not: 'cancelled' },
         saleDate: {
           gte: firstDayOfPrevMonth,
@@ -58,33 +54,30 @@ router.get('/:tenantSlug/dashboard/stats', async (req, res) => {
       : 0
 
     // Total active customers
-    const totalCustomers = await prisma.entity.count({
+    const totalCustomers = await req.tenantDb!.entity.count({
       where: {
-        tenantId,
         isCustomer: true,
         isActive: true,
       },
     })
 
     // Total products
-    const totalProducts = await prisma.product.count({
+    const totalProducts = await req.tenantDb!.product.count({
       where: {
-        tenantId,
         isActive: true,
       },
     })
 
-    // Products with low stock
-    const lowStockProducts = await prisma.product.count({
-      where: {
-        tenantId,
-        isActive: true,
-        trackStock: true,
-        currentStock: {
-          lte: prisma.product.fields.minStock,
-        },
-      },
-    })
+    // Products with low stock - need to use raw query since Prisma doesn't support field comparisons
+    const lowStockProducts = await req.tenantDb!.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*)::int as count
+      FROM products
+      WHERE tenant_id = ${tenantId}
+        AND is_active = true
+        AND track_stock = true
+        AND current_stock <= min_stock
+    `
+    const lowStockCount = Number(lowStockProducts[0]?.count || 0)
 
     res.json({
       salesOfMonth: {
@@ -98,24 +91,19 @@ router.get('/:tenantSlug/dashboard/stats', async (req, res) => {
       },
       products: {
         total: totalProducts,
-        lowStock: lowStockProducts,
+        lowStock: lowStockCount,
       },
     })
   } catch (error) {
     console.error('Error fetching dashboard stats:', error)
-    res.status(500).json({ error: 'Error al obtener estadísticas del dashboard' })
+    next(error)
   }
 })
 
-// GET /api/:tenantSlug/dashboard/recent-sales
-router.get('/:tenantSlug/dashboard/recent-sales', async (req, res) => {
+// GET /dashboard/recent-sales
+router.get('/recent-sales', authMiddleware, async (req, res, next) => {
   try {
-    const tenantId = (req as any).tenantId
-
-    const recentSales = await prisma.sale.findMany({
-      where: {
-        tenantId,
-      },
+    const recentSales = await req.tenantDb!.sale.findMany({
       include: {
         customer: {
           select: {
@@ -153,7 +141,7 @@ router.get('/:tenantSlug/dashboard/recent-sales', async (req, res) => {
     res.json(formattedSales)
   } catch (error) {
     console.error('Error fetching recent sales:', error)
-    res.status(500).json({ error: 'Error al obtener ventas recientes' })
+    next(error)
   }
 })
 

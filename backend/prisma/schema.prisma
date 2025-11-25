@@ -810,7 +810,16 @@ model AfipConnection {
   environment String   @default("testing") // 'testing' | 'production'
   certificate String?  @db.Text
   privateKey  String?  @map("private_key") @db.Text
+  wsaaUrl     String?  @map("wsaa_url") // URL del servicio WSAA (auth)
+  wsfeUrl     String?  @map("wsfe_url") // URL del servicio WSFEv1 (facturación)
+  timeout     Int?     @default(30000) // Timeout en milisegundos (default 30 segundos)
   isActive    Boolean  @default(true) @map("is_active")
+  lastTest    DateTime? @map("last_test") // Última vez que se probó la conexión
+  lastTestStatus String? @map("last_test_status") // 'success' | 'error'
+  // Ticket de Acceso (TA) de WSAA
+  taToken     String?  @map("ta_token") @db.Text // Token del TA
+  taSign      String?  @map("ta_sign") @db.Text // Firma del TA
+  taExpiresAt DateTime? @map("ta_expires_at") // Fecha de expiración del TA
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

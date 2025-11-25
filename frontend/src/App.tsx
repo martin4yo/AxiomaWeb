@@ -16,6 +16,11 @@ import TaxesPage from '@/pages/settings/taxes/TaxesPage'
 import PaymentMethodsPage from '@/pages/settings/payment-methods/PaymentMethodsPage'
 import VatConditionsPage from '@/pages/settings/vat-conditions/VatConditionsPage'
 import SettingsDocumentsPage from '@/pages/settings/documents/DocumentsPage'
+import AfipConnectionsPage from '@/pages/settings/AfipConnectionsPage'
+import SalesPointsPage from '@/pages/settings/SalesPointsPage'
+import BranchesPage from '@/pages/BranchesPage'
+import VoucherConfigurationsPage from '@/pages/settings/VoucherConfigurationsPage'
+import NewVoucherConfigurationPage from '@/pages/settings/NewVoucherConfigurationPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
 import ReportsPage from '@/pages/reports/ReportsPage'
@@ -63,12 +68,17 @@ function App() {
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="branches" element={<BranchesPage />} />
         <Route path="tenants" element={<TenantsPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="settings/taxes" element={<TaxesPage />} />
         <Route path="settings/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="settings/vat-conditions" element={<VatConditionsPage />} />
         <Route path="settings/documents" element={<SettingsDocumentsPage />} />
+        <Route path="settings/afip-connections" element={<AfipConnectionsPage />} />
+        <Route path="settings/sales-points" element={<SalesPointsPage />} />
+        <Route path="settings/voucher-configurations" element={<VoucherConfigurationsPage />} />
+        <Route path="settings/voucher-configurations/new" element={<NewVoucherConfigurationPage />} />
       </Route>
       <Route path="/sales/new" element={<NewSalePage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />

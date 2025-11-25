@@ -9,6 +9,9 @@ import {
   SaleItemResult
 } from '../utils/calculationService.js'
 import { AppError } from '../middleware/errorHandler.js'
+import { VoucherService } from './voucher.service.js'
+import { AfipWSFEService } from './afip-wsfe.service.js'
+import { prisma as globalPrisma } from '../server.js'
 
 interface CreateSaleItemInput {
   productId: string
@@ -33,10 +36,17 @@ interface CreateSaleInput {
   notes?: string
   shouldInvoice?: boolean
   discountPercent?: number
+  documentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
 }
 
 export class SalesService {
-  constructor(private prisma: PrismaClient, private tenantId: string, private userId: string) {}
+  private voucherService: VoucherService
+  private afipService: AfipWSFEService
+
+  constructor(private prisma: PrismaClient, private tenantId: string, private userId: string) {
+    this.voucherService = new VoucherService(globalPrisma)
+    this.afipService = new AfipWSFEService(globalPrisma)
+  }
 
   /**
    * Crea una nueva venta con todos sus items y pagos
@@ -54,7 +64,8 @@ export class SalesService {
       payments: paymentsInput,
       notes,
       shouldInvoice = false,
-      discountPercent = 0
+      discountPercent = 0,
+      documentClass = 'invoice'
     } = data
 
     // 1. Validar que el almacén existe y está activo
@@ -211,8 +222,33 @@ export class SalesService {
       )
     }
 
-    // 10. Generar número de venta
-    const saleNumber = await this.generateSaleNumber(warehouse.code)
+    // 10. Determinar comprobante y obtener número
+    let voucherInfo: any = null
+    let caeData: any = null
+    let finalVoucherNumber: string
+    let finalVoucherType: string = voucherType
+
+    // Si debe facturar y hay cliente, determinar comprobante AFIP
+    if (shouldInvoice && customerId) {
+      try {
+        voucherInfo = await this.voucherService.determineVoucherType(
+          this.tenantId,
+          customerId,
+          documentClass,
+          undefined // branchId - por ahora sin sucursales en warehouses
+        )
+
+        finalVoucherNumber = voucherInfo.nextNumber
+        finalVoucherType = voucherInfo.voucherType.code
+      } catch (error: any) {
+        console.warn('[Sales] Error determinando comprobante, usando numeración local:', error.message)
+        // Fallback a numeración local
+        finalVoucherNumber = await this.generateSaleNumber(warehouse.code)
+      }
+    } else {
+      // Sin facturación AFIP, usar numeración local
+      finalVoucherNumber = await this.generateSaleNumber(warehouse.code)
+    }
 
     // 11. Calcular estado de pago
     const totalPaid = paymentsInput.reduce((acc, p) => acc + p.amount, 0)
@@ -228,7 +264,7 @@ export class SalesService {
       const newSale = await tx.sale.create({
         data: {
           tenantId: this.tenantId,
-          saleNumber,
+          saleNumber: finalVoucherNumber,
           saleDate: localDate,
           customerId: customerId || null,
           customerName,
@@ -240,13 +276,13 @@ export class SalesService {
           paidAmount: new Decimal(totalPaid),
           balanceAmount: totals.totalAmount.sub(new Decimal(totalPaid)),
           paymentStatus,
-          voucherType,
+          voucherType: finalVoucherType,
           warehouseId,
           notes: notes || null,
           status: 'completed',
           createdBy: this.userId,
           discountPercent: new Decimal(discountPercent),
-          afipStatus: shouldInvoice ? 'pending' : 'not_sent'
+          afipStatus: shouldInvoice && voucherInfo ? 'pending' : 'not_sent'
         }
       })
 
@@ -307,8 +343,8 @@ export class SalesService {
               totalCost: new Decimal(item.input.quantity).mul(item.product.costPrice),
               documentType: 'SALE',
               documentId: newSale.id,
-              referenceNumber: saleNumber,
-              notes: `Venta ${saleNumber}`,
+              referenceNumber: newSale.saleNumber,
+              notes: `Venta ${newSale.saleNumber}`,
               userId: this.userId
             }
           })
@@ -346,8 +382,115 @@ export class SalesService {
       return newSale
     })
 
-    // 13. Retornar venta con todos sus datos
-    return this.getSaleById(sale.id)
+    // 13. Solicitar CAE a AFIP si corresponde
+    if (shouldInvoice && voucherInfo && voucherInfo.requiresCae && voucherInfo.afipConnection && customer) {
+      try {
+        console.log('[Sales] Solicitando CAE a AFIP...')
+
+        // Preparar datos del cliente
+        let customerDocType = 99 // Consumidor Final por defecto
+        let customerDocNumber = '0'
+
+        if (customer.cuit) {
+          // CUIT/CUIL son formato 80 en AFIP
+          customerDocType = 80
+          customerDocNumber = customer.cuit.replace(/[^0-9]/g, '')
+        } else if (customer.taxId) {
+          // Si tiene taxId, asumir que es DNI
+          customerDocType = 96
+          customerDocNumber = customer.taxId.replace(/[^0-9]/g, '')
+        }
+
+        // Preparar items para AFIP
+        const afipItems = processedItems.map(item => {
+          const unitPrice = item.input.unitPrice !== undefined
+            ? new Decimal(item.input.unitPrice)
+            : item.product.salePrice
+          const taxRate = item.input.taxRate !== undefined
+            ? new Decimal(item.input.taxRate)
+            : defaultTaxRate
+
+          return {
+            description: item.product.name,
+            quantity: parseFloat(item.input.quantity.toString()),
+            unitPrice: parseFloat(unitPrice.toString()),
+            subtotal: parseFloat(item.calculation.subtotal.toString()),
+            ivaRate: parseFloat(taxRate.toString()),
+            ivaAmount: parseFloat(item.calculation.taxAmount.toString())
+          }
+        })
+
+        // Solicitar CAE
+        caeData = await this.afipService.requestCAE(
+          voucherInfo.afipConnection.id,
+          {
+            salesPointNumber: voucherInfo.salesPoint?.number || 1,
+            voucherTypeCode: voucherInfo.voucherType.afipCode!,
+            voucherNumber: voucherInfo.nextNumberRaw,
+            documentDate: sale.saleDate,
+            customerDocType,
+            customerDocNumber,
+            subtotal: parseFloat(totals.subtotal.toString()),
+            iva: parseFloat(totals.taxAmount.toString()),
+            total: parseFloat(totals.totalAmount.toString()),
+            items: afipItems
+          }
+        )
+
+        console.log('[Sales] CAE obtenido:', caeData.cae)
+
+        // Actualizar venta con CAE
+        await this.prisma.sale.update({
+          where: { id: sale.id },
+          data: {
+            afipStatus: 'authorized',
+            afipCae: caeData.cae,
+            caeExpiration: caeData.caeExpiration
+          }
+        })
+
+        // Actualizar nextVoucherNumber en la configuración
+        await globalPrisma.voucherConfiguration.update({
+          where: { id: voucherInfo.configuration.id },
+          data: {
+            nextVoucherNumber: voucherInfo.nextNumberRaw + 1
+          }
+        })
+      } catch (error: any) {
+        console.error('[Sales] Error solicitando CAE:', error.message)
+
+        // Actualizar estado a error
+        await this.prisma.sale.update({
+          where: { id: sale.id },
+          data: {
+            afipStatus: 'error'
+            // TODO: agregar campo afipErrorMessage al schema
+          }
+        })
+
+        // No lanzar error para no cancelar la venta, pero informar al usuario
+        console.warn('[Sales] Venta creada pero sin CAE. Revisar configuración AFIP.')
+      }
+    } else if (shouldInvoice && voucherInfo) {
+      // Si no requiere CAE, actualizar nextVoucherNumber igualmente
+      await globalPrisma.voucherConfiguration.update({
+        where: { id: voucherInfo.configuration.id },
+        data: {
+          nextVoucherNumber: voucherInfo.nextNumberRaw + 1
+        }
+      })
+    }
+
+    // 14. Retornar venta con todos sus datos
+    const finalSale = await this.getSaleById(sale.id)
+
+    return {
+      ...finalSale,
+      caeInfo: caeData ? {
+        cae: caeData.cae,
+        caeExpiration: caeData.caeExpiration
+      } : null
+    }
   }
 
   /**

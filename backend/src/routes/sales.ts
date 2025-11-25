@@ -28,7 +28,8 @@ const createSaleSchema = z.object({
   payments: z.array(createSalePaymentSchema).min(1, 'Debe haber al menos una forma de pago'),
   notes: z.string().optional(),
   shouldInvoice: z.boolean().optional(),
-  discountPercent: z.number().min(0).max(100).optional()
+  discountPercent: z.number().min(0).max(100).optional(),
+  documentClass: z.enum(['invoice', 'credit_note', 'debit_note', 'quote']).optional()
 })
 
 // POST /api/:tenantSlug/sales - Crear venta

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
+import { useAuthStore } from '../../stores/authStore'
 
 interface Product {
   id: string
@@ -67,6 +68,7 @@ interface Payment {
 export default function NewSalePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { currentTenant } = useAuthStore()
   const inputRef = useRef<HTMLInputElement>(null)
   const quantityRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   const priceRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
@@ -80,7 +82,10 @@ export default function NewSalePage() {
   const [payments, setPayments] = useState<Payment[]>([])
   const [notes, setNotes] = useState('')
   const [shouldInvoice, setShouldInvoice] = useState(false)
+  const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>('invoice')
+  const [voucherInfo, setVoucherInfo] = useState<any>(null)
   const [confirmDialog, setConfirmDialog] = useState<{ show: boolean; message: string; amount: number; paymentMethod: PaymentMethod | null }>({ show: false, message: '', amount: 0, paymentMethod: null })
+  const [saleResultModal, setSaleResultModal] = useState<{ show: boolean; sale: any; caeInfo: any }>({ show: false, sale: null, caeInfo: null })
 
   // Queries
   const { data: warehousesData } = useQuery({
@@ -111,11 +116,12 @@ export default function NewSalePage() {
 
   // Quick access products
   const { data: quickAccessProductsData } = useQuery({
-    queryKey: ['quickAccessProducts'],
+    queryKey: ['quickAccessProducts', currentTenant?.slug],
     queryFn: async () => {
-      const response = await axios.get('/products/quick-access')
+      const response = await axios.get(`/${currentTenant!.slug}/products/quick-access`)
       return response.data
-    }
+    },
+    enabled: !!currentTenant
   })
 
   // Product search - siempre muestra productos
@@ -136,8 +142,15 @@ export default function NewSalePage() {
   // Create sale mutation
   const createSaleMutation = useMutation({
     mutationFn: salesApi.createSale,
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
+
+      // Show result modal with CAE info if available
+      setSaleResultModal({
+        show: true,
+        sale: response.sale,
+        caeInfo: response.caeInfo
+      })
 
       // Clear form for next sale
       setCart([])
@@ -146,11 +159,6 @@ export default function NewSalePage() {
       setShouldInvoice(false)
       setSelectedCustomer(null)
       setProductSearchTerm('')
-
-      // Focus search input
-      setTimeout(() => {
-        inputRef.current?.focus()
-      }, 100)
     },
     onError: (error: any) => {
       alert(`Error: ${error.response?.data?.error || error.message}`)
@@ -164,6 +172,30 @@ export default function NewSalePage() {
       setSelectedWarehouse(defaultWarehouse)
     }
   }, [warehousesData, selectedWarehouse])
+
+  // Determine voucher type when customer or document class changes
+  useEffect(() => {
+    const determineVoucher = async () => {
+      if (!selectedCustomer) {
+        setVoucherInfo(null)
+        return
+      }
+
+      try {
+        const response = await axios.post('/voucher/determine', {
+          customerId: selectedCustomer.id,
+          documentClass,
+          branchId: selectedWarehouse?.id
+        })
+        setVoucherInfo(response.data)
+      } catch (error: any) {
+        console.error('Error determining voucher:', error)
+        setVoucherInfo(null)
+      }
+    }
+
+    determineVoucher()
+  }, [selectedCustomer, documentClass, selectedWarehouse])
 
   // Focus input on mount
   useEffect(() => {
@@ -487,7 +519,8 @@ export default function NewSalePage() {
         reference: p.reference
       })) as APISalePayment[],
       notes: notes || undefined,
-      shouldInvoice
+      shouldInvoice,
+      documentClass
     }
 
     createSaleMutation.mutate(saleData)
@@ -533,7 +566,8 @@ export default function NewSalePage() {
           amount: confirmDialog.amount
         }] as APISalePayment[],
         notes: notes || undefined,
-        shouldInvoice
+        shouldInvoice,
+        documentClass
       }
 
       createSaleMutation.mutate(saleData)
@@ -602,6 +636,50 @@ export default function NewSalePage() {
                 ))}
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo de Documento
+              </label>
+              <select
+                value={documentClass}
+                onChange={(e) => setDocumentClass(e.target.value as any)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="invoice">Factura</option>
+                <option value="credit_note">Nota de Crédito</option>
+                <option value="debit_note">Nota de Débito</option>
+                <option value="quote">Presupuesto</option>
+              </select>
+            </div>
+
+            {/* Voucher Info */}
+            {voucherInfo && (
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                <div className="text-sm font-semibold text-blue-900 mb-1">
+                  {voucherInfo.voucherType.name}
+                </div>
+                <div className="text-xs text-blue-700">
+                  Número: {voucherInfo.nextNumber}
+                </div>
+                {voucherInfo.requiresCae && (
+                  <div className="text-xs text-blue-700">
+                    ⚡ Requiere CAE de AFIP
+                  </div>
+                )}
+                {voucherInfo.salesPoint && (
+                  <div className="text-xs text-blue-600">
+                    PV {voucherInfo.salesPoint.number.toString().padStart(5, '0')}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!selectedCustomer && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 text-xs text-yellow-800">
+                Seleccione un cliente para determinar el tipo de comprobante
+              </div>
+            )}
           </div>
 
           {/* Product Search */}
@@ -980,6 +1058,67 @@ export default function NewSalePage() {
                 {createSaleMutation.isPending ? 'Procesando...' : 'CONFIRMAR VENTA'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sale Result Modal */}
+      {saleResultModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+            <h2 className="text-2xl font-bold text-green-600 mb-4 text-center">✓ Venta Registrada</h2>
+
+            <div className="space-y-3 mb-6">
+              <div className="border-b pb-2">
+                <div className="text-sm text-gray-600">Número de Venta</div>
+                <div className="text-xl font-bold">{saleResultModal.sale?.saleNumber}</div>
+              </div>
+
+              <div className="border-b pb-2">
+                <div className="text-sm text-gray-600">Tipo de Comprobante</div>
+                <div className="text-lg font-semibold">{saleResultModal.sale?.voucherType || 'Ticket'}</div>
+              </div>
+
+              <div className="border-b pb-2">
+                <div className="text-sm text-gray-600">Total</div>
+                <div className="text-2xl font-bold text-green-600">
+                  ${Number(saleResultModal.sale?.totalAmount || 0).toFixed(2)}
+                </div>
+              </div>
+
+              {saleResultModal.caeInfo && (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
+                    <div className="text-sm font-semibold text-blue-900 mb-2">✓ CAE Autorizado por AFIP</div>
+                    <div className="space-y-1">
+                      <div className="text-xs text-gray-600">CAE:</div>
+                      <div className="font-mono text-sm font-bold text-blue-700">{saleResultModal.caeInfo.cae}</div>
+                      <div className="text-xs text-gray-600 mt-2">Vencimiento:</div>
+                      <div className="text-sm">{new Date(saleResultModal.caeInfo.caeExpiration).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {saleResultModal.sale?.afipStatus === 'error' && (
+                <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
+                  <div className="text-sm font-semibold text-red-900 mb-1">⚠ Error en AFIP</div>
+                  <div className="text-xs text-red-700">
+                    {saleResultModal.sale?.afipErrorMessage || 'No se pudo obtener CAE. Revisar configuración AFIP.'}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setSaleResultModal({ show: false, sale: null, caeInfo: null })
+                inputRef.current?.focus()
+              }}
+              className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg"
+            >
+              ACEPTAR
+            </button>
           </div>
         </div>
       )}

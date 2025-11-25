@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
+import { api } from '../../../services/api'
 
 const documentTypeSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -52,10 +53,8 @@ export default function DocumentsPage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
 
-      const response = await fetch(`/api/${currentTenant!.slug}/document-types?${params}`)
-      if (!response.ok) throw new Error('Error fetching document types')
-      const data = await response.json()
-      return data.documentTypes || []
+      const response = await api.get(`/${currentTenant!.slug}/document-types?${params}`)
+      return response.data.documentTypes || []
     },
     enabled: !!currentTenant
   })
@@ -63,13 +62,8 @@ export default function DocumentsPage() {
   // Create document type mutation
   const createDocumentType = useMutation({
     mutationFn: async (data: DocumentTypeForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/document-types`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al crear tipo de comprobante')
-      return response.json()
+      const response = await api.post(`/${currentTenant!.slug}/document-types`, data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
@@ -81,13 +75,8 @@ export default function DocumentsPage() {
   // Update document type mutation
   const updateDocumentType = useMutation({
     mutationFn: async (data: DocumentTypeForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/document-types/${selectedDocumentType.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al actualizar tipo de comprobante')
-      return response.json()
+      const response = await api.put(`/${currentTenant!.slug}/document-types/${selectedDocumentType.id}`, data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })
@@ -99,11 +88,7 @@ export default function DocumentsPage() {
   // Delete document type mutation
   const deleteDocumentType = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/document-types/${id}`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Error al eliminar tipo de comprobante')
-      return response.json()
+      await api.delete(`/${currentTenant!.slug}/document-types/${id}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['document-types'] })

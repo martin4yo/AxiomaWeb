@@ -85,9 +85,12 @@ export const tenantMiddleware = async (
 
             // Add tenant filter to WHERE clauses (for non-create operations)
             if (operation !== 'create' && operation !== 'createMany' && operation !== 'createManyAndReturn') {
-              if ('where' in args && args.where) {
+              if (!args) {
+                args = {}
+              }
+              if (args.where) {
                 (args.where as any).tenantId = tenant.id
-              } else if ('where' in args) {
+              } else {
                 (args as any).where = { tenantId: tenant.id }
               }
             }

@@ -22,6 +22,13 @@ import salesRoutes from './routes/sales.js'
 import paymentMethodRoutes from './routes/payment-methods.js'
 import reportsRoutes from './routes/reports.js'
 import dashboardRoutes from './routes/dashboard.js'
+import afipConnectionRoutes from './routes/afip-connections.js'
+import salesPointRoutes from './routes/sales-points.js'
+import branchRoutes from './routes/branches.js'
+import documentTypeRoutes from './routes/document-types.js'
+import voucherConfigRoutes from './routes/voucher-configurations.js'
+import voucherTypeRoutes from './routes/voucher-types.js'
+import voucherDeterminationRoutes from './routes/voucher-determination.js'
 
 // Load environment variables
 config()
@@ -76,7 +83,14 @@ app.use('/api/:tenantSlug/inventory', inventoryRoutes)
 app.use('/api/:tenantSlug/sales', salesRoutes)
 app.use('/api/:tenantSlug/payment-methods', paymentMethodRoutes)
 app.use('/api/:tenantSlug/reports', reportsRoutes)
-app.use('/api', dashboardRoutes)
+app.use('/api/:tenantSlug/afip-connections', afipConnectionRoutes)
+app.use('/api/:tenantSlug/sales-points', salesPointRoutes)
+app.use('/api/:tenantSlug/branches', branchRoutes)
+app.use('/api/:tenantSlug/document-types', documentTypeRoutes)
+app.use('/api/:tenantSlug/voucher-configurations', voucherConfigRoutes)
+app.use('/api/:tenantSlug/voucher-types', voucherTypeRoutes)
+app.use('/api/:tenantSlug/voucher', voucherDeterminationRoutes)
+app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
 
 // Error handling
 app.use(errorHandler)

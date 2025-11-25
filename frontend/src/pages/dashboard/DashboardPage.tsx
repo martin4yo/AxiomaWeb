@@ -9,20 +9,24 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { dashboardService } from '@/services/dashboardService'
 import { useNavigate } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
 
 const DashboardPage = () => {
   const navigate = useNavigate()
+  const { currentTenant } = useAuthStore()
 
   // Fetch dashboard stats
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: dashboardService.getStats,
+    queryKey: ['dashboard-stats', currentTenant?.slug],
+    queryFn: () => dashboardService.getStats(currentTenant!.slug),
+    enabled: !!currentTenant
   })
 
   // Fetch recent sales
   const { data: recentSales = [], isLoading: salesLoading } = useQuery({
-    queryKey: ['dashboard-recent-sales'],
-    queryFn: dashboardService.getRecentSales,
+    queryKey: ['dashboard-recent-sales', currentTenant?.slug],
+    queryFn: () => dashboardService.getRecentSales(currentTenant!.slug),
+    enabled: !!currentTenant
   })
 
   const formatCurrency = (amount: number) => {

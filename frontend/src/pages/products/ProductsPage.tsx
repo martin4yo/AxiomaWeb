@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { PlusIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -13,6 +13,7 @@ import { api } from '../../services/api'
 
 export default function ProductsPage() {
   const { currentTenant } = useAuthStore()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [brandFilter, setBrandFilter] = useState('')
@@ -52,6 +53,25 @@ export default function ProductsPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setSelectedProduct(null)
+  }
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      await api.delete(`/${currentTenant!.slug}/products/${productId}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+    },
+    onError: (error: any) => {
+      alert(error.response?.data?.error || 'Error al eliminar el producto')
+    }
+  })
+
+  const handleDelete = async (product: any) => {
+    if (window.confirm(`¿Está seguro de eliminar el producto "${product.name}"?`)) {
+      deleteMutation.mutate(product.id)
+    }
   }
 
   const getStockStatus = (product: any): { label: string; color: 'error' | 'success' | 'warning' | 'info' } | null => {
@@ -254,6 +274,14 @@ export default function ProductsPage() {
                               onClick={() => handleEdit(product)}
                             >
                               <PencilIcon className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(product)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <TrashIcon className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
