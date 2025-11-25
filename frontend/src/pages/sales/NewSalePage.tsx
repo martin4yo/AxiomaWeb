@@ -419,8 +419,7 @@ export default function NewSalePage() {
   // }
 
   return (
-    <div className="fixed inset-0 lg:left-64 bg-gray-50 overflow-auto">
-      <div className="p-6">
+    <div className="w-full">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
@@ -851,7 +850,6 @@ export default function NewSalePage() {
           </div>
         </div>
       )}
-      </div>
     </div>
   )
 }
