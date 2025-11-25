@@ -34,19 +34,8 @@ export const authMiddleware = async (
 ) => {
   try {
     const authHeader = req.headers.authorization
-    const authHeaderLower = req.headers['Authorization'] as string | undefined
-
-    console.log('🔍 Auth Debug - Full Details:', {
-      authorization: authHeader,
-      authorizationAlt: authHeaderLower,
-      allHeaders: req.headers,
-      method: req.method,
-      url: req.url,
-      path: req.path
-    })
 
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('❌ Auth failed - No valid Bearer token found')
       throw new AppError('Authentication token required', 401)
     }
 
