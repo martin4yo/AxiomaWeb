@@ -419,9 +419,10 @@ export default function NewSalePage() {
   // }
 
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
+    <div className="fixed inset-0 lg:left-64 bg-gray-50 overflow-auto">
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">Nueva Venta</h1>
           <button
@@ -850,6 +851,7 @@ export default function NewSalePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
