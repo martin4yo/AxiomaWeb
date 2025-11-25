@@ -60,13 +60,13 @@ const navigation: NavigationItem[] = [
   { name: 'Entidades', href: '/entities', icon: UserGroupIcon },
   { name: 'Documentos', href: '/documents', icon: DocumentTextIcon },
   { name: 'Reportes', href: '/reports', icon: ChartBarIcon },
-  { name: 'Tenants', href: '/tenants', icon: BuildingOffice2Icon, requiresAdmin: true },
-  { name: 'Usuarios', href: '/users', icon: UserGroupIcon },
   {
     name: 'Configuración',
     icon: CogIcon,
     requiresAdmin: true,
     children: [
+      { name: 'Tenants', href: '/tenants', icon: BuildingOffice2Icon },
+      { name: 'Usuarios', href: '/users', icon: UserGroupIcon },
       { name: 'Impuestos', href: '/settings/taxes', icon: ReceiptPercentIcon },
       { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCardIcon },
       { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: BanknotesIcon },
