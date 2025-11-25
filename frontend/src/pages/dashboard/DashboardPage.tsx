@@ -33,14 +33,6 @@ const DashboardPage = () => {
     }).format(amount)
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
-  }
-
   const getStatusColor = (status: string) => {
     const statusMap: Record<string, string> = {
       draft: 'bg-gray-100 text-gray-800',

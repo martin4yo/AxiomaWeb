@@ -159,9 +159,6 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
-        categories: selectedCategories,
-        brands: selectedBrands
-      })
       const response = await api.post(`/${currentTenant!.slug}/products`, productData)
       return response.data
     },
@@ -181,9 +178,6 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
-        categories: selectedCategories,
-        brands: selectedBrands
-      })
       const response = await api.put(`/${currentTenant!.slug}/products/${product.id}`, productData)
       return response.data
     },
