@@ -74,7 +74,7 @@ const navigation: NavigationItem[] = [
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const location = useLocation()
-  const [expandedItems, setExpandedItems] = useState<string[]>(['Inventarios', 'Ventas', 'Configuración'])
+  const [expandedItems, setExpandedItems] = useState<string[]>([])
 
   const toggleExpanded = (itemName: string) => {
     setExpandedItems(prev =>
