@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
-import { TextArea } from '../ui/TextArea'
 import { useAuthStore } from '../../stores/authStore'
 import { branchesApi, type Branch } from '../../api/branches'
 
@@ -97,7 +96,7 @@ export default function BranchModal({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      size="2xl"
+      size="xl"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">

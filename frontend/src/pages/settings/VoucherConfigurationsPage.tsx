@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi, type VoucherConfiguration } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
@@ -8,7 +8,6 @@ import { api } from '../../services/api'
 export default function VoucherConfigurationsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
-  const [selectedConfig, setSelectedConfig] = useState<VoucherConfiguration | null>(null)
   const [afipCheckResult, setAfipCheckResult] = useState<{ show: boolean; data: any }>({ show: false, data: null })
   const [checkingConfigId, setCheckingConfigId] = useState<string | null>(null)
 
@@ -77,27 +76,6 @@ export default function VoucherConfigurationsPage() {
         alert(error.response?.data?.error || 'Error al eliminar la configuración')
       }
     }
-  }
-
-  const getConfigForVoucherAndBranch = (voucherTypeId: string, branchId: string | null) => {
-    return configurations.find(
-      c => c.voucherTypeId === voucherTypeId && (c.branchId === branchId || (!c.branchId && !branchId))
-    )
-  }
-
-  // Group voucher types by document class
-  const groupedVoucherTypes = voucherTypes.reduce((acc: any, vt: any) => {
-    const docClass = vt.documentClass
-    if (!acc[docClass]) acc[docClass] = []
-    acc[docClass].push(vt)
-    return acc
-  }, {})
-
-  const docClassLabels: any = {
-    'invoice': 'Facturas',
-    'credit_note': 'Notas de Crédito',
-    'debit_note': 'Notas de Débito',
-    'quote': 'Presupuestos'
   }
 
   if (isLoading) {

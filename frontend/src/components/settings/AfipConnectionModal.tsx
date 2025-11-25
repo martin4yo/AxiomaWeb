@@ -97,7 +97,7 @@ export default function AfipConnectionModal({
       isOpen={isOpen}
       onClose={onClose}
       title={title}
-      size="2xl"
+      size="xl"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
