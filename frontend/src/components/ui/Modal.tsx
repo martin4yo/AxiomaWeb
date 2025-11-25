@@ -40,10 +40,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
               <Dialog.Panel
                 className={`w-full transform overflow-hidden rounded-2xl bg-white text-left align-middle shadow-xl transition-all ${
                   {
-                    sm: 'max-w-md max-h-[80vh]',
-                    md: 'max-w-lg max-h-[85vh]',
-                    lg: 'max-w-2xl max-h-[90vh]',
-                    xl: 'max-w-6xl max-h-[95vh]'
+                    sm: 'max-w-md max-h-[80vh] min-h-[50vh]',
+                    md: 'max-w-lg max-h-[85vh] min-h-[60vh]',
+                    lg: 'max-w-2xl max-h-[90vh] min-h-[70vh]',
+                    xl: 'max-w-6xl max-h-[95vh] min-h-[80vh]'
                   }[size]
                 } flex flex-col`}
               >

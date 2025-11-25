@@ -12,25 +12,49 @@ export const api = axios.create({
   },
 })
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and tenant slug
 api.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token
-    console.log('🔍 Axios Interceptor - Debug:', {
-      token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
+    const authState = useAuthStore.getState()
+    const token = authState.token
+    const currentTenant = authState.currentTenant
+
+    console.log('🔍 Axios Interceptor - BEFORE:', {
+      baseURL: config.baseURL,
       url: config.url,
-      method: config.method,
-      hasAuthHeader: !!config.headers.Authorization
+      fullURL: config.baseURL + config.url,
+      token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
+      tenant: currentTenant?.slug || 'NO TENANT'
     })
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-      console.log('✅ Token added to request')
-    } else {
-      console.warn('⚠️ No token found in store')
+
+    // Add tenant slug to URL (except for auth endpoints)
+    if (currentTenant && config.url && !config.url.startsWith('/auth')) {
+      // Only add tenant slug if not already present
+      if (!config.url.includes(`/${currentTenant.slug}/`)) {
+        config.url = `/${currentTenant.slug}${config.url}`
+      }
     }
+
+    // Add auth token
+    if (token) {
+      config.headers = config.headers || {}
+      config.headers['Authorization'] = `Bearer ${token}`
+    }
+
+    console.log('🔍 Axios Interceptor - AFTER:', {
+      baseURL: config.baseURL,
+      url: config.url,
+      fullURL: config.baseURL + config.url,
+      method: config.method,
+      hasAuthHeader: !!config.headers?.['Authorization'],
+      authHeaderValue: config.headers?.['Authorization'] ? `${config.headers?.['Authorization'].substring(0, 20)}...` : 'NONE',
+      headers: config.headers
+    })
+
     return config
   },
   (error) => {
+    console.error('❌ Axios Interceptor - Error:', error)
     return Promise.reject(error)
   }
 )

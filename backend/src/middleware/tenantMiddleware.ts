@@ -55,9 +55,20 @@ export const tenantMiddleware = async (
       query: {
         $allModels: {
           async $allOperations({ model, operation, args, query }) {
-            // Auto-inject tenant_id for all operations
-            if (model === 'User' || model === 'Tenant') {
-              // Skip tenant isolation for User and Tenant models
+            // Models that should skip tenant isolation (don't have tenantId field)
+            const skipModels = [
+              'User',
+              'Tenant',
+              'SaleItem',
+              'SalePayment',
+              'EntityDeliveryAddress',
+              'EntityCustomerCategory',
+              'ProductCategoryMapping',
+              'ProductBrandMapping',
+              'DocumentItem'
+            ]
+
+            if (skipModels.includes(model)) {
               return query(args)
             }
 

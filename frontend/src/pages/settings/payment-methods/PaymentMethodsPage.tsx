@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
+import { api } from '../../../services/api'
 
 const paymentMethodSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -47,13 +48,11 @@ export default function PaymentMethodsPage() {
   const { data: paymentMethods, isLoading } = useQuery({
     queryKey: ['payment-methods', currentTenant?.slug, search],
     queryFn: async () => {
-      const params = new URLSearchParams()
-      if (search) params.append('search', search)
+      const params: any = {}
+      if (search) params.search = search
 
-      const response = await fetch(`/api/${currentTenant!.slug}/payment-methods?${params}`)
-      if (!response.ok) throw new Error('Error fetching payment methods')
-      const data = await response.json()
-      return data.paymentMethods || []
+      const response = await api.get('/payment-methods', { params })
+      return response.data.paymentMethods || []
     },
     enabled: !!currentTenant
   })
@@ -61,13 +60,8 @@ export default function PaymentMethodsPage() {
   // Create payment method mutation
   const createPaymentMethod = useMutation({
     mutationFn: async (data: PaymentMethodForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/payment-methods`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al crear forma de pago')
-      return response.json()
+      const response = await api.post('/payment-methods', data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-methods'] })
@@ -79,13 +73,8 @@ export default function PaymentMethodsPage() {
   // Update payment method mutation
   const updatePaymentMethod = useMutation({
     mutationFn: async (data: PaymentMethodForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/payment-methods/${selectedPaymentMethod.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al actualizar forma de pago')
-      return response.json()
+      const response = await api.put(`/payment-methods/${selectedPaymentMethod.id}`, data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-methods'] })
@@ -97,11 +86,8 @@ export default function PaymentMethodsPage() {
   // Delete payment method mutation
   const deletePaymentMethod = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/payment-methods/${id}`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Error al eliminar forma de pago')
-      return response.json()
+      const response = await api.delete(`/payment-methods/${id}`)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-methods'] })

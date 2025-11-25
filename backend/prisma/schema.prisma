@@ -21,6 +21,10 @@ model Tenant {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Datos fiscales del tenant
+  vatConditionId  String?  @map("vat_condition_id")
+  cuit            String?
+
   // Relations
   tenantUsers       TenantUser[]
   documentTypes     DocumentType[]
@@ -31,12 +35,15 @@ model Tenant {
   taxes             Tax[]
   paymentMethods    PaymentMethod[]
   vatConditions     VatCondition[]
+  tenantVatCondition VatCondition? @relation("TenantVatCondition", fields: [vatConditionId], references: [id])
   products          Product[]
   documents         Document[]
   documentItems     DocumentItem[]
   warehouses        Warehouse[]
   stockMovements    StockMovement[]
   stockAdjustments  StockAdjustment[]
+  sales             Sale[]
+  afipConfiguration AfipConfiguration?
 
   @@map("tenants")
 }
@@ -59,6 +66,7 @@ model User {
   updatedDocuments Document[] @relation("DocumentUpdatedBy")
   stockMovements   StockMovement[]
   stockAdjustments StockAdjustment[]
+  createdSales     Sale[] @relation("SaleCreatedBy")
 
   @@map("users")
 }
@@ -152,6 +160,7 @@ model Entity {
   customerCategories   EntityCustomerCategory[]
   documents            Document[]
   deliveryAddresses    EntityDeliveryAddress[]
+  sales                Sale[]
 
   @@unique([tenantId, code])
   @@map("entities")
@@ -266,7 +275,8 @@ model PaymentMethod {
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  salePayments SalePayment[]
 
   @@unique([tenantId, name])
   @@map("payment_methods")
@@ -286,7 +296,8 @@ model VatCondition {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantsUsingThis Tenant[] @relation("TenantVatCondition")
 
   @@unique([tenantId, code])
   @@map("vat_conditions")
@@ -322,6 +333,7 @@ model Product {
   documentItems       DocumentItem[]
   warehouseStocks     WarehouseStock[]
   stockMovements      StockMovement[]
+  saleItems           SaleItem[]
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -360,6 +372,7 @@ model Document {
   creator           User           @relation("DocumentCreatedBy", fields: [createdBy], references: [id])
   updater           User?          @relation("DocumentUpdatedBy", fields: [updatedBy], references: [id])
   items             DocumentItem[]
+  sales             Sale[]
 
   @@unique([tenantId, documentTypeId, number])
   @@map("documents")
@@ -410,6 +423,7 @@ model Warehouse {
   warehouseStocks WarehouseStock[]
   stockMovements  StockMovement[]
   stockAdjustments StockAdjustment[]
+  sales           Sale[]
 
   @@unique([tenantId, code])
   @@map("warehouses")
@@ -554,4 +568,178 @@ model EntityCustomerCategory {
 
   @@unique([entityId, customerCategoryId])
   @@map("entity_customer_categories")
+}
+
+// 💰 VENTAS
+model Sale {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  saleNumber      String   @map("sale_number")
+  saleDate        DateTime @default(now()) @map("sale_date") @db.Date
+  customerId      String?  @map("customer_id")
+  customerName    String?  @map("customer_name")
+
+  // Montos
+  subtotal        Decimal  @default(0) @db.Decimal(15, 2)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  taxAmount       Decimal  @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal  @default(0) @map("total_amount") @db.Decimal(15, 2)
+
+  // Estado de pago
+  paidAmount      Decimal  @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  balanceAmount   Decimal  @default(0) @map("balance_amount") @db.Decimal(15, 2)
+  paymentStatus   String   @default("pending") @map("payment_status") // pending, partial, paid
+
+  // Facturación AFIP
+  invoiceId       String?  @map("invoice_id") // Relación con Document si se facturó
+  afipStatus      String?  @default("not_sent") @map("afip_status") // not_sent, pending, authorized, rejected
+  afipCae         String?  @map("afip_cae")
+  afipCaeExpiry   DateTime? @map("afip_cae_expiry")
+  voucherType     String?  @map("voucher_type") // "FC_A", "FC_B", "FC_C"
+
+  // Almacén de donde se descontó el stock
+  warehouseId     String?  @map("warehouse_id")
+
+  // Tipo de cliente
+  customerType    String   @default("final") @map("customer_type") // "registered", "final"
+
+  // Descuento a nivel venta
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)
+
+  // Metadatos
+  notes           String?
+  metadata        Json     @default("{}")
+
+  // Auditoría
+  status          String   @default("completed") // draft, completed, cancelled
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer  Entity?      @relation(fields: [customerId], references: [id])
+  warehouse Warehouse?   @relation(fields: [warehouseId], references: [id])
+  invoice   Document?    @relation(fields: [invoiceId], references: [id])
+  creator   User         @relation("SaleCreatedBy", fields: [createdBy], references: [id])
+  items     SaleItem[]
+  payments  SalePayment[]
+
+  @@unique([tenantId, saleNumber])
+  @@index([tenantId, saleDate])
+  @@index([tenantId, paymentStatus])
+  @@map("sales")
+}
+
+// 📝 ITEMS DE VENTA
+model SaleItem {
+  id              String  @id @default(cuid())
+  saleId          String  @map("sale_id")
+  lineNumber      Int     @map("line_number")
+  productId       String? @map("product_id")
+  productSku      String? @map("product_sku")
+  productName     String  @map("product_name")
+  description     String?
+
+  // Cantidades y precios
+  quantity        Decimal @db.Decimal(15, 4)
+  unitPrice       Decimal @map("unit_price") @db.Decimal(15, 4)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(15, 2)
+
+  // Impuestos
+  taxRate         Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+
+  // Totales
+  subtotal        Decimal @db.Decimal(15, 2)
+  lineTotal       Decimal @map("line_total") @db.Decimal(15, 2)
+
+  // Costo (para cálculo de margen)
+  unitCost        Decimal? @map("unit_cost") @db.Decimal(15, 4)
+  totalCost       Decimal? @map("total_cost") @db.Decimal(15, 2)
+
+  // Flag para saber si el precio incluye IVA
+  priceIncludesTax Boolean @default(true) @map("price_includes_tax")
+
+  metadata        Json    @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // Relations
+  sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+// 💳 PAGOS DE VENTA
+model SalePayment {
+  id                String   @id @default(cuid())
+  saleId            String   @map("sale_id")
+  paymentMethodId   String   @map("payment_method_id")
+  paymentMethodName String   @map("payment_method_name")
+
+  // Monto
+  amount            Decimal  @db.Decimal(15, 2)
+
+  // Referencias (cheque, transferencia, etc)
+  reference         String?
+  referenceDate     DateTime? @map("reference_date")
+
+  // Estado del pago
+  status            String   @default("completed") // pending, completed, cancelled
+  collectionDate    DateTime? @map("collection_date") // Fecha efectiva de cobro
+
+  // Notas
+  notes             String?
+  metadata          Json     @default("{}")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@index([saleId])
+  @@index([paymentMethodId])
+  @@index([status])
+  @@index([collectionDate])
+  @@map("sale_payments")
+}
+
+// 🧾 CONFIGURACIÓN AFIP
+model AfipConfiguration {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique @map("tenant_id")
+
+  // Credenciales
+  cuit            String
+  certificatePath String?  @map("certificate_path")
+  privateKeyPath  String?  @map("private_key_path")
+  certificate     String?  @db.Text // Contenido del certificado
+  privateKey      String?  @map("private_key") @db.Text // Contenido de la clave privada
+
+  // Ambiente
+  environment     String   @default("testing") // testing, production
+
+  // Puntos de venta
+  salesPoints     Json     @default("[]") @map("sales_points") // [{ pointOfSale: 1, lastNumber: 0, voucherType: "FC_A" }]
+
+  // Token de acceso (cache)
+  accessToken     String?  @map("access_token") @db.Text
+  tokenExpiry     DateTime? @map("token_expiry")
+
+  // Estado
+  isActive        Boolean  @default(false) @map("is_active")
+  lastSync        DateTime? @map("last_sync")
+
+  metadata        Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("afip_configurations")
 }

@@ -7,7 +7,7 @@ import DashboardPage from '@/pages/dashboard/DashboardPage'
 import EntitiesPage from '@/pages/entities/EntitiesPage'
 import ProductsPage from '@/pages/products/ProductsPage'
 import DocumentsPage from '@/pages/documents/DocumentsPage'
-import { InventoryPage } from '@/pages/inventory/InventoryPage'
+import WarehousesPage from '@/pages/inventory/WarehousesPage'
 import ProductCategoriesPage from '@/pages/product-categories/ProductCategoriesPage'
 import ProductBrandsPage from '@/pages/product-brands/ProductBrandsPage'
 import CustomersPage from '@/pages/customers/CustomersPage'
@@ -16,6 +16,9 @@ import TaxesPage from '@/pages/settings/taxes/TaxesPage'
 import PaymentMethodsPage from '@/pages/settings/payment-methods/PaymentMethodsPage'
 import VatConditionsPage from '@/pages/settings/vat-conditions/VatConditionsPage'
 import SettingsDocumentsPage from '@/pages/settings/documents/DocumentsPage'
+import SalesPage from '@/pages/sales/SalesPage'
+import NewSalePage from '@/pages/sales/NewSalePage'
+import ReportsPage from '@/pages/reports/ReportsPage'
 
 function App() {
   const { isAuthenticated, currentTenant, _hasHydrated } = useAuthStore()
@@ -55,12 +58,15 @@ function App() {
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customer-categories" element={<CustomerCategoriesPage />} />
         <Route path="documents" element={<DocumentsPage />} />
-        <Route path="inventory" element={<InventoryPage />} />
+        <Route path="inventory/warehouses" element={<WarehousesPage />} />
+        <Route path="sales" element={<SalesPage />} />
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="settings/taxes" element={<TaxesPage />} />
         <Route path="settings/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="settings/vat-conditions" element={<VatConditionsPage />} />
         <Route path="settings/documents" element={<SettingsDocumentsPage />} />
       </Route>
+      <Route path="/sales/new" element={<NewSalePage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

@@ -2,25 +2,25 @@
 
 # Script para matar procesos en los puertos del backend y frontend
 
-echo "🔍 Buscando procesos en puerto 3001 (backend)..."
-PID_3001=$(lsof -ti:3001)
-if [ ! -z "$PID_3001" ]; then
-    echo "💀 Matando proceso en puerto 3001: $PID_3001"
-    kill -9 $PID_3001
-    echo "✅ Proceso en puerto 3001 eliminado"
+echo "🔍 Buscando procesos en puerto 3150 (backend)..."
+PID_3150=$(lsof -ti:3150)
+if [ ! -z "$PID_3150" ]; then
+    echo "💀 Matando proceso en puerto 3150: $PID_3150"
+    kill -9 $PID_3150
+    echo "✅ Proceso en puerto 3150 eliminado"
 else
-    echo "✅ No hay procesos corriendo en puerto 3001"
+    echo "✅ No hay procesos corriendo en puerto 3150"
 fi
 
 echo ""
-echo "🔍 Buscando procesos en puerto 5173 (frontend)..."
-PID_5173=$(lsof -ti:5173)
-if [ ! -z "$PID_5173" ]; then
-    echo "💀 Matando proceso en puerto 5173: $PID_5173"
-    kill -9 $PID_5173
-    echo "✅ Proceso en puerto 5173 eliminado"
+echo "🔍 Buscando procesos en puerto 8088 (frontend)..."
+PID_8088=$(lsof -ti:8088)
+if [ ! -z "$PID_8088" ]; then
+    echo "💀 Matando proceso en puerto 8088: $PID_8088"
+    kill -9 $PID_8088
+    echo "✅ Proceso en puerto 8088 eliminado"
 else
-    echo "✅ No hay procesos corriendo en puerto 5173"
+    echo "✅ No hay procesos corriendo en puerto 8088"
 fi
 
 echo ""

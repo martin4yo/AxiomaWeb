@@ -54,8 +54,8 @@ npm run db:migrate
 npm run db:seed
 
 # La aplicación estará disponible en:
-# Frontend: http://localhost:5173
-# Backend: http://localhost:3001
+# Frontend: http://localhost:8088 (configurable en frontend/.env - VITE_PORT)
+# Backend: http://localhost:3150 (configurable en backend/.env - PORT)
 # Base de datos: localhost:5432
 ```
 

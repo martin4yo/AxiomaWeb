@@ -4,7 +4,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 
 const DashboardLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
   return (
     <div className="min-h-screen bg-gray-50">

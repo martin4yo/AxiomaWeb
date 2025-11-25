@@ -28,6 +28,37 @@ const productSchema = z.object({
   brands: z.array(z.string()).optional()
 })
 
+// Get top selling products
+router.get('/top-selling', authMiddleware, async (req, res, next) => {
+  try {
+    const limit = Number(req.query.limit) || 5
+
+    // Get products with most sales
+    const topProducts = await req.tenantDb!.$queryRaw`
+      SELECT
+        p.id,
+        p.sku,
+        p.name,
+        p.sale_price,
+        p.current_stock,
+        COALESCE(SUM(si.quantity), 0)::decimal as total_quantity_sold,
+        COUNT(DISTINCT si.sale_id)::int as sales_count
+      FROM products p
+      LEFT JOIN sale_items si ON si.product_id = p.id
+      LEFT JOIN sales s ON s.id = si.sale_id AND s.status != 'cancelled'
+      WHERE p.tenant_id = ${req.tenant!.id}
+        AND p.is_active = true
+      GROUP BY p.id, p.sku, p.name, p.sale_price, p.current_stock
+      ORDER BY total_quantity_sold DESC, sales_count DESC
+      LIMIT ${limit}
+    `
+
+    res.json({ products: topProducts })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // Get all products
 router.get('/', authMiddleware, async (req, res, next) => {
   try {
@@ -55,7 +86,19 @@ router.get('/', authMiddleware, async (req, res, next) => {
         where,
         skip,
         take,
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          productCategories: {
+            include: {
+              category: true
+            }
+          },
+          productBrands: {
+            include: {
+              brand: true
+            }
+          }
+        }
       }),
       req.tenantDb!.product.count({ where })
     ])
@@ -78,7 +121,19 @@ router.get('/', authMiddleware, async (req, res, next) => {
 router.get('/:id', authMiddleware, async (req, res, next) => {
   try {
     const product = await req.tenantDb!.product.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
+      include: {
+        productCategories: {
+          include: {
+            category: true
+          }
+        },
+        productBrands: {
+          include: {
+            brand: true
+          }
+        }
+      }
     })
 
     if (!product) {

@@ -42,12 +42,14 @@ const navigation: NavigationItem[] = [
       { name: 'Productos', href: '/products', icon: ArchiveBoxIcon },
       { name: 'Categorías', href: '/product-categories', icon: TagIcon },
       { name: 'Marcas', href: '/product-brands', icon: BuildingStorefrontIcon },
+      { name: 'Almacenes', href: '/inventory/warehouses', icon: BuildingStorefrontIcon },
     ]
   },
   {
     name: 'Ventas',
     icon: ShoppingCartIcon,
     children: [
+      { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCartIcon },
       { name: 'Clientes', href: '/customers', icon: UserGroupIcon },
       { name: 'Categorías de Clientes', href: '/customer-categories', icon: RectangleGroupIcon },
     ]

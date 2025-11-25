@@ -17,6 +17,9 @@ import productCategoryRoutes from './routes/product-categories.js'
 import productBrandRoutes from './routes/product-brands.js'
 import customerCategoryRoutes from './routes/customer-categories.js'
 import inventoryRoutes from './routes/inventoryRoutes.js'
+import salesRoutes from './routes/sales.js'
+import paymentMethodRoutes from './routes/payment-methods.js'
+import reportsRoutes from './routes/reports.js'
 
 // Load environment variables
 config()
@@ -67,6 +70,9 @@ app.use('/api/:tenantSlug/product-categories', productCategoryRoutes)
 app.use('/api/:tenantSlug/product-brands', productBrandRoutes)
 app.use('/api/:tenantSlug/customer-categories', customerCategoryRoutes)
 app.use('/api/:tenantSlug/inventory', inventoryRoutes)
+app.use('/api/:tenantSlug/sales', salesRoutes)
+app.use('/api/:tenantSlug/payment-methods', paymentMethodRoutes)
+app.use('/api/:tenantSlug/reports', reportsRoutes)
 
 // Error handling
 app.use(errorHandler)

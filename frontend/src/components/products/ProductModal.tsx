@@ -110,9 +110,11 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         dimensions: product.dimensions || '',
         notes: product.notes || ''
       })
-      // TODO: Fetch product's categories and brands from M:N tables
-      setSelectedCategories(product.categories || [])
-      setSelectedBrands(product.brands || [])
+      // Map productCategories and productBrands from backend structure
+      const categoryIds = product.productCategories?.map((pc: any) => pc.categoryId) || []
+      const brandIds = product.productBrands?.map((pb: any) => pb.brandId) || []
+      setSelectedCategories(categoryIds)
+      setSelectedBrands(brandIds)
     } else {
       // Reset to default values for create mode
       reset({
@@ -158,6 +160,10 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
+      console.log('🔍 Creando producto con:', {
+        categories: selectedCategories,
+        brands: selectedBrands
+      })
       const response = await api.post(`/${currentTenant!.slug}/products`, productData)
       return response.data
     },
@@ -177,6 +183,10 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
+      console.log('🔍 Actualizando producto con:', {
+        categories: selectedCategories,
+        brands: selectedBrands
+      })
       const response = await api.put(`/${currentTenant!.slug}/products/${product.id}`, productData)
       return response.data
     },
