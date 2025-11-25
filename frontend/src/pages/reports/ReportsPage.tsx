@@ -79,7 +79,6 @@ export default function ReportsPage() {
   const { dateFrom, dateTo } = getDateRange()
 
   // Debug: Log date range
-  console.log('📅 Date Range:', { dateFrom, dateTo, filter: dateFilter })
 
   // Fetch reports data
   const { data: salesByProductData, isLoading: loadingSalesByProduct, refetch: refetchSalesByProduct } = useQuery({
@@ -124,7 +123,6 @@ export default function ReportsPage() {
   const summary = salesSummaryData?.summary
 
   // Debug: Log summary data
-  console.log('📊 Summary Data:', { summary, salesSummaryData, loading: loadingSummary })
 
   // Calculate max values for bar charts
   const maxSalesAmount = salesByProductData?.salesByProduct

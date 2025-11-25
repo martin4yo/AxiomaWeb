@@ -159,7 +159,6 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
-      console.log('🔍 Creando producto con:', {
         categories: selectedCategories,
         brands: selectedBrands
       })
@@ -182,7 +181,6 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         categories: selectedCategories,
         brands: selectedBrands
       }
-      console.log('🔍 Actualizando producto con:', {
         categories: selectedCategories,
         brands: selectedBrands
       })

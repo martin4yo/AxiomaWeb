@@ -19,14 +19,6 @@ api.interceptors.request.use(
     const token = authState.token
     const currentTenant = authState.currentTenant
 
-    console.log('🔍 Axios Interceptor - BEFORE:', {
-      baseURL: config.baseURL,
-      url: config.url,
-      fullURL: (config.baseURL || '') + (config.url || ''),
-      token: token ? `${token.substring(0, 20)}...` : 'NO TOKEN',
-      tenant: currentTenant?.slug || 'NO TENANT'
-    })
-
     // Add tenant slug to URL (except for auth endpoints)
     if (currentTenant && config.url && !config.url.startsWith('/auth')) {
       // Only add tenant slug if not already present
@@ -41,20 +33,9 @@ api.interceptors.request.use(
       config.headers['Authorization'] = `Bearer ${token}`
     }
 
-    console.log('🔍 Axios Interceptor - AFTER:', {
-      baseURL: config.baseURL,
-      url: config.url,
-      fullURL: (config.baseURL || '') + (config.url || ''),
-      method: config.method,
-      hasAuthHeader: !!config.headers?.['Authorization'],
-      authHeaderValue: config.headers?.['Authorization'] ? `${String(config.headers['Authorization']).substring(0, 20)}...` : 'NONE',
-      headers: config.headers
-    })
-
     return config
   },
   (error) => {
-    console.error('❌ Axios Interceptor - Error:', error)
     return Promise.reject(error)
   }
 )

@@ -156,7 +156,7 @@ const DocumentsPage = () => {
           </TableHeader>
           <TableBody>
             {documents.map((document) => (
-              <TableRow key={document.id} onClick={() => console.log('View', document.id)}>
+              <TableRow key={document.id} onClick={() => {}}>
                 <TableCell>
                   <div>
                     <div className="font-medium text-gray-900">

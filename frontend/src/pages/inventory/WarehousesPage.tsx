@@ -46,9 +46,7 @@ export default function WarehousesPage() {
   // Create warehouse mutation
   const createWarehouse = useMutation({
     mutationFn: async (data: WarehouseForm) => {
-      console.log('📤 Enviando datos del almacén:', data)
       const response = await api.post('/inventory/warehouses', data)
-      console.log('✅ Respuesta del servidor:', response.data)
       return response.data
     },
     onSuccess: () => {

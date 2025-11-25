@@ -24,12 +24,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       // Actions
       login: (token: string, user: User, tenants: Tenant[]) => {
-        console.log('🔐 AuthStore: login called', {
-          hasToken: !!token,
-          tokenLength: token?.length,
-          userEmail: user.email,
-          tenantsCount: tenants.length
-        })
         set({
           token,
           user,
@@ -37,7 +31,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           isAuthenticated: true,
           currentTenant: tenants[0] || null, // Default to first tenant
         })
-        console.log('✅ AuthStore: State updated, token saved')
       },
 
       logout: () => {
@@ -77,10 +70,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        console.log('💧 AuthStore: Hydration complete', {
-          hasToken: !!state?.token,
-          isAuthenticated: state?.isAuthenticated
-        })
         state?.setHasHydrated(true)
       },
     }
