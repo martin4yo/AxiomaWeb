@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { clsx } from 'clsx'
 import { useState } from 'react'
+import { useAuthStore } from '../../stores/authStore'
 import {
   HomeIcon,
   DocumentTextIcon,
@@ -32,6 +33,7 @@ interface NavigationItem {
   href?: string
   icon: any
   children?: NavigationItem[]
+  requiresAdmin?: boolean  // Nueva propiedad para indicar si requiere admin
 }
 
 const navigation: NavigationItem[] = [
@@ -58,11 +60,12 @@ const navigation: NavigationItem[] = [
   { name: 'Entidades', href: '/entities', icon: UserGroupIcon },
   { name: 'Documentos', href: '/documents', icon: DocumentTextIcon },
   { name: 'Reportes', href: '/reports', icon: ChartBarIcon },
-  { name: 'Tenants', href: '/tenants', icon: BuildingOffice2Icon },
+  { name: 'Tenants', href: '/tenants', icon: BuildingOffice2Icon, requiresAdmin: true },
   { name: 'Usuarios', href: '/users', icon: UserGroupIcon },
   {
     name: 'Configuración',
     icon: CogIcon,
+    requiresAdmin: true,
     children: [
       { name: 'Impuestos', href: '/settings/taxes', icon: ReceiptPercentIcon },
       { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCardIcon },
@@ -74,6 +77,7 @@ const navigation: NavigationItem[] = [
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const location = useLocation()
+  const { currentTenant } = useAuthStore()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
 
   const toggleExpanded = (itemName: string) => {
@@ -83,6 +87,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         : [...prev, itemName]
     )
   }
+
+  // Función para verificar si el usuario es admin o superadmin
+  const isAdminOrSuperAdmin = () => {
+    const role = currentTenant?.role?.toLowerCase()
+    return role === 'admin' || role === 'superadmin'
+  }
+
+  // Filtrar navegación según permisos
+  const filteredNavigation = navigation.filter(item => {
+    if (item.requiresAdmin) {
+      return isAdminOrSuperAdmin()
+    }
+    return true
+  })
 
   const renderNavigationItem = (item: NavigationItem, level = 0) => {
     const hasChildren = item.children && item.children.length > 0
@@ -163,7 +181,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
           {/* Navigation */}
           <nav className="mt-8 flex-1 px-4 space-y-1">
-            {navigation.map(item => renderNavigationItem(item))}
+            {filteredNavigation.map(item => renderNavigationItem(item))}
           </nav>
         </div>
       </div>
@@ -190,7 +208,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-            {navigation.map(item => {
+            {filteredNavigation.map(item => {
               const renderedItem = renderNavigationItem(item)
               // Add click handler to close mobile menu when navigating
               if (item.href) {

@@ -348,6 +348,187 @@ async function main() {
 
   console.log('✅ Demo warehouse stock created')
 
+  // ============================================
+  // SISTEMA DE FACTURACIÓN
+  // ============================================
+
+  console.log('📄 Creating voucher types...')
+
+  // Crear tipos de comprobante
+  const voucherTypes = [
+    // Facturas
+    { code: 'FA', name: 'Factura A', letter: 'A', documentClass: 'INVOICE', afipCode: 1, requiresCae: true, discriminatesVat: true },
+    { code: 'FB', name: 'Factura B', letter: 'B', documentClass: 'INVOICE', afipCode: 6, requiresCae: true, discriminatesVat: false },
+    { code: 'FC', name: 'Factura C', letter: 'C', documentClass: 'INVOICE', afipCode: 11, requiresCae: true, discriminatesVat: false },
+
+    // Notas de Crédito
+    { code: 'NCA', name: 'Nota de Crédito A', letter: 'A', documentClass: 'CREDIT_NOTE', afipCode: 3, requiresCae: true, discriminatesVat: true },
+    { code: 'NCB', name: 'Nota de Crédito B', letter: 'B', documentClass: 'CREDIT_NOTE', afipCode: 8, requiresCae: true, discriminatesVat: false },
+    { code: 'NCC', name: 'Nota de Crédito C', letter: 'C', documentClass: 'CREDIT_NOTE', afipCode: 13, requiresCae: true, discriminatesVat: false },
+
+    // Notas de Débito
+    { code: 'NDA', name: 'Nota de Débito A', letter: 'A', documentClass: 'DEBIT_NOTE', afipCode: 2, requiresCae: true, discriminatesVat: true },
+    { code: 'NDB', name: 'Nota de Débito B', letter: 'B', documentClass: 'DEBIT_NOTE', afipCode: 7, requiresCae: true, discriminatesVat: false },
+    { code: 'NDC', name: 'Nota de Débito C', letter: 'C', documentClass: 'DEBIT_NOTE', afipCode: 12, requiresCae: true, discriminatesVat: false },
+
+    // Presupuesto (no fiscal)
+    { code: 'PR', name: 'Presupuesto', letter: 'X', documentClass: 'QUOTE', afipCode: null, requiresCae: false, discriminatesVat: false }
+  ]
+
+  for (const vt of voucherTypes) {
+    await prisma.voucherType.upsert({
+      where: { code: vt.code },
+      update: vt,
+      create: vt
+    })
+  }
+
+  console.log(`✅ Created ${voucherTypes.length} voucher types`)
+
+  // Actualizar condiciones de IVA con códigos AFIP
+  console.log('💼 Updating VAT conditions with AFIP codes...')
+
+  const vatConditions = await prisma.vatCondition.findMany({
+    where: { tenantId: demoTenant.id }
+  })
+
+  for (const vc of vatConditions) {
+    let afipCode = null
+    let canIssueA = false
+    let issuesOnlyC = false
+
+    switch (vc.code) {
+      case 'RI':
+        afipCode = 1
+        canIssueA = true
+        break
+      case 'MT':
+        afipCode = 6
+        issuesOnlyC = true
+        break
+      case 'CF':
+        afipCode = 5
+        break
+      case 'EX':
+        afipCode = 4
+        break
+      case 'NR':
+        afipCode = 7
+        break
+    }
+
+    await prisma.vatCondition.update({
+      where: { id: vc.id },
+      data: { afipCode, canIssueA, issuesOnlyC }
+    })
+  }
+
+  console.log('✅ VAT conditions updated with AFIP codes')
+
+  // Crear sucursal por defecto
+  console.log('🏢 Creating default branch...')
+
+  const defaultBranch = await prisma.branch.upsert({
+    where: {
+      tenantId_code: {
+        tenantId: demoTenant.id,
+        code: 'CENTRAL'
+      }
+    },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      code: 'CENTRAL',
+      name: 'Casa Central',
+      addressLine1: 'Av. Corrientes 1234',
+      city: 'Buenos Aires',
+      state: 'CABA',
+      postalCode: '1043',
+      isDefault: true,
+      isActive: true
+    }
+  })
+
+  console.log('✅ Default branch created:', defaultBranch.name)
+
+  // Crear conexión AFIP de testing
+  console.log('🔌 Creating AFIP connection...')
+
+  const afipConnection = await prisma.afipConnection.upsert({
+    where: {
+      id: 'demo-afip-testing' // ID fijo para el demo
+    },
+    update: {},
+    create: {
+      id: 'demo-afip-testing',
+      tenantId: demoTenant.id,
+      name: 'Testing AFIP',
+      description: 'Configuración de homologación para testing',
+      cuit: '20123456789',
+      environment: 'testing',
+      isActive: true
+    }
+  })
+
+  console.log('✅ AFIP connection created:', afipConnection.name)
+
+  // Crear punto de venta
+  console.log('📊 Creating sales point...')
+
+  const salesPoint = await prisma.salesPoint.upsert({
+    where: {
+      tenantId_number: {
+        tenantId: demoTenant.id,
+        number: 1
+      }
+    },
+    update: {},
+    create: {
+      tenantId: demoTenant.id,
+      number: 1,
+      name: 'Punto de Venta 1',
+      description: 'PV principal',
+      isActive: true
+    }
+  })
+
+  console.log('✅ Sales point created:', salesPoint.name)
+
+  // Configurar comprobantes para la sucursal (solo facturas por ahora)
+  console.log('⚙️ Creating voucher configurations...')
+
+  const voucherTypesToConfigure = ['FA', 'FB', 'FC']
+
+  for (const vtCode of voucherTypesToConfigure) {
+    const voucherType = await prisma.voucherType.findUnique({
+      where: { code: vtCode }
+    })
+
+    if (voucherType) {
+      await prisma.voucherConfiguration.upsert({
+        where: {
+          tenantId_voucherTypeId_branchId: {
+            tenantId: demoTenant.id,
+            voucherTypeId: voucherType.id,
+            branchId: defaultBranch.id
+          }
+        },
+        update: {},
+        create: {
+          tenantId: demoTenant.id,
+          voucherTypeId: voucherType.id,
+          branchId: defaultBranch.id,
+          afipConnectionId: afipConnection.id,
+          salesPointId: salesPoint.id,
+          nextVoucherNumber: 1,
+          isActive: true
+        }
+      })
+    }
+  }
+
+  console.log('✅ Voucher configurations created')
+
   console.log('🎉 Seeding completed successfully!')
   console.log('')
   console.log('Demo credentials:')

@@ -44,6 +44,10 @@ model Tenant {
   stockAdjustments  StockAdjustment[]
   sales             Sale[]
   afipConfiguration AfipConfiguration?
+  branches          Branch[]
+  afipConnections   AfipConnection[]
+  salesPoints       SalesPoint[]
+  voucherConfigurations VoucherConfiguration[]
 
   @@map("tenants")
 }
@@ -284,16 +288,19 @@ model PaymentMethod {
 
 // 💼 CONDICIONES DE IVA
 model VatCondition {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  name        String
-  code        String
-  description String?
-  taxRate     Decimal? @map("tax_rate") @db.Decimal(5, 2)
-  isExempt    Boolean  @default(false) @map("is_exempt")
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(cuid())
+  tenantId       String   @map("tenant_id")
+  name           String
+  code           String
+  description    String?
+  taxRate        Decimal? @map("tax_rate") @db.Decimal(5, 2)
+  isExempt       Boolean  @default(false) @map("is_exempt")
+  isActive       Boolean  @default(true) @map("is_active")
+  afipCode       Int?     @map("afip_code")
+  canIssueA      Boolean  @default(false) @map("can_issue_a")
+  issuesOnlyC    Boolean  @default(false) @map("issues_only_c")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   // Relations
   tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -592,12 +599,26 @@ model Sale {
   balanceAmount   Decimal  @default(0) @map("balance_amount") @db.Decimal(15, 2)
   paymentStatus   String   @default("pending") @map("payment_status") // pending, partial, paid
 
-  // Facturación AFIP
-  invoiceId       String?  @map("invoice_id") // Relación con Document si se facturó
-  afipStatus      String?  @default("not_sent") @map("afip_status") // not_sent, pending, authorized, rejected
+  // Facturación AFIP (campos legacy - mantener por compatibilidad)
+  invoiceId       String?  @map("invoice_id")
+  afipStatus      String?  @default("not_sent") @map("afip_status")
   afipCae         String?  @map("afip_cae")
   afipCaeExpiry   DateTime? @map("afip_cae_expiry")
-  voucherType     String?  @map("voucher_type") // "FC_A", "FC_B", "FC_C"
+  voucherType     String?  @map("voucher_type")
+
+  // Nueva estructura de facturación
+  branchId              String?  @map("branch_id")
+  documentClass         String?  @map("document_class") // 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'QUOTE'
+  voucherTypeId         String?  @map("voucher_type_id")
+  voucherConfigurationId String? @map("voucher_configuration_id")
+  salesPointNumber      Int?     @map("sales_point_number")
+  voucherNumber         Int?     @map("voucher_number")
+  fullVoucherNumber     String?  @map("full_voucher_number")
+  cae                   String?
+  caeExpiration         DateTime? @map("cae_expiration")
+  afipRequest           Json?    @map("afip_request")
+  afipResponse          Json?    @map("afip_response")
+  qrData                String?  @map("qr_data") @db.Text
 
   // Almacén de donde se descontó el stock
   warehouseId     String?  @map("warehouse_id")
@@ -619,17 +640,23 @@ model Sale {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  customer  Entity?      @relation(fields: [customerId], references: [id])
-  warehouse Warehouse?   @relation(fields: [warehouseId], references: [id])
-  invoice   Document?    @relation(fields: [invoiceId], references: [id])
-  creator   User         @relation("SaleCreatedBy", fields: [createdBy], references: [id])
-  items     SaleItem[]
-  payments  SalePayment[]
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer             Entity?                @relation(fields: [customerId], references: [id])
+  warehouse            Warehouse?             @relation(fields: [warehouseId], references: [id])
+  invoice              Document?              @relation(fields: [invoiceId], references: [id])
+  creator              User                   @relation("SaleCreatedBy", fields: [createdBy], references: [id])
+  branch               Branch?                @relation("SaleBranch", fields: [branchId], references: [id])
+  voucherTypeRelation  VoucherType?           @relation(fields: [voucherTypeId], references: [id])
+  voucherConfiguration VoucherConfiguration?  @relation(fields: [voucherConfigurationId], references: [id])
+  items                SaleItem[]
+  payments             SalePayment[]
 
   @@unique([tenantId, saleNumber])
   @@index([tenantId, saleDate])
   @@index([tenantId, paymentStatus])
+  @@index([branchId])
+  @@index([voucherTypeId])
+  @@index([fullVoucherNumber])
   @@map("sales")
 }
 
@@ -744,4 +771,115 @@ model AfipConfiguration {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@map("afip_configurations")
+}
+
+// 🏢 SUCURSALES
+model Branch {
+  id           String   @id @default(cuid())
+  tenantId     String   @map("tenant_id")
+  code         String
+  name         String
+  addressLine1 String?  @map("address_line1")
+  addressLine2 String?  @map("address_line2")
+  city         String?
+  state        String?
+  postalCode   String?  @map("postal_code")
+  phone        String?
+  email        String?
+  isDefault    Boolean  @default(false) @map("is_default")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  voucherConfigurations VoucherConfiguration[]
+  sales                 Sale[]                   @relation("SaleBranch")
+
+  @@unique([tenantId, code])
+  @@map("branches")
+}
+
+// 🔌 CONEXIONES AFIP
+model AfipConnection {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  name        String
+  description String?
+  cuit        String
+  environment String   @default("testing") // 'testing' | 'production'
+  certificate String?  @db.Text
+  privateKey  String?  @map("private_key") @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  voucherConfigurations VoucherConfiguration[]
+
+  @@map("afip_connections")
+}
+
+// 📊 PUNTOS DE VENTA AFIP
+model SalesPoint {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  number      Int
+  name        String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  voucherConfigurations VoucherConfiguration[]
+
+  @@unique([tenantId, number])
+  @@map("sales_points")
+}
+
+// 📄 TIPOS DE COMPROBANTE
+model VoucherType {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  letter           String
+  documentClass    String   @map("document_class") // 'INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'QUOTE'
+  afipCode         Int?     @map("afip_code")
+  requiresCae      Boolean  @default(false) @map("requires_cae")
+  discriminatesVat Boolean  @default(false) @map("discriminates_vat")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relations
+  voucherConfigurations VoucherConfiguration[]
+  sales                 Sale[]
+
+  @@map("voucher_types")
+}
+
+// ⚙️ CONFIGURACIÓN DE COMPROBANTES
+model VoucherConfiguration {
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  voucherTypeId      String   @map("voucher_type_id")
+  branchId           String?  @map("branch_id")
+  afipConnectionId   String?  @map("afip_connection_id")
+  salesPointId       String?  @map("sales_point_id")
+  nextVoucherNumber  Int      @default(1) @map("next_voucher_number")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  voucherType    VoucherType     @relation(fields: [voucherTypeId], references: [id])
+  branch         Branch?         @relation(fields: [branchId], references: [id])
+  afipConnection AfipConnection? @relation(fields: [afipConnectionId], references: [id])
+  salesPoint     SalesPoint?     @relation(fields: [salesPointId], references: [id])
+  sales          Sale[]
+
+  @@unique([tenantId, voucherTypeId, branchId])
+  @@map("voucher_configurations")
 }
