@@ -29,6 +29,7 @@ import documentTypeRoutes from './routes/document-types.js'
 import voucherConfigRoutes from './routes/voucher-configurations.js'
 import voucherTypeRoutes from './routes/voucher-types.js'
 import voucherDeterminationRoutes from './routes/voucher-determination.js'
+import vatConditionRoutes from './routes/vat-conditions.js'
 
 // Load environment variables
 config()
@@ -90,6 +91,7 @@ app.use('/api/:tenantSlug/document-types', documentTypeRoutes)
 app.use('/api/:tenantSlug/voucher-configurations', voucherConfigRoutes)
 app.use('/api/:tenantSlug/voucher-types', voucherTypeRoutes)
 app.use('/api/:tenantSlug/voucher', voucherDeterminationRoutes)
+app.use('/api/:tenantSlug/vat-conditions', vatConditionRoutes)
 app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
 
 // Error handling

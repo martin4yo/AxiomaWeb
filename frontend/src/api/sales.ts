@@ -23,6 +23,7 @@ export interface CreateSaleData {
   notes?: string
   shouldInvoice?: boolean
   discountPercent?: number
+  forceWithoutCAE?: boolean
 }
 
 export interface SalesFilters {
@@ -38,8 +39,8 @@ export interface SalesFilters {
 
 export const salesApi = {
   // Crear venta
-  createSale: async (data: CreateSaleData) => {
-    const response = await api.post('/sales', data)
+  createSale: async (tenantSlug: string, data: CreateSaleData) => {
+    const response = await api.post(`/${tenantSlug}/sales`, data)
     return response.data
   },
 

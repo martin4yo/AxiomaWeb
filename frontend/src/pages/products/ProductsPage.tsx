@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { PlusIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -10,10 +11,13 @@ import { Badge } from '../../components/ui/Badge'
 import { ProductModal } from '../../components/products/ProductModal'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../services/api'
+import { useDialog } from '../../hooks/useDialog'
 
 export default function ProductsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const { showAlert, showConfirm, AlertComponent, ConfirmComponent } = useDialog()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [brandFilter, setBrandFilter] = useState('')
@@ -21,6 +25,16 @@ export default function ProductsPage() {
   const [showModal, setShowModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+
+  // Check for action=new in URL params
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      handleCreate()
+      // Remove the action param from URL
+      searchParams.delete('action')
+      setSearchParams(searchParams)
+    }
+  }, [searchParams])
 
   // Fetch products
   const { data: products, isLoading } = useQuery({
@@ -62,16 +76,22 @@ export default function ProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] })
+      showAlert('Producto eliminado', 'El producto ha sido eliminado correctamente', 'success')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al eliminar el producto')
+      showAlert('Error', error.response?.data?.error || 'Error al eliminar el producto', 'error')
     }
   })
 
   const handleDelete = async (product: any) => {
-    if (window.confirm(`¿Está seguro de eliminar el producto "${product.name}"?`)) {
-      deleteMutation.mutate(product.id)
-    }
+    showConfirm(
+      'Eliminar producto',
+      `¿Está seguro de eliminar el producto "${product.name}"?`,
+      () => deleteMutation.mutate(product.id),
+      'danger',
+      'Eliminar',
+      'Cancelar'
+    )
   }
 
   const getStockStatus = (product: any): { label: string; color: 'error' | 'success' | 'warning' | 'info' } | null => {
@@ -302,6 +322,10 @@ export default function ProductsPage() {
         product={selectedProduct}
         mode={modalMode}
       />
+
+      {/* Dialogs */}
+      <AlertComponent />
+      <ConfirmComponent />
     </div>
   )
 }

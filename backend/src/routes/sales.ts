@@ -29,13 +29,16 @@ const createSaleSchema = z.object({
   notes: z.string().optional(),
   shouldInvoice: z.boolean().optional(),
   discountPercent: z.number().min(0).max(100).optional(),
-  documentClass: z.enum(['invoice', 'credit_note', 'debit_note', 'quote']).optional()
+  documentClass: z.enum(['invoice', 'credit_note', 'debit_note', 'quote']).optional(),
+  forceWithoutCAE: z.boolean().optional()
 })
 
 // POST /api/:tenantSlug/sales - Crear venta
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
     const validatedData = createSaleSchema.parse(req.body)
+
+    console.log(`[Route] Tenant info - ID: ${req.tenant!.id}, Slug: ${req.tenant!.slug}`)
 
     const salesService = new SalesService(
       req.tenantDb!,
@@ -122,6 +125,28 @@ router.put('/:id/cancel', authMiddleware, async (req, res, next) => {
     res.json({
       message: 'Venta cancelada exitosamente',
       sale
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// POST /api/:tenantSlug/sales/resync-cae - Resincronizar CAE pendientes
+router.post('/resync-cae', authMiddleware, async (req, res, next) => {
+  try {
+    const limit = req.body.limit || 50
+
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    const result = await salesService.resyncPendingCAE(limit)
+
+    res.json({
+      message: `Resincronización completada: ${result.successful} exitosas, ${result.failed} fallidas`,
+      ...result
     })
   } catch (error) {
     next(error)

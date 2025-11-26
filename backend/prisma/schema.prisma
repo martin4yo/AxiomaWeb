@@ -299,6 +299,7 @@ model VatCondition {
   afipCode       Int?     @map("afip_code")
   canIssueA      Boolean  @default(false) @map("can_issue_a")
   issuesOnlyC    Boolean  @default(false) @map("issues_only_c")
+  allowedVoucherTypes Json @default("[]") @map("allowed_voucher_types") // Códigos de comprobantes que puede emitir: ["FA", "FB", "FC", "NCA", etc]
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { Pencil } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi, type VoucherConfiguration } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
@@ -235,9 +236,17 @@ export default function VoucherConfigurationsPage() {
                               )}
                             </button>
                           )}
+                          <a
+                            href={`/settings/voucher-configurations/${config.id}/edit`}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="Editar configuración"
+                          >
+                            <Pencil className="h-5 w-5 inline" />
+                          </a>
                           <button
                             onClick={() => handleDelete(config)}
                             className="text-red-600 hover:text-red-900"
+                            title="Eliminar configuración"
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>

@@ -10,15 +10,20 @@ export class VoucherService {
   }
 
   /**
-   * Determina el tipo de comprobante según las condiciones de IVA del tenant y cliente
+   * Determina el tipo de comprobante según:
+   * 1. Tipo de documento elegido por el usuario (invoice, credit_note, debit_note, quote)
+   * 2. Condición de IVA del cliente
+   * 3. Los allowedVoucherTypes configurados para esa condición de IVA
    *
-   * Reglas:
-   * - RI → RI = Factura A
-   * - RI → MT = Factura B
-   * - RI → CF = Factura B
-   * - RI → EX = Factura E (exportación)
-   * - MT → * = Factura C (monotributista solo emite C)
-   * - CF → * = No puede emitir (consumidor final no emite)
+   * La condición de IVA del tenant NO se toma en cuenta porque lo que define
+   * qué comprobantes se pueden emitir está en allowedVoucherTypes de cada condición.
+   *
+   * Lógica de determinación de letra según condición IVA del cliente:
+   * - RI (Responsable Inscripto) → Letra A
+   * - MT (Monotributista) → Letra C
+   * - CF (Consumidor Final) → Letra B
+   * - EX (Exento) → Letra E
+   * - NR (No Responsable) → Letra C
    */
   async determineVoucherType(
     tenantId: string,
@@ -26,15 +31,6 @@ export class VoucherService {
     documentClass: 'invoice' | 'credit_note' | 'debit_note' | 'quote',
     branchId?: string
   ) {
-    // Get tenant
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: tenantId }
-    })
-
-    if (!tenant) {
-      throw new AppError('Tenant no encontrado', 404)
-    }
-
     // Get customer
     const customer = await this.prisma.entity.findUnique({
       where: { id: customerId }
@@ -44,40 +40,48 @@ export class VoucherService {
       throw new AppError('Cliente no encontrado', 404)
     }
 
-    // Get VAT conditions
-    let tenantVatCode: string | null = null
-    let customerVatCode: string | null = customer.ivaCondition
+    const customerVatCode = customer.ivaCondition
 
-    if (tenant.vatConditionId) {
-      const tenantVatCondition = await this.prisma.vatCondition.findUnique({
-        where: { id: tenant.vatConditionId }
-      })
-      tenantVatCode = tenantVatCondition?.code || null
+    if (!customerVatCode) {
+      throw new AppError('El cliente no tiene condición de IVA configurada', 400)
     }
 
-    // Determine voucher letter based on VAT conditions
+    // Get customer VAT condition
+    const customerVatCondition = await this.prisma.vatCondition.findFirst({
+      where: {
+        tenantId,
+        code: customerVatCode
+      }
+    })
+
+    if (!customerVatCondition) {
+      throw new AppError(`Condición de IVA "${customerVatCode}" no encontrada`, 404)
+    }
+
+    // Determine voucher letter based ONLY on customer's VAT condition
     let letter: string
 
-    const tenantVat = tenantVatCode
-    const customerVat = customerVatCode
-
-    if (tenantVat === 'MT') {
-      // Monotributista always issues C
-      letter = 'C'
-    } else if (tenantVat === 'RI') {
-      if (customerVat === 'RI') {
+    switch (customerVatCode) {
+      case 'RI':
         letter = 'A'
-      } else if (customerVat === 'EX') {
-        letter = 'E'
-      } else {
-        // MT, CF, NR, etc.
+        break
+      case 'MT':
+        letter = 'C'
+        break
+      case 'CF':
         letter = 'B'
-      }
-    } else {
-      throw new AppError('El tenant no puede emitir comprobantes', 400)
+        break
+      case 'EX':
+        letter = 'E'
+        break
+      case 'NR':
+        letter = 'C'
+        break
+      default:
+        throw new AppError(`Condición de IVA "${customerVatCode}" no soportada`, 400)
     }
 
-    // Map document class to voucher code
+    // Map document class to voucher code prefix
     let codePrefix: string
     switch (documentClass) {
       case 'invoice':
@@ -102,6 +106,18 @@ export class VoucherService {
     }
 
     const voucherCode = `${codePrefix}${letter}`
+
+    // Validate that the customer's VAT condition allows this voucher type
+    const allowedTypes = Array.isArray(customerVatCondition.allowedVoucherTypes)
+      ? customerVatCondition.allowedVoucherTypes
+      : []
+
+    if (allowedTypes.length > 0 && !allowedTypes.includes(voucherCode)) {
+      throw new AppError(
+        `La condición de IVA "${customerVatCondition.name}" (${customerVatCode}) no permite emitir comprobantes tipo ${voucherCode}. Tipos permitidos: ${allowedTypes.join(', ')}`,
+        400
+      )
+    }
 
     // Find voucher type
     const voucherType = await this.prisma.voucherType.findUnique({

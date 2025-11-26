@@ -37,6 +37,7 @@ interface CreateSaleInput {
   shouldInvoice?: boolean
   discountPercent?: number
   documentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
+  forceWithoutCAE?: boolean  // Permitir guardar sin CAE cuando hay desincronización
 }
 
 export class SalesService {
@@ -57,16 +58,21 @@ export class SalesService {
    * - Valida que suma de pagos = total
    */
   async createSale(data: CreateSaleInput) {
+    const requestId = Math.random().toString(36).substring(7)
+    console.log(`[Sales:${requestId}] createSale iniciado`)
+
     const {
       customerId,
       warehouseId,
       items: itemsInput,
       payments: paymentsInput,
       notes,
-      shouldInvoice = false,
       discountPercent = 0,
-      documentClass = 'invoice'
+      documentClass = 'invoice',
+      forceWithoutCAE = false
     } = data
+
+    let shouldInvoice = data.shouldInvoice || false
 
     // 1. Validar que el almacén existe y está activo
     const warehouse = await this.prisma.warehouse.findFirst({
@@ -93,16 +99,33 @@ export class SalesService {
       throw new AppError('Tenant no encontrado', 404)
     }
 
-    // 3. Si hay cliente, obtener sus datos y condición IVA
+    // 3. Si no hay cliente, buscar el cliente "Consumidor Final" por defecto
+    let finalCustomerId = customerId
+    if (!finalCustomerId) {
+      // Buscar cliente "Consumidor Final"
+      const consumidorFinal = await this.prisma.entity.findFirst({
+        where: {
+          tenantId: this.tenantId,
+          name: 'Consumidor Final',
+          isCustomer: true
+        }
+      })
+
+      if (consumidorFinal) {
+        finalCustomerId = consumidorFinal.id
+      }
+    }
+
+    // 4. Obtener datos del cliente
     let customer = null
     let customerVatCondition = null
     let customerName = 'Consumidor Final'
     let customerType = 'final'
 
-    if (customerId) {
+    if (finalCustomerId) {
       customer = await this.prisma.entity.findFirst({
         where: {
-          id: customerId,
+          id: finalCustomerId,
           tenantId: this.tenantId,
           isActive: true,
           isCustomer: true
@@ -115,19 +138,40 @@ export class SalesService {
 
       customerName = customer.name
       customerVatCondition = customer.ivaCondition
-      customerType = 'registered'
+      customerType = customer.name === 'Consumidor Final' ? 'final' : 'registered'
     }
 
-    // 4. Determinar tipo de factura y si discrimina IVA
-    const { voucherType, discriminateVAT } = determineVoucherType(
-      tenant.tenantVatCondition?.code || null,
-      customerVatCondition
-    )
+    // 5. Determinar tipo de comprobante usando VoucherService
+    // Esto nos da el tipo correcto (FA, FB, FC) y si discrimina IVA
+    let voucherInfo: any = null
+    let discriminateVAT = false
+    let finalVoucherType = 'FC' // Default: Factura C
 
-    // 5. Obtener tasa de IVA por defecto (21% para Argentina)
+    try {
+      voucherInfo = await this.voucherService.determineVoucherType(
+        this.tenantId,
+        finalCustomerId,
+        documentClass,
+        undefined // branchId
+      )
+      finalVoucherType = voucherInfo.voucherType.code
+      // Determinar si discrimina IVA según la letra del comprobante
+      discriminateVAT = finalVoucherType.includes('A') // FA, NCA, NDA discriminan IVA
+    } catch (error: any) {
+      console.warn('[Sales] Error determinando tipo de comprobante:', error.message)
+      // Fallback: usar función vieja solo si falla
+      const fallback = determineVoucherType(
+        tenant.tenantVatCondition?.code || null,
+        customerVatCondition
+      )
+      discriminateVAT = fallback.discriminateVAT
+      finalVoucherType = fallback.voucherType
+    }
+
+    // 6. Obtener tasa de IVA por defecto (21% para Argentina)
     const defaultTaxRate = tenant.tenantVatCondition?.taxRate || new Decimal(21)
 
-    // 6. Procesar items y validar stock
+    // 7. Procesar items y validar stock
     const processedItems: Array<{
       product: any
       input: CreateSaleItemInput
@@ -222,37 +266,73 @@ export class SalesService {
       )
     }
 
-    // 10. Determinar comprobante y obtener número
-    let voucherInfo: any = null
+    // 10. Determinar si se usa numeración AFIP o local
     let caeData: any = null
-    let finalVoucherNumber: string
-    let finalVoucherType: string = voucherType
+    let finalVoucherNumber: string = '' // Se inicializa vacío, se asigna dentro de la transacción
 
-    // Si debe facturar y hay cliente, determinar comprobante AFIP
-    if (shouldInvoice && customerId) {
-      try {
-        voucherInfo = await this.voucherService.determineVoucherType(
-          this.tenantId,
-          customerId,
-          documentClass,
-          undefined // branchId - por ahora sin sucursales en warehouses
-        )
-
-        finalVoucherNumber = voucherInfo.nextNumber
-        finalVoucherType = voucherInfo.voucherType.code
-      } catch (error: any) {
-        console.warn('[Sales] Error determinando comprobante, usando numeración local:', error.message)
-        // Fallback a numeración local
-        finalVoucherNumber = await this.generateSaleNumber(warehouse.code)
-      }
-    } else {
-      // Sin facturación AFIP, usar numeración local
-      finalVoucherNumber = await this.generateSaleNumber(warehouse.code)
+    // Si debe facturar Y hay voucherInfo con configuración AFIP, usar numeración AFIP
+    let useLocalNumbering = true
+    if (shouldInvoice && voucherInfo && voucherInfo.configuration) {
+      useLocalNumbering = false // Usar número de AFIP
+      finalVoucherNumber = voucherInfo.nextNumber
     }
+    // Si no hay facturación AFIP o no hay configuración, usar numeración local
+    // El número se generará DENTRO de la transacción para evitar race conditions
 
     // 11. Calcular estado de pago
     const totalPaid = paymentsInput.reduce((acc, p) => acc + p.amount, 0)
     const paymentStatus = calculatePaymentStatus(totals.totalAmount, new Decimal(totalPaid))
+
+    // 11.5. Si hay facturación AFIP, verificar sincronización con AFIP antes de crear
+    let afipSyncStatus: 'ok' | 'out_of_sync' | 'error' = 'ok'
+    let lastAfipNumber: number | null = null
+
+    if (!useLocalNumbering && voucherInfo && voucherInfo.requiresCae && voucherInfo.afipConnection) {
+      try {
+        console.log('[Sales] Consultando último número autorizado en AFIP...')
+        lastAfipNumber = await this.afipService.getLastAuthorizedNumber(
+          voucherInfo.afipConnection.id,
+          voucherInfo.salesPoint?.number || 1,
+          voucherInfo.voucherType.afipCode!
+        )
+
+        console.log(`[Sales] Último número AFIP: ${lastAfipNumber}, Número local: ${voucherInfo.nextNumberRaw}`)
+
+        // Si AFIP tiene un número mayor, hay ventas sin sincronizar
+        if (lastAfipNumber >= voucherInfo.nextNumberRaw) {
+          afipSyncStatus = 'out_of_sync'
+          console.warn(`[Sales] DESINCRONIZACIÓN: AFIP tiene ${lastAfipNumber}, local tiene ${voucherInfo.nextNumberRaw}`)
+
+          // Si el usuario NO forzó guardar sin CAE, lanzar error
+          if (!forceWithoutCAE) {
+            throw new AppError(
+              `El último número autorizado en AFIP (${lastAfipNumber}) es mayor o igual al número local (${voucherInfo.nextNumberRaw}). ` +
+              `Esto indica que hay comprobantes sin sincronizar. ¿Desea guardar esta venta sin CAE y resincronizar después?`,
+              409, // Conflict
+              {
+                code: 'AFIP_OUT_OF_SYNC',
+                lastAfipNumber,
+                localNumber: voucherInfo.nextNumberRaw,
+                canContinueWithoutCAE: true
+              }
+            )
+          } else {
+            console.log('[Sales] Usuario confirmó guardar sin CAE por desincronización')
+            // Continuar con la venta pero sin solicitar CAE
+            shouldInvoice = false // Forzar a que no pida CAE
+          }
+        }
+      } catch (error: any) {
+        if (error instanceof AppError && error.statusCode === 409) {
+          // Es el error de desincronización que lanzamos nosotros, re-lanzarlo
+          throw error
+        }
+
+        // Otro error consultando AFIP - permitir continuar sin validación
+        console.error('[Sales] Error consultando AFIP:', error.message)
+        afipSyncStatus = 'error'
+      }
+    }
 
     // 12. Crear venta en transacción
     const sale = await this.prisma.$transaction(async (tx) => {
@@ -260,13 +340,45 @@ export class SalesService {
       const now = new Date()
       const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
+      // Generar número local DENTRO de la transacción para evitar race conditions
+      if (useLocalNumbering) {
+        // Para numeración local, usar punto de venta 1 por defecto (sin AFIP)
+        const salesPointNumber = 1
+        finalVoucherNumber = await this.generateSaleNumberInTransaction(tx as any, salesPointNumber)
+        console.log(`[Sales:${requestId}] Número generado (local): ${finalVoucherNumber}`)
+      } else if (voucherInfo) {
+        // Si es numeración AFIP, incrementar y obtener el número DENTRO de la transacción
+        // Esto previene race conditions cuando se crean múltiples ventas simultáneas
+        console.log(`[Sales:${requestId}] Incrementando nextVoucherNumber para config ${voucherInfo.configuration.id}`)
+
+        const updatedConfig = await tx.voucherConfiguration.update({
+          where: { id: voucherInfo.configuration.id },
+          data: {
+            nextVoucherNumber: { increment: 1 }
+          }
+        })
+
+        // El número a usar es el anterior al incremento
+        const numberToUse = updatedConfig.nextVoucherNumber - 1
+        finalVoucherNumber = `${voucherInfo.salesPoint?.number.toString().padStart(5, '0') || '00000'}-${numberToUse.toString().padStart(8, '0')}`
+
+        console.log(`[Sales:${requestId}] Número generado (AFIP): ${finalVoucherNumber} (nextVoucherNumber después de incremento: ${updatedConfig.nextVoucherNumber})`)
+
+        // Actualizar también el nextNumberRaw para usar después
+        if (voucherInfo.nextNumberRaw) {
+          voucherInfo.nextNumberRaw = numberToUse
+        }
+      }
+
       // Crear venta
+      console.log(`[Sales:${requestId}] Intentando crear venta con tenantId=${this.tenantId}, saleNumber=${finalVoucherNumber}`)
+
       const newSale = await tx.sale.create({
         data: {
           tenantId: this.tenantId,
           saleNumber: finalVoucherNumber,
           saleDate: localDate,
-          customerId: customerId || null,
+          customerId: finalCustomerId || null,
           customerName,
           customerType,
           subtotal: totals.subtotal,
@@ -383,9 +495,17 @@ export class SalesService {
     })
 
     // 13. Solicitar CAE a AFIP si corresponde
+    console.log(`[Sales:${requestId}] Evaluando si solicitar CAE:`, {
+      shouldInvoice,
+      hasVoucherInfo: !!voucherInfo,
+      requiresCae: voucherInfo?.requiresCae,
+      hasAfipConnection: !!voucherInfo?.afipConnection,
+      hasCustomer: !!customer
+    })
+
     if (shouldInvoice && voucherInfo && voucherInfo.requiresCae && voucherInfo.afipConnection && customer) {
       try {
-        console.log('[Sales] Solicitando CAE a AFIP...')
+        console.log(`[Sales:${requestId}] Solicitando CAE a AFIP...`)
 
         // Preparar datos del cliente
         let customerDocType = 99 // Consumidor Final por defecto
@@ -449,13 +569,8 @@ export class SalesService {
           }
         })
 
-        // Actualizar nextVoucherNumber en la configuración
-        await globalPrisma.voucherConfiguration.update({
-          where: { id: voucherInfo.configuration.id },
-          data: {
-            nextVoucherNumber: voucherInfo.nextNumberRaw + 1
-          }
-        })
+        // NOTA: Ya no incrementamos nextVoucherNumber aquí porque se hizo dentro de la transacción
+        // para evitar race conditions
       } catch (error: any) {
         console.error('[Sales] Error solicitando CAE:', error.message)
 
@@ -471,15 +586,9 @@ export class SalesService {
         // No lanzar error para no cancelar la venta, pero informar al usuario
         console.warn('[Sales] Venta creada pero sin CAE. Revisar configuración AFIP.')
       }
-    } else if (shouldInvoice && voucherInfo) {
-      // Si no requiere CAE, actualizar nextVoucherNumber igualmente
-      await globalPrisma.voucherConfiguration.update({
-        where: { id: voucherInfo.configuration.id },
-        data: {
-          nextVoucherNumber: voucherInfo.nextNumberRaw + 1
-        }
-      })
     }
+    // NOTA: Ya no incrementamos nextVoucherNumber aquí porque se hace dentro de la transacción
+    // para ambos casos (con CAE y sin CAE), evitando race conditions
 
     // 14. Retornar venta con todos sus datos
     const finalSale = await this.getSaleById(sale.id)
@@ -496,6 +605,9 @@ export class SalesService {
   /**
    * Genera número secuencial de venta para el tenant en formato: 00000-00000000
    * Donde el primer número es el código de sucursal y el segundo es el número correlativo
+   *
+   * NOTA: Esta función es llamada FUERA de la transacción y puede tener race conditions.
+   * Usar generateSaleNumberInTransaction cuando se crea la venta.
    */
   private async generateSaleNumber(warehouseCode: string): Promise<string> {
     // Formatear código de warehouse a 5 dígitos
@@ -517,12 +629,65 @@ export class SalesService {
     }
 
     // Extraer número correlativo y sumar 1
-    const match = lastSale.saleNumber.match(/^\d{5}-(\d{8})$/)
+    // El formato es: XXXXX-00000001 donde XXXXX puede contener letras y números
+    const match = lastSale.saleNumber.match(/^.+?-(\d{8})$/)
     if (match) {
       const num = parseInt(match[1]) + 1
       return `${branchCode}-${num.toString().padStart(8, '0')}`
     }
 
+    return `${branchCode}-00000001`
+  }
+
+  /**
+   * Genera un número de venta local DENTRO de una transacción
+   * Esto evita race conditions cuando se crean ventas simultáneamente
+   */
+  private async generateSaleNumberInTransaction(tx: PrismaClient, salesPointNumber: number): Promise<string> {
+    // Formatear punto de venta a 5 dígitos
+    const branchCode = salesPointNumber.toString().padStart(5, '0')
+
+    // Crear un hash único para este tenant+warehouse para usar como lock ID
+    // Usamos un hash simple basado en tenant ID y warehouse code
+    const lockKey = `${this.tenantId}-${branchCode}`.split('').reduce((acc, char) => {
+      return ((acc << 5) - acc) + char.charCodeAt(0)
+    }, 0) & 0x7FFFFFFF // Mantener como entero positivo de 32 bits
+
+    console.log(`[Sales] Intentando adquirir lock ${lockKey} para ${this.tenantId}-${branchCode}`)
+
+    // Adquirir un bloqueo advisory para este tenant+warehouse
+    // Esto previene que dos transacciones generen el mismo número simultáneamente
+    await (tx as any).$executeRaw`SELECT pg_advisory_xact_lock(${lockKey})`
+
+    console.log(`[Sales] Lock ${lockKey} adquirido`)
+
+    // Obtener el último número de venta para este tenant y warehouse
+    const lastSale = await tx.sale.findFirst({
+      where: {
+        tenantId: this.tenantId,
+        saleNumber: {
+          startsWith: `${branchCode}-`
+        }
+      },
+      orderBy: { saleNumber: 'desc' }
+    })
+
+    console.log(`[Sales] Última venta encontrada:`, lastSale ? `${lastSale.saleNumber} (ID: ${lastSale.id})` : 'ninguna')
+
+    if (!lastSale) {
+      return `${branchCode}-00000001`
+    }
+
+    // Extraer número correlativo y sumar 1
+    // El formato es: XXXXX-00000001 donde XXXXX puede contener letras y números
+    const match = lastSale.saleNumber.match(/^.+?-(\d{8})$/)
+    if (match) {
+      const num = parseInt(match[1]) + 1
+      console.log(`[Sales] Incrementando número: ${match[1]} -> ${num}`)
+      return `${branchCode}-${num.toString().padStart(8, '0')}`
+    }
+
+    console.log(`[Sales] No se pudo extraer número de ${lastSale.saleNumber}, retornando 00000001`)
     return `${branchCode}-00000001`
   }
 
@@ -756,5 +921,67 @@ export class SalesService {
 
       return updatedSale
     })
+  }
+
+  /**
+   * Resincroniza ventas pendientes de CAE con AFIP
+   * Busca ventas con afipStatus='pending' y solicita el CAE
+   */
+  async resyncPendingCAE(limit: number = 50) {
+    // Buscar ventas pendientes de CAE
+    const pendingSales = await this.prisma.sale.findMany({
+      where: {
+        tenantId: this.tenantId,
+        afipStatus: 'pending',
+        status: { not: 'cancelled' }
+      },
+      include: {
+        customer: true,
+        items: true
+      },
+      take: limit,
+      orderBy: { createdAt: 'asc' }
+    })
+
+    const results = []
+
+    for (const sale of pendingSales) {
+      try {
+        // Obtener configuración del comprobante
+        // TODO: Necesitamos guardar voucherTypeId y otros datos en la venta
+        // Por ahora, saltear ventas sin la información necesaria
+
+        if (!sale.customer) {
+          results.push({
+            saleId: sale.id,
+            saleNumber: sale.saleNumber,
+            success: false,
+            error: 'Venta sin cliente'
+          })
+          continue
+        }
+
+        results.push({
+          saleId: sale.id,
+          saleNumber: sale.saleNumber,
+          success: false,
+          error: 'Funcionalidad en desarrollo - necesita más información en la venta'
+        })
+      } catch (error: any) {
+        results.push({
+          saleId: sale.id,
+          saleNumber: sale.saleNumber,
+          success: false,
+          error: error.message
+        })
+      }
+    }
+
+    return {
+      processed: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results
+    }
   }
 }

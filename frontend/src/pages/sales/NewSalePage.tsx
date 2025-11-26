@@ -5,6 +5,9 @@ import { Trash2 } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
 import { useAuthStore } from '../../stores/authStore'
+import { AlertDialog } from '../../components/ui/AlertDialog'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
+import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
 
 interface Product {
   id: string
@@ -81,37 +84,60 @@ export default function NewSalePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [notes, setNotes] = useState('')
-  const [shouldInvoice, setShouldInvoice] = useState(false)
   const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>('invoice')
   const [voucherInfo, setVoucherInfo] = useState<any>(null)
   const [confirmDialog, setConfirmDialog] = useState<{ show: boolean; message: string; amount: number; paymentMethod: PaymentMethod | null }>({ show: false, message: '', amount: 0, paymentMethod: null })
   const [saleResultModal, setSaleResultModal] = useState<{ show: boolean; sale: any; caeInfo: any }>({ show: false, sale: null, caeInfo: null })
+  const [invalidItems, setInvalidItems] = useState<Set<string>>(new Set())
+  const [alertDialog, setAlertDialog] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' | 'info' | 'success' }>({ show: false, title: '', message: '', type: 'info' })
+
+  // AFIP Progress Modal
+  const [afipProgressModal, setAfipProgressModal] = useState<{
+    show: boolean
+    steps: Array<{
+      id: string
+      label: string
+      status: 'pending' | 'loading' | 'success' | 'error' | 'warning'
+      message?: string
+      detail?: string
+    }>
+    canClose: boolean
+    pendingSaleData?: any
+  }>({
+    show: false,
+    steps: [],
+    canClose: false,
+    pendingSaleData: null
+  })
 
   // Queries
   const { data: warehousesData } = useQuery({
-    queryKey: ['warehouses'],
+    queryKey: ['warehouses', currentTenant?.slug],
     queryFn: async () => {
-      const response = await axios.get('/inventory/warehouses')
+      const response = await axios.get(`/${currentTenant!.slug}/inventory/warehouses`)
       return response.data
-    }
+    },
+    enabled: !!currentTenant
   })
 
   const { data: customersData } = useQuery({
-    queryKey: ['customers'],
+    queryKey: ['customers', currentTenant?.slug],
     queryFn: async () => {
-      const response = await axios.get('/entities', {
+      const response = await axios.get(`/${currentTenant!.slug}/entities`, {
         params: { isCustomer: true, limit: 1000 }
       })
       return response.data.entities
-    }
+    },
+    enabled: !!currentTenant
   })
 
   const { data: paymentMethodsData } = useQuery({
-    queryKey: ['paymentMethods'],
+    queryKey: ['paymentMethods', currentTenant?.slug],
     queryFn: async () => {
-      const response = await axios.get('/payment-methods')
+      const response = await axios.get(`/${currentTenant!.slug}/payment-methods`)
       return response.data.paymentMethods || []
-    }
+    },
+    enabled: !!currentTenant
   })
 
   // Quick access products
@@ -126,9 +152,9 @@ export default function NewSalePage() {
 
   // Product search - siempre muestra productos
   const { data: productsData } = useQuery({
-    queryKey: ['products', productSearchTerm],
+    queryKey: ['products', productSearchTerm, currentTenant?.slug],
     queryFn: async () => {
-      const response = await axios.get('/products', {
+      const response = await axios.get(`/${currentTenant!.slug}/products`, {
         params: {
           search: productSearchTerm || undefined,
           limit: productSearchTerm ? 10 : 20  // Más productos si no hay búsqueda
@@ -136,53 +162,179 @@ export default function NewSalePage() {
       })
       return response.data
     },
-    enabled: true  // Siempre habilitado
+    enabled: !!currentTenant  // Solo si hay tenant
   })
 
   // Create sale mutation
   const createSaleMutation = useMutation({
-    mutationFn: salesApi.createSale,
+    mutationFn: async (data: any) => {
+      // Si requiere facturación, mostrar modal de progreso
+      const requiresCae = voucherInfo?.requiresCae || false
+      if (requiresCae && data.customerId) {
+        setAfipProgressModal({
+          show: true,
+          steps: [
+            {
+              id: 'check-afip',
+              label: 'Consultando último comprobante en AFIP',
+              status: 'loading',
+              message: 'Verificando sincronización con AFIP...'
+            },
+            {
+              id: 'create-sale',
+              label: 'Creando venta',
+              status: 'pending'
+            },
+            {
+              id: 'request-cae',
+              label: 'Solicitando CAE a AFIP',
+              status: 'pending'
+            }
+          ],
+          canClose: false,
+          pendingSaleData: data
+        })
+      }
+
+      return salesApi.createSale(currentTenant!.slug, data)
+    },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
 
-      // Show result modal with CAE info if available
-      setSaleResultModal({
-        show: true,
-        sale: response.sale,
-        caeInfo: response.caeInfo
-      })
+      // Actualizar progreso si el modal está abierto
+      if (afipProgressModal.show) {
+        setAfipProgressModal(prev => ({
+          ...prev,
+          steps: prev.steps.map(step => {
+            if (step.id === 'check-afip') return { ...step, status: 'success', message: 'Sincronización verificada' }
+            if (step.id === 'create-sale') return { ...step, status: 'success', message: 'Venta creada exitosamente' }
+            if (step.id === 'request-cae' && response.caeInfo) {
+              return {
+                ...step,
+                status: 'success',
+                message: 'CAE autorizado',
+                detail: `CAE: ${response.caeInfo.cae}`
+              }
+            }
+            return step
+          }),
+          canClose: true
+        }))
+
+        // Cerrar modal después de 2 segundos
+        setTimeout(() => {
+          setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null })
+          setSaleResultModal({
+            show: true,
+            sale: response.sale,
+            caeInfo: response.caeInfo
+          })
+        }, 2000)
+      } else {
+        // Si no hay modal de progreso, mostrar resultado directamente
+        setSaleResultModal({
+          show: true,
+          sale: response.sale,
+          caeInfo: response.caeInfo
+        })
+      }
 
       // Clear form for next sale
       setCart([])
       setPayments([])
       setNotes('')
-      setShouldInvoice(false)
       setSelectedCustomer(null)
       setProductSearchTerm('')
     },
     onError: (error: any) => {
-      alert(`Error: ${error.response?.data?.error || error.message}`)
+      // Verificar si es error de desincronización AFIP
+      if (error.response?.status === 409 && error.response?.data?.data?.code === 'AFIP_OUT_OF_SYNC') {
+        const { lastAfipNumber, localNumber } = error.response.data.data
+
+        // Actualizar modal de progreso con warning
+        setAfipProgressModal(prev => ({
+          ...prev,
+          steps: prev.steps.map(step => {
+            if (step.id === 'check-afip') {
+              return {
+                ...step,
+                status: 'warning',
+                message: `Desincronización detectada`,
+                detail: `AFIP: ${lastAfipNumber} | Local: ${localNumber}`
+              }
+            }
+            if (step.id === 'create-sale') return { ...step, status: 'pending', message: 'Esperando confirmación' }
+            if (step.id === 'request-cae') return { ...step, status: 'pending', message: 'No se solicitará CAE' }
+            return step
+          }),
+          canClose: true,
+          pendingSaleData: afipProgressModal.pendingSaleData
+        }))
+
+        // Mostrar diálogo de confirmación
+        setTimeout(() => {
+          showConfirm(
+            'Desincronización con AFIP',
+            `El último número autorizado en AFIP es ${lastAfipNumber}, pero el número local es ${localNumber}.\n\n` +
+            `Esto indica que hay comprobantes sin sincronizar.\n\n` +
+            `¿Desea guardar esta venta SIN CAE y resincronizar después?`,
+            () => handleRetryWithoutCAE(),
+            'warning',
+            'Guardar sin CAE',
+            'Cancelar'
+          )
+        }, 500)
+      } else {
+        // Otro error
+        if (afipProgressModal.show) {
+          setAfipProgressModal(prev => ({
+            ...prev,
+            steps: prev.steps.map(step =>
+              step.status === 'loading' ? { ...step, status: 'error', message: error.response?.data?.error || error.message } : step
+            ),
+            canClose: true
+          }))
+        } else {
+          showAlert('Error al crear la venta', error.response?.data?.error || error.message, 'error')
+        }
+      }
     }
   })
 
-  // Auto-select default warehouse
+  // Reset state when tenant changes
   useEffect(() => {
-    if (warehousesData && !selectedWarehouse) {
-      const defaultWarehouse = warehousesData.find((w: Warehouse) => w.isDefault) || warehousesData[0]
-      setSelectedWarehouse(defaultWarehouse)
+    setSelectedCustomer(null)
+    setSelectedWarehouse(null)
+    setCart([])
+    setPayments([])
+    setNotes('')
+    setVoucherInfo(null)
+    setProductSearchTerm('')
+  }, [currentTenant?.slug])
+
+  // Auto-select default warehouse when data changes or warehouse is null
+  useEffect(() => {
+    if (warehousesData && warehousesData.length > 0) {
+      // Si no hay warehouse seleccionado, o si el warehouse seleccionado no está en la nueva lista
+      // (significa que cambió el tenant), seleccionar el warehouse por defecto
+      const warehouseIds = warehousesData.map((w: Warehouse) => w.id)
+      if (!selectedWarehouse || !warehouseIds.includes(selectedWarehouse.id)) {
+        const defaultWarehouse = warehousesData.find((w: Warehouse) => w.isDefault) || warehousesData[0]
+        setSelectedWarehouse(defaultWarehouse)
+      }
     }
-  }, [warehousesData, selectedWarehouse])
+  }, [warehousesData])
 
   // Determine voucher type when customer or document class changes
   useEffect(() => {
     const determineVoucher = async () => {
-      if (!selectedCustomer) {
+      if (!selectedCustomer || !currentTenant) {
         setVoucherInfo(null)
         return
       }
 
       try {
-        const response = await axios.post('/voucher/determine', {
+        const response = await axios.post(`/${currentTenant.slug}/voucher/determine`, {
           customerId: selectedCustomer.id,
           documentClass,
           branchId: selectedWarehouse?.id
@@ -195,7 +347,7 @@ export default function NewSalePage() {
     }
 
     determineVoucher()
-  }, [selectedCustomer, documentClass, selectedWarehouse])
+  }, [selectedCustomer, documentClass, selectedWarehouse, currentTenant])
 
   // Focus input on mount
   useEffect(() => {
@@ -343,13 +495,13 @@ export default function NewSalePage() {
             }
 
             // If product not found, show alert
-            alert(`Producto con código ${scaleData.productCode} no encontrado`)
+            showAlert('Producto no encontrado', `Producto con código ${scaleData.productCode} no encontrado`, 'warning')
             setProductSearchTerm('')
             inputRef.current?.focus()
             return
           } catch (error) {
             console.error('Error searching product:', error)
-            alert('Error al buscar el producto')
+            showAlert('Error', 'Error al buscar el producto', 'error')
             setProductSearchTerm('')
             inputRef.current?.focus()
             return
@@ -375,13 +527,13 @@ export default function NewSalePage() {
             }
 
             // If product not found by barcode, show alert
-            alert(`Producto con código de barras ${searchTerm} no encontrado`)
+            showAlert('Producto no encontrado', `Producto con código de barras ${searchTerm} no encontrado`, 'warning')
             setProductSearchTerm('')
             inputRef.current?.focus()
             return
           } catch (error) {
             console.error('Error searching product:', error)
-            alert('Error al buscar el producto')
+            showAlert('Error', 'Error al buscar el producto', 'error')
             setProductSearchTerm('')
             inputRef.current?.focus()
             return
@@ -476,6 +628,27 @@ export default function NewSalePage() {
   //   ))
   // }
 
+  // Show alert dialog helper
+  const showAlert = (title: string, message: string, type: 'error' | 'warning' | 'info' | 'success' = 'info') => {
+    setAlertDialog({ show: true, title, message, type })
+  }
+
+  // Validate cart items
+  const validateCart = (): boolean => {
+    const invalid = new Set<string>()
+    let hasErrors = false
+
+    cart.forEach(item => {
+      if (item.quantity <= 0 || item.unitPrice <= 0) {
+        invalid.add(item.lineId)
+        hasErrors = true
+      }
+    })
+
+    setInvalidItems(invalid)
+    return !hasErrors
+  }
+
   // Calculate totals
   const subtotal = cart.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0)
   const totalDiscount = cart.reduce((acc, item) => acc + (item.quantity * item.unitPrice * item.discountPercent / 100), 0)
@@ -489,17 +662,22 @@ export default function NewSalePage() {
   // Handle payment submission
   const handleSubmitSale = () => {
     if (!selectedWarehouse) {
-      alert('Debe seleccionar un almacén')
+      showAlert('Seleccionar almacén', 'Debe seleccionar un almacén', 'warning')
       return
     }
 
     if (cart.length === 0) {
-      alert('Debe agregar al menos un producto')
+      showAlert('Carrito vacío', 'Debe agregar al menos un producto', 'warning')
+      return
+    }
+
+    if (!validateCart()) {
+      showAlert('Error en productos', 'Hay productos con cantidad o precio igual a 0. Por favor corríjalos o elimínelos del carrito.', 'error')
       return
     }
 
     if (Math.abs(balance) > 0.01) {
-      alert(`El pago debe ser igual al total. Falta: $${balance.toFixed(2)}`)
+      showAlert('Pago incompleto', `El pago debe ser igual al total. Falta: $${balance.toFixed(2)}`, 'warning')
       return
     }
 
@@ -519,15 +697,41 @@ export default function NewSalePage() {
         reference: p.reference
       })) as APISalePayment[],
       notes: notes || undefined,
-      shouldInvoice,
+      shouldInvoice: voucherInfo?.requiresCae || false,
       documentClass
     }
 
     createSaleMutation.mutate(saleData)
   }
 
+  // Retry sale without CAE after AFIP out of sync error
+  const handleRetryWithoutCAE = () => {
+    if (!afipProgressModal.pendingSaleData) return
+
+    // Actualizar modal para mostrar que se está guardando sin CAE
+    setAfipProgressModal(prev => ({
+      ...prev,
+      steps: prev.steps.map(step => {
+        if (step.id === 'create-sale') return { ...step, status: 'loading', message: 'Guardando venta sin CAE...' }
+        return step
+      }),
+      canClose: false
+    }))
+
+    // Reintentar con forceWithoutCAE
+    createSaleMutation.mutate({
+      ...afipProgressModal.pendingSaleData,
+      forceWithoutCAE: true
+    })
+  }
+
   // Quick payment with confirmation - pays with single payment method
   const handleQuickPayment = (paymentMethod: PaymentMethod) => {
+    if (!validateCart()) {
+      showAlert('Error en productos', 'Hay productos con cantidad o precio igual a 0. Por favor corríjalos o elimínelos del carrito.', 'error')
+      return
+    }
+
     setConfirmDialog({
       show: true,
       message: `¿Confirmar venta por $${total.toFixed(2)} con ${paymentMethod.name}?`,
@@ -566,7 +770,7 @@ export default function NewSalePage() {
           amount: confirmDialog.amount
         }] as APISalePayment[],
         notes: notes || undefined,
-        shouldInvoice,
+        shouldInvoice: voucherInfo?.requiresCae || false,
         documentClass
       }
 
@@ -608,7 +812,7 @@ export default function NewSalePage() {
                 }}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
-                <option value="">Consumidor Final</option>
+                <option value="">Seleccionar cliente...</option>
                 {customersData?.map((customer: Customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.name}
@@ -773,37 +977,64 @@ export default function NewSalePage() {
                     No hay productos en el carrito
                   </p>
                 ) : (
-                  cart.map((item) => (
-                    <div key={item.lineId} className="flex items-end gap-3 p-3 border border-gray-200 rounded-md">
+                  cart.map((item) => {
+                    const hasError = invalidItems.has(item.lineId)
+                    return (
+                    <div key={item.lineId} className={`flex items-end gap-3 p-3 border rounded-md ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                       <div className="flex-1">
                         <div className="font-medium">{item.productName}</div>
                         <div className="text-sm text-gray-500">SKU: {item.productSku}</div>
+                        {hasError && (
+                          <div className="text-xs text-red-600 font-semibold mt-1">
+                            ⚠ Cantidad o precio no puede ser 0
+                          </div>
+                        )}
                       </div>
                       <div className="flex flex-col gap-1 min-w-[7rem]">
-                        <label className="text-sm font-medium text-gray-700 whitespace-nowrap text-right">Cantidad</label>
+                        <label className={`text-sm font-medium whitespace-nowrap text-right ${hasError ? 'text-red-700' : 'text-gray-700'}`}>Cantidad</label>
                         <input
                           ref={(el) => quantityRefs.current[item.lineId] = el}
                           data-quantity-input
                           type="number"
                           lang="en"
                           value={item.quantity}
-                          onChange={(e) => updateQuantity(item.lineId, e.target.value)}
+                          onChange={(e) => {
+                            updateQuantity(item.lineId, e.target.value)
+                            // Clear error when user starts editing
+                            if (hasError) {
+                              setInvalidItems(prev => {
+                                const newSet = new Set(prev)
+                                newSet.delete(item.lineId)
+                                return newSet
+                              })
+                            }
+                          }}
                           onKeyDown={(e) => handleQuantityKeyDown(e, item.lineId)}
-                          className="w-32 text-xl text-center focus:outline-none focus:ring-0 rounded-md bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={`w-32 text-xl text-center focus:outline-none focus:ring-0 rounded-md ${hasError ? 'bg-red-100 border-red-300 text-red-900' : 'bg-gray-50'} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           min="0.01"
                           step="0.01"
                         />
                       </div>
                       <div className="flex flex-col gap-1 min-w-[8rem]">
-                        <label className="text-sm font-medium text-gray-700 whitespace-nowrap text-right">Precio</label>
+                        <label className={`text-sm font-medium whitespace-nowrap text-right ${hasError ? 'text-red-700' : 'text-gray-700'}`}>Precio</label>
                         <input
                           ref={(el) => priceRefs.current[item.lineId] = el}
                           type="number"
                           lang="en"
                           value={item.unitPrice}
-                          onChange={(e) => updatePrice(item.lineId, Number(e.target.value))}
+                          onChange={(e) => {
+                            updatePrice(item.lineId, Number(e.target.value))
+                            // Clear error when user starts editing
+                            if (hasError) {
+                              setInvalidItems(prev => {
+                                const newSet = new Set(prev)
+                                newSet.delete(item.lineId)
+                                return newSet
+                              })
+                            }
+                          }}
                           onKeyDown={handlePriceKeyDown}
-                          className="w-36 text-xl text-right focus:outline-none focus:ring-0 rounded-md bg-gray-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className={`w-36 text-xl text-right focus:outline-none focus:ring-0 rounded-md ${hasError ? 'bg-red-100 border-red-300 text-red-900' : 'bg-gray-50'} [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
                           min="0"
                           step="0.01"
                         />
@@ -825,7 +1056,8 @@ export default function NewSalePage() {
                         <Trash2 size={20} />
                       </button>
                     </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </div>
@@ -856,7 +1088,7 @@ export default function NewSalePage() {
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Formas de Pago Rápidas</h3>
                 <div className="flex gap-2 overflow-x-auto">
                   {paymentMethodsData?.slice(0, 5).map((pm: PaymentMethod) => {
-                    const isDisabled = cart.length === 0 || !selectedWarehouse
+                    const isDisabled = cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
 
                     return (
                       <button
@@ -882,10 +1114,10 @@ export default function NewSalePage() {
                   {/* Otros - Opens modal */}
                   <button
                     onClick={() => setShowPaymentModal(true)}
-                    disabled={cart.length === 0 || !selectedWarehouse}
+                    disabled={cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending}
                     className={`
                       flex-shrink-0 p-3 rounded-lg border-2 transition-all min-w-[140px]
-                      ${cart.length === 0 || !selectedWarehouse
+                      ${cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
                         ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 border-purple-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
                       }
@@ -1028,18 +1260,6 @@ export default function NewSalePage() {
               </div>
 
               {/* Invoice Option */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="shouldInvoice"
-                  checked={shouldInvoice}
-                  onChange={(e) => setShouldInvoice(e.target.checked)}
-                  className="rounded"
-                />
-                <label htmlFor="shouldInvoice" className="text-sm">
-                  Generar Factura Electrónica AFIP
-                </label>
-              </div>
             </div>
 
             {/* Modal Actions */}
@@ -1122,6 +1342,34 @@ export default function NewSalePage() {
           </div>
         </div>
       )}
+
+      {/* Alert Dialog */}
+      <AlertDialog
+        isOpen={alertDialog.show}
+        onClose={() => setAlertDialog({ ...alertDialog, show: false })}
+        title={alertDialog.title}
+        message={alertDialog.message}
+        type={alertDialog.type}
+      />
+
+      {/* Confirm Dialog for Quick Payment */}
+      <ConfirmDialog
+        isOpen={confirmDialog.show}
+        onClose={() => setConfirmDialog({ show: false, message: '', amount: 0, paymentMethod: null })}
+        onConfirm={handleConfirmPayment}
+        title="Confirmar Venta"
+        message={confirmDialog.message}
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        type="success"
+      />
+
+      <AFIPProgressModal
+        isOpen={afipProgressModal.show}
+        steps={afipProgressModal.steps}
+        canClose={afipProgressModal.canClose}
+        onClose={() => setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null })}
+      />
     </>
   )
 }

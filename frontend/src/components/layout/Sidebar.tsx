@@ -3,26 +3,26 @@ import { clsx } from 'clsx'
 import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import {
-  HomeIcon,
-  DocumentTextIcon,
-  ChartBarIcon,
-  CogIcon,
-  XMarkIcon,
-  ArchiveBoxIcon,
-  ShoppingCartIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  TagIcon,
-  BuildingStorefrontIcon,
-  UserGroupIcon,
-  RectangleGroupIcon,
-  BanknotesIcon,
-  CreditCardIcon,
-  ClipboardDocumentListIcon,
-  ReceiptPercentIcon,
-  BuildingOffice2Icon,
-  LinkIcon,
-} from '@heroicons/react/24/outline'
+  Home,
+  FileText,
+  BarChart3,
+  Settings,
+  X,
+  Archive,
+  ShoppingCart,
+  ChevronDown,
+  ChevronRight,
+  Tag,
+  Store,
+  Users,
+  LayoutGrid,
+  Banknote,
+  CreditCard,
+  ClipboardList,
+  Receipt,
+  Building2,
+  Link as LinkIcon,
+} from 'lucide-react'
 
 interface SidebarProps {
   isOpen: boolean
@@ -38,44 +38,44 @@ interface NavigationItem {
 }
 
 const navigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/', icon: HomeIcon },
+  { name: 'Dashboard', href: '/', icon: Home },
   {
     name: 'Inventarios',
-    icon: ArchiveBoxIcon,
+    icon: Archive,
     children: [
-      { name: 'Productos', href: '/products', icon: ArchiveBoxIcon },
-      { name: 'Categorías', href: '/product-categories', icon: TagIcon },
-      { name: 'Marcas', href: '/product-brands', icon: BuildingStorefrontIcon },
-      { name: 'Almacenes', href: '/inventory/warehouses', icon: BuildingStorefrontIcon },
+      { name: 'Productos', href: '/products', icon: Archive },
+      { name: 'Categorías', href: '/product-categories', icon: Tag },
+      { name: 'Marcas', href: '/product-brands', icon: Store },
+      { name: 'Almacenes', href: '/inventory/warehouses', icon: Store },
     ]
   },
   {
     name: 'Ventas',
-    icon: ShoppingCartIcon,
+    icon: ShoppingCart,
     children: [
-      { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCartIcon },
-      { name: 'Clientes', href: '/customers', icon: UserGroupIcon },
-      { name: 'Categorías de Clientes', href: '/customer-categories', icon: RectangleGroupIcon },
+      { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCart },
+      { name: 'Clientes', href: '/customers', icon: Users },
+      { name: 'Categorías de Clientes', href: '/customer-categories', icon: LayoutGrid },
     ]
   },
-  { name: 'Entidades', href: '/entities', icon: UserGroupIcon },
-  { name: 'Documentos', href: '/documents', icon: DocumentTextIcon },
-  { name: 'Sucursales', href: '/branches', icon: BuildingOffice2Icon },
-  { name: 'Reportes', href: '/reports', icon: ChartBarIcon },
+  { name: 'Entidades', href: '/entities', icon: Users },
+  { name: 'Documentos', href: '/documents', icon: FileText },
+  { name: 'Sucursales', href: '/branches', icon: Building2 },
+  { name: 'Reportes', href: '/reports', icon: BarChart3 },
   {
     name: 'Configuración',
-    icon: CogIcon,
+    icon: Settings,
     requiresAdmin: true,
     children: [
-      { name: 'Tenants', href: '/tenants', icon: BuildingOffice2Icon },
-      { name: 'Usuarios', href: '/users', icon: UserGroupIcon },
-      { name: 'Impuestos', href: '/settings/taxes', icon: ReceiptPercentIcon },
-      { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCardIcon },
-      { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: BanknotesIcon },
-      { name: 'Comprobantes', href: '/settings/documents', icon: ClipboardDocumentListIcon },
+      { name: 'Tenants', href: '/tenants', icon: Building2 },
+      { name: 'Usuarios', href: '/users', icon: Users },
+      { name: 'Impuestos', href: '/settings/taxes', icon: Receipt },
+      { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCard },
+      { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: Banknote },
+      { name: 'Comprobantes', href: '/settings/documents', icon: ClipboardList },
       { name: 'Conexiones AFIP', href: '/settings/afip-connections', icon: LinkIcon },
-      { name: 'Puntos de Venta', href: '/settings/sales-points', icon: BuildingStorefrontIcon },
-      { name: 'Configuración de Comprobantes', href: '/settings/voucher-configurations', icon: CogIcon },
+      { name: 'Puntos de Venta', href: '/settings/sales-points', icon: Store },
+      { name: 'Configuración de Comprobantes', href: '/settings/voucher-configurations', icon: Settings },
     ]
   },
 ]
@@ -134,9 +134,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             />
             <span className="flex-1 text-left">{item.name}</span>
             {isExpanded ? (
-              <ChevronDownIcon className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4" />
             ) : (
-              <ChevronRightIcon className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" />
             )}
           </button>
           {isExpanded && (
@@ -207,7 +207,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
               onClick={onClose}
             >
-              <XMarkIcon className="h-6 w-6" />
+              <X className="h-6 w-6" />
             </button>
           </div>
 

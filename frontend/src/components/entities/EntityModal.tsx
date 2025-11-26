@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -26,7 +26,7 @@ const deliveryAddressSchema = z.object({
 const schema = z.object({
   code: z.string().optional(),
   name: z.string().min(1, 'El nombre es requerido'),
-  taxId: z.string().optional(),
+  taxId: z.string().optional(), // CUIT/CUIL va aquí, no usar campo "cuit" separado
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   phone: z.string().optional(),
   addressLine1: z.string().optional(),
@@ -47,7 +47,6 @@ const schema = z.object({
   employeePosition: z.string().optional(),
   employeeSalary: z.number().optional(),
   // Datos fiscales
-  cuit: z.string().optional(),
   ivaCondition: z.string().optional(),
   grossIncomeNumber: z.string().optional(),
   businessActivity: z.string().optional(),
@@ -93,6 +92,24 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
   const isCustomer = watch('isCustomer')
   const isSupplier = watch('isSupplier')
   const isEmployee = watch('isEmployee')
+
+  // Reset form when entity changes (edit mode)
+  useEffect(() => {
+    if (isOpen && entity && mode === 'edit') {
+      reset(entity)
+      setDeliveryAddresses(entity.deliveryAddresses || [])
+    } else if (isOpen && mode === 'create') {
+      reset({
+        country: 'AR',
+        currency: 'ARS',
+        isCustomer: entity?.isCustomer || false,
+        isSupplier: entity?.isSupplier || false,
+        isEmployee: entity?.isEmployee || false,
+        deliveryAddresses: []
+      })
+      setDeliveryAddresses([])
+    }
+  }, [isOpen, entity, mode, reset])
 
   // Fetch customer categories
   const { data: customerCategories = [] } = useQuery({
@@ -154,28 +171,43 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
 
   const createEntity = useMutation({
     mutationFn: async (data: FormData) => {
+      console.log('[EntityModal] Creating entity:', data)
       const response = await api.post(`/${currentTenant!.slug}/entities`, data)
       return response.data
     },
     onSuccess: () => {
+      console.log('[EntityModal] Entity created successfully')
       queryClient.invalidateQueries({ queryKey: ['entities'] })
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
       reset()
       onClose()
+    },
+    onError: (error: any) => {
+      console.error('[EntityModal] Error creating entity:', error)
+      alert(`Error al crear: ${error.response?.data?.error || error.message}`)
     }
   })
 
   const updateEntity = useMutation({
     mutationFn: async (data: FormData) => {
+      console.log('[EntityModal] Updating entity:', entity.id, data)
       const response = await api.put(`/${currentTenant!.slug}/entities/${entity.id}`, data)
       return response.data
     },
     onSuccess: () => {
+      console.log('[EntityModal] Entity updated successfully')
       queryClient.invalidateQueries({ queryKey: ['entities'] })
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
       onClose()
+    },
+    onError: (error: any) => {
+      console.error('[EntityModal] Error updating entity:', error)
+      alert(`Error al actualizar: ${error.response?.data?.error || error.message}`)
     }
   })
 
   const onSubmit = (data: FormData) => {
+    console.log('[EntityModal] onSubmit called:', { mode, data })
     const submitData = { ...data, deliveryAddresses }
     if (mode === 'create') {
       createEntity.mutate(submitData)
@@ -414,12 +446,6 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
     <div className="space-y-4">
       <h3 className="text-lg font-medium text-gray-900 mb-4">Datos Fiscales (Argentina)</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Input
-          label="CUIT"
-          placeholder="20-12345678-9"
-          error={errors.cuit?.message}
-          {...register('cuit')}
-        />
         <Select
           label="Condición ante IVA"
           error={errors.ivaCondition?.message}

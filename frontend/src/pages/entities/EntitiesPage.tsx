@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { PlusIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -13,11 +14,22 @@ import { api } from '../../services/api'
 
 export default function EntitiesPage() {
   const { currentTenant } = useAuthStore()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedEntity, setSelectedEntity] = useState<any>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+
+  // Check for action=new in URL params
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      handleCreate()
+      // Remove the action param from URL
+      searchParams.delete('action')
+      setSearchParams(searchParams)
+    }
+  }, [searchParams])
 
   // Fetch entities
   const { data: entities, isLoading } = useQuery({

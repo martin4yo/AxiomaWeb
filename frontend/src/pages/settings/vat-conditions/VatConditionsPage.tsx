@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PlusIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { PageHeader } from '../../../components/ui/PageHeader'
@@ -12,13 +12,30 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
+import { api } from '../../../services/api'
+
+const VOUCHER_TYPES = [
+  { code: 'FA', name: 'Factura A' },
+  { code: 'FB', name: 'Factura B' },
+  { code: 'FC', name: 'Factura C' },
+  { code: 'FE', name: 'Factura E (Exportación)' },
+  { code: 'NCA', name: 'Nota de Crédito A' },
+  { code: 'NCB', name: 'Nota de Crédito B' },
+  { code: 'NCC', name: 'Nota de Crédito C' },
+  { code: 'NCE', name: 'Nota de Crédito E' },
+  { code: 'NDA', name: 'Nota de Débito A' },
+  { code: 'NDB', name: 'Nota de Débito B' },
+  { code: 'NDC', name: 'Nota de Débito C' },
+  { code: 'NDE', name: 'Nota de Débito E' }
+]
 
 const vatConditionSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
   code: z.string().min(1, 'El código es requerido'),
   description: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
-  isExempt: z.boolean().optional()
+  isExempt: z.boolean().optional(),
+  allowedVoucherTypes: z.array(z.string()).optional()
 })
 
 type VatConditionForm = z.infer<typeof vatConditionSchema>
@@ -30,6 +47,7 @@ export default function VatConditionsPage() {
   const [showModal, setShowModal] = useState(false)
   const [selectedVatCondition, setSelectedVatCondition] = useState<any>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+  const [selectedVoucherTypes, setSelectedVoucherTypes] = useState<string[]>([])
 
   const {
     register,
@@ -48,10 +66,8 @@ export default function VatConditionsPage() {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
 
-      const response = await fetch(`/api/${currentTenant!.slug}/vat-conditions?${params}`)
-      if (!response.ok) throw new Error('Error fetching VAT conditions')
-      const data = await response.json()
-      return data.vatConditions || []
+      const response = await api.get(`/${currentTenant!.slug}/vat-conditions?${params}`)
+      return response.data.conditions || []
     },
     enabled: !!currentTenant
   })
@@ -59,13 +75,8 @@ export default function VatConditionsPage() {
   // Create VAT condition mutation
   const createVatCondition = useMutation({
     mutationFn: async (data: VatConditionForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/vat-conditions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al crear condición de IVA')
-      return response.json()
+      const response = await api.post(`/${currentTenant!.slug}/vat-conditions`, data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vat-conditions'] })
@@ -77,13 +88,8 @@ export default function VatConditionsPage() {
   // Update VAT condition mutation
   const updateVatCondition = useMutation({
     mutationFn: async (data: VatConditionForm) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/vat-conditions/${selectedVatCondition.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      })
-      if (!response.ok) throw new Error('Error al actualizar condición de IVA')
-      return response.json()
+      const response = await api.put(`/${currentTenant!.slug}/vat-conditions/${selectedVatCondition.id}`, data)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vat-conditions'] })
@@ -95,11 +101,8 @@ export default function VatConditionsPage() {
   // Delete VAT condition mutation
   const deleteVatCondition = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(`/api/${currentTenant!.slug}/vat-conditions/${id}`, {
-        method: 'DELETE'
-      })
-      if (!response.ok) throw new Error('Error al eliminar condición de IVA')
-      return response.json()
+      const response = await api.delete(`/${currentTenant!.slug}/vat-conditions/${id}`)
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vat-conditions'] })
@@ -110,6 +113,7 @@ export default function VatConditionsPage() {
     setSelectedVatCondition(null)
     setModalMode('create')
     reset()
+    setSelectedVoucherTypes([])
     setShowModal(true)
   }
 
@@ -117,6 +121,7 @@ export default function VatConditionsPage() {
     setSelectedVatCondition(vatCondition)
     setModalMode('edit')
     reset(vatCondition)
+    setSelectedVoucherTypes(vatCondition.allowedVoucherTypes || [])
     setShowModal(true)
   }
 
@@ -127,10 +132,15 @@ export default function VatConditionsPage() {
   }
 
   const onSubmit = (data: VatConditionForm) => {
+    const formData = {
+      ...data,
+      allowedVoucherTypes: selectedVoucherTypes
+    }
+
     if (modalMode === 'create') {
-      createVatCondition.mutate(data)
+      createVatCondition.mutate(formData)
     } else {
-      updateVatCondition.mutate(data)
+      updateVatCondition.mutate(formData)
     }
   }
 
@@ -219,6 +229,9 @@ export default function VatConditionsPage() {
                       Tasa IVA
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Comprobantes
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -252,6 +265,19 @@ export default function VatConditionsPage() {
                             <Badge variant="warning">Exento</Badge>
                           ) : (
                             `${vatCondition.taxRate || 0}%`
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {vatCondition.allowedVoucherTypes && vatCondition.allowedVoucherTypes.length > 0 ? (
+                            vatCondition.allowedVoucherTypes.map((code: string) => (
+                              <Badge key={code} variant="info" className="text-xs">
+                                {code}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-sm text-gray-400 italic">Sin comprobantes</span>
                           )}
                         </div>
                       </td>
@@ -315,6 +341,41 @@ export default function VatConditionsPage() {
               error={errors.description?.message}
               {...register('description')}
             />
+
+            {/* Tipos de Comprobantes Permitidos */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tipos de Comprobantes Permitidos
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-3 border border-gray-300 rounded-md max-h-48 overflow-y-auto">
+                {VOUCHER_TYPES.map((voucherType) => (
+                  <label
+                    key={voucherType.code}
+                    className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedVoucherTypes.includes(voucherType.code)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedVoucherTypes([...selectedVoucherTypes, voucherType.code])
+                        } else {
+                          setSelectedVoucherTypes(selectedVoucherTypes.filter(code => code !== voucherType.code))
+                        }
+                      }}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-700">{voucherType.name}</span>
+                  </label>
+                ))}
+              </div>
+              {selectedVoucherTypes.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Esta condición no podrá emitir comprobantes
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Tasa de IVA (%)"
