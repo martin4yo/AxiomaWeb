@@ -1,35 +1,55 @@
-# Axioma ERP
+# AxiomaWeb ERP
 
-Sistema ERP moderno y multi-tenant construido con Node.js, React y PostgreSQL.
+Sistema ERP moderno y multi-tenant construido con Node.js, React y PostgreSQL, con integración completa a AFIP para facturación electrónica.
 
 ## 🚀 Características
 
-- **Multi-tenant**: Un solo despliegue, múltiples clientes
-- **Autenticación segura**: JWT con roles y permisos
-- **Gestión de documentos**: Sistema flexible de documentos comerciales
-- **UI moderna**: Interfaz responsive con Tailwind CSS
-- **API RESTful**: Backend escalable con Express.js
+### Core
+- **Multi-tenant**: Un solo despliegue, múltiples clientes con aislamiento total de datos
+- **Autenticación segura**: JWT con roles y permisos por tenant
+- **UI moderna**: Interfaz responsive con Tailwind CSS y componentes reutilizables
+- **API RESTful**: Backend escalable con Express.js y TypeScript
 - **Base de datos optimizada**: PostgreSQL con Prisma ORM
+
+### Módulos de Negocio
+- **Productos**: Gestión completa con SKU, stock, categorías y marcas
+- **Clientes**: Base de datos de entidades con condiciones fiscales
+- **Ventas**: Punto de venta con productos de acceso rápido
+- **Inventario**: Control de stock por almacén
+- **Sucursales**: Multi-sucursal con configuración independiente
+
+### Facturación Electrónica AFIP 🇦🇷
+- **WSAA**: Autenticación con certificados digitales
+- **WSFE v1**: Emisión de facturas A, B, C
+- **Notas de Crédito/Débito**: Gestión completa
+- **CAE**: Solicitud y validación automática
+- **Puntos de Venta**: Configuración por sucursal
+- **Sincronización**: Numeración automática con AFIP
+- **Multi-ambiente**: Testing y Producción
 
 ## 🛠️ Stack Tecnológico
 
 ### Backend
-- Node.js 20+
-- Express.js
-- TypeScript
-- Prisma ORM
-- PostgreSQL
-- JWT Authentication
-- Zod Validation
+- **Node.js** 18+
+- **Express.js** - Framework web
+- **TypeScript** - Type safety
+- **Prisma ORM** - Database ORM
+- **PostgreSQL** 14+ - Base de datos
+- **JWT** - Autenticación
+- **Zod** - Validación de schemas
+- **node-forge** - Firma digital para AFIP
+- **soap** - Cliente SOAP para AFIP
 
 ### Frontend
-- React 18
-- TypeScript
-- Vite
-- Tailwind CSS
-- Zustand (Estado)
-- React Query (Fetching)
-- React Hook Form
+- **React** 18
+- **TypeScript**
+- **Vite** - Build tool
+- **Tailwind CSS** - Estilos
+- **Zustand** - State management
+- **TanStack Query** - Data fetching
+- **React Hook Form** - Formularios
+- **React Router** - Navegación
+- **Axios** - HTTP client
 
 ## 🏃‍♂️ Inicio Rápido
 
@@ -224,16 +244,125 @@ Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
 
 **Nota**: Vite embebe las variables de entorno en tiempo de build, no de ejecución.
 
+## 📚 Documentación
+
+### Guías Completas
+
+- **[Integración AFIP](./docs/AFIP_INTEGRACION.md)** - Configuración completa de facturación electrónica
+  - URLs de homologación y producción
+  - Certificados digitales
+  - Flujo de autenticación WSAA
+  - Solicitud de CAE con WSFE
+  - Troubleshooting completo
+
+- **[Deployment](./docs/DEPLOYMENT.md)** - Guía de deploy en producción
+  - Configuración del servidor
+  - Base de datos y migraciones
+  - Variables de entorno
+  - Nginx y SSL
+  - Backups y monitoreo
+  - Scripts de deploy
+
+### Guías Rápidas
+
+#### Configurar AFIP (Facturación Electrónica)
+
+1. **Obtener Certificado Digital**
+   - Ingresar a AFIP con CUIT y Clave Fiscal
+   - Ir a Sistema → Certificados Digitales
+   - Generar CSR para Web Services
+   - Descargar certificado (.crt) y convertir a PEM
+
+2. **Crear Conexión AFIP**
+   ```
+   Settings → Conexiones AFIP → Nueva Conexión
+   - Nombre: "AFIP Homologación"
+   - CUIT: Tu CUIT
+   - Ambiente: Testing
+   - Certificado: Pegar contenido PEM
+   - Clave Privada: Pegar contenido PEM
+   - Timeout: 30000 (opcional)
+   ```
+
+3. **Crear Punto de Venta**
+   ```
+   Settings → Puntos de Venta → Nuevo
+   - Número: 1
+   - Nombre: "PV Principal"
+   - Conexión AFIP: Seleccionar la creada
+   ```
+
+4. **Configurar Comprobantes**
+   ```
+   Settings → Configuración de Comprobantes → Nueva
+   - Tipo: Factura B
+   - Sucursal: Casa Central
+   - Conexión AFIP: Seleccionar
+   - Punto de Venta: PV Principal
+   - Próximo Número: 1
+   ```
+
+5. **Probar Integración**
+   - Ir a Conexiones AFIP
+   - Click en "Probar Conexión"
+   - Verificar los 3 pasos estén en verde
+
+Ver documentación completa en [`docs/AFIP_INTEGRACION.md`](./docs/AFIP_INTEGRACION.md)
+
+#### Deploy en Producción
+
+```bash
+# En el servidor
+cd /var/www/AxiomaWeb/backend
+
+# Aplicar migraciones
+npx prisma migrate deploy
+
+# Regenerar cliente Prisma
+npx prisma generate
+
+# Compilar TypeScript
+npm run build
+
+# Reiniciar servicio
+sudo systemctl restart axioma-backend
+```
+
+Ver guía completa en [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md)
+
 ## 🆘 Soporte
 
 Si tienes problemas o preguntas:
 
-1. Revisa la documentación ([DEPLOYMENT.md](./DEPLOYMENT.md) para problemas de deployment)
-2. Busca en los issues existentes
-3. Crea un nuevo issue con detalles del problema
+1. **Documentación**: Revisa las guías en [`docs/`](./docs/)
+2. **Issues**: Busca en los issues existentes
+3. **Nuevo Issue**: Crea un issue con detalles del problema
+4. **Logs**: Incluye logs relevantes del error
+
+### Problemas Comunes
+
+**Error de compilación TypeScript en producción**
+```bash
+cd /var/www/AxiomaWeb/backend
+npx prisma generate
+npm run build
+```
+
+**Dashboard sin datos**
+- Verificar que uses `currentTenant` en las queries
+- URLs deben incluir `/${tenantSlug}/`
+
+**AFIP timeout**
+- Aumentar timeout en conexión AFIP (Settings)
+- Verificar firewall permite conexiones a afip.gov.ar
 
 ## 🙏 Agradecimientos
 
 - Inspirado en sistemas ERP modernos
 - Construido con las mejores prácticas de desarrollo
 - Diseñado para escalabilidad y mantenibilidad
+- Integración AFIP siguiendo normativa argentina
+
+## 📄 Licencia
+
+Copyright © 2025 AxiomaWeb
