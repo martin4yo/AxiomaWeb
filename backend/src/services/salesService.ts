@@ -823,6 +823,11 @@ export class SalesService {
           customer: true,
           warehouse: true,
           voucherTypeRelation: true,
+          voucherConfiguration: {
+            include: {
+              afipConnection: true
+            }
+          },
           creator: {
             select: {
               id: true,
