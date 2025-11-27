@@ -1,18 +1,20 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { TextArea } from '../ui/TextArea'
 import { useAuthStore } from '../../stores/authStore'
 import { salesPointsApi, type SalesPoint } from '../../api/sales-points'
+import { api } from '../../services/api'
 
 const schema = z.object({
   number: z.number().int().min(1, 'El número debe ser mayor a 0').max(99999, 'El número no puede superar 99999'),
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
+  branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   isActive: z.boolean().default(true)
 })
 
@@ -34,6 +36,16 @@ export default function SalesPointModal({
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
 
+  // Fetch branches
+  const { data: branches = [] } = useQuery({
+    queryKey: ['branches', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant!.slug}/branches`)
+      return response.data.branches
+    },
+    enabled: !!currentTenant && isOpen
+  })
+
   const {
     register,
     handleSubmit,
@@ -45,6 +57,7 @@ export default function SalesPointModal({
       number: 1,
       name: '',
       description: '',
+      branchId: null,
       isActive: true
     }
   })
@@ -111,6 +124,29 @@ export default function SalesPointModal({
               placeholder="Ej: Casa Central"
               required
             />
+          </div>
+
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sucursal
+            </label>
+            <select
+              {...register('branchId')}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="">Sin sucursal asignada</option>
+              {branches.map((branch: any) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.code} - {branch.name}
+                </option>
+              ))}
+            </select>
+            {errors.branchId && (
+              <p className="mt-1 text-sm text-red-600">{errors.branchId.message}</p>
+            )}
+            <p className="mt-1 text-sm text-gray-500">
+              Opcional: Asignar este punto de venta a una sucursal específica
+            </p>
           </div>
 
           <div className="col-span-2">

@@ -3,18 +3,25 @@ import { api } from '../services/api'
 export interface SalesPoint {
   id: string
   tenantId: string
+  branchId?: string | null
   number: number
   name: string
   description?: string
   isActive: boolean
   createdAt: string
   updatedAt: string
+  branch?: {
+    id: string
+    code: string
+    name: string
+  }
 }
 
 export interface CreateSalesPointData {
   number: number
   name: string
   description?: string
+  branchId?: string | null
   isActive?: boolean
 }
 

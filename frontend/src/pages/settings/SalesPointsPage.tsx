@@ -99,6 +99,9 @@ export default function SalesPointsPage() {
                       Nombre
                     </th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      Sucursal
+                    </th>
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
                       Descripción
                     </th>
                     <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
@@ -112,7 +115,7 @@ export default function SalesPointsPage() {
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {salesPoints.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-3 py-8 text-center text-sm text-gray-500">
+                      <td colSpan={6} className="px-3 py-8 text-center text-sm text-gray-500">
                         No hay puntos de venta configurados
                       </td>
                     </tr>
@@ -124,6 +127,9 @@ export default function SalesPointsPage() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-900">
                           {salesPoint.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          {salesPoint.branch ? `${salesPoint.branch.code} - ${salesPoint.branch.name}` : '-'}
                         </td>
                         <td className="px-3 py-4 text-sm text-gray-500">
                           {salesPoint.description || '-'}
