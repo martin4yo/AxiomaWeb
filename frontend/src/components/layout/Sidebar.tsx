@@ -18,7 +18,6 @@ import {
   Banknote,
   CreditCard,
   ClipboardList,
-  Receipt,
   Building2,
   Link as LinkIcon,
 } from 'lucide-react'
@@ -66,7 +65,6 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Tenants', href: '/tenants', icon: Building2 },
       { name: 'Usuarios', href: '/users', icon: Users },
-      { name: 'Impuestos', href: '/settings/taxes', icon: Receipt },
       { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCard },
       { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: Banknote },
       { name: 'Comprobantes', href: '/settings/documents', icon: ClipboardList },
