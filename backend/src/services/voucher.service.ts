@@ -83,40 +83,41 @@ export class VoucherService {
 
     // Map document class to voucher code prefix
     let codePrefix: string
+    let voucherCode: string
+
     switch (documentClass) {
       case 'invoice':
         codePrefix = 'F'
+        voucherCode = `${codePrefix}${letter}`
         break
       case 'credit_note':
         codePrefix = 'NC'
+        voucherCode = `${codePrefix}${letter}`
         break
       case 'debit_note':
         codePrefix = 'ND'
+        voucherCode = `${codePrefix}${letter}`
         break
       case 'quote':
-        return {
-          voucherType: await this.prisma.voucherType.findUnique({
-            where: { code: 'PR' }
-          }),
-          configuration: null,
-          nextNumber: null
-        }
+        voucherCode = 'PR' // Presupuesto no tiene letra
+        break
       default:
         throw new AppError('Clase de documento inválida', 400)
     }
 
-    const voucherCode = `${codePrefix}${letter}`
-
     // Validate that the customer's VAT condition allows this voucher type
-    const allowedTypes = Array.isArray(customerVatCondition.allowedVoucherTypes)
-      ? customerVatCondition.allowedVoucherTypes
-      : []
+    // (no aplica para presupuestos que no dependen de condición IVA)
+    if (documentClass !== 'quote') {
+      const allowedTypes = Array.isArray(customerVatCondition.allowedVoucherTypes)
+        ? customerVatCondition.allowedVoucherTypes
+        : []
 
-    if (allowedTypes.length > 0 && !allowedTypes.includes(voucherCode)) {
-      throw new AppError(
-        `La condición de IVA "${customerVatCondition.name}" (${customerVatCode}) no permite emitir comprobantes tipo ${voucherCode}. Tipos permitidos: ${allowedTypes.join(', ')}`,
-        400
-      )
+      if (allowedTypes.length > 0 && !allowedTypes.includes(voucherCode)) {
+        throw new AppError(
+          `La condición de IVA "${customerVatCondition.name}" (${customerVatCode}) no permite emitir comprobantes tipo ${voucherCode}. Tipos permitidos: ${allowedTypes.join(', ')}`,
+          400
+        )
+      }
     }
 
     // Find voucher type
