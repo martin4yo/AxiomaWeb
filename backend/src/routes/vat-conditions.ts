@@ -11,6 +11,7 @@ const createVatConditionSchema = z.object({
   taxRate: z.number().min(0).max(100).optional(),
   isExempt: z.boolean().optional(),
   afipCode: z.number().optional(),
+  afipDocumentType: z.number().optional(),
   canIssueA: z.boolean().optional(),
   issuesOnlyC: z.boolean().optional(),
   allowedVoucherTypes: z.array(z.string()).optional()
@@ -44,6 +45,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
         taxRate: validatedData.taxRate || 21,
         isExempt: validatedData.isExempt || false,
         afipCode: validatedData.afipCode,
+        afipDocumentType: validatedData.afipDocumentType,
         canIssueA: validatedData.canIssueA || false,
         issuesOnlyC: validatedData.issuesOnlyC || false,
         allowedVoucherTypes: validatedData.allowedVoucherTypes || []

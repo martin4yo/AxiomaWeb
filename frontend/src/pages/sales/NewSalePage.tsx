@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2 } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
 import { useAuthStore } from '../../stores/authStore'
@@ -34,6 +34,7 @@ interface Customer {
   id: string
   name: string
   ivaCondition: string
+  isDefaultCustomer?: boolean
 }
 
 interface Warehouse {
@@ -41,6 +42,19 @@ interface Warehouse {
   name: string
   code: string
   isDefault?: boolean
+}
+
+interface Branch {
+  id: string
+  name: string
+  code: string
+}
+
+interface SalesPoint {
+  id: string
+  number: number
+  name: string
+  branchId?: string
 }
 
 interface PaymentMethod {
@@ -80,14 +94,17 @@ export default function NewSalePage() {
   const [productSearchTerm, setProductSearchTerm] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null)
+  const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
+  const [selectedSalesPoint, setSelectedSalesPoint] = useState<SalesPoint | null>(null)
   const [cart, setCart] = useState<SaleItem[]>([])
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [notes, setNotes] = useState('')
   const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>('invoice')
   const [voucherInfo, setVoucherInfo] = useState<any>(null)
+  const [fiscalDataExpanded, setFiscalDataExpanded] = useState(true)
+  const [productSearchExpanded, setProductSearchExpanded] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<{ show: boolean; message: string; amount: number; paymentMethod: PaymentMethod | null }>({ show: false, message: '', amount: 0, paymentMethod: null })
-  const [saleResultModal, setSaleResultModal] = useState<{ show: boolean; sale: any; caeInfo: any }>({ show: false, sale: null, caeInfo: null })
   const [invalidItems, setInvalidItems] = useState<Set<string>>(new Set())
   const [alertDialog, setAlertDialog] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' | 'info' | 'success' }>({ show: false, title: '', message: '', type: 'info' })
 
@@ -103,12 +120,42 @@ export default function NewSalePage() {
     }>
     canClose: boolean
     pendingSaleData?: any
+    saleResult?: {
+      sale: any
+      caeInfo?: any
+      caeError?: any
+      payments?: Array<{
+        paymentMethodName: string
+        amount: number
+      }>
+    }
   }>({
     show: false,
     steps: [],
     canClose: false,
-    pendingSaleData: null
+    pendingSaleData: null,
+    saleResult: undefined
   })
+
+  // Check if fiscal data is complete
+  const fiscalDataComplete = useMemo(() => {
+    const isComplete = !!(
+      selectedCustomer &&
+      selectedBranch &&
+      selectedSalesPoint &&
+      selectedWarehouse &&
+      voucherInfo
+    )
+    console.log('[FiscalData] Complete check:', {
+      selectedCustomer: !!selectedCustomer,
+      selectedBranch: !!selectedBranch,
+      selectedSalesPoint: !!selectedSalesPoint,
+      selectedWarehouse: !!selectedWarehouse,
+      voucherInfo: !!voucherInfo,
+      isComplete
+    })
+    return isComplete
+  }, [selectedCustomer, selectedBranch, selectedSalesPoint, selectedWarehouse, voucherInfo])
 
   // Queries
   const { data: warehousesData } = useQuery({
@@ -118,6 +165,26 @@ export default function NewSalePage() {
       return response.data
     },
     enabled: !!currentTenant
+  })
+
+  const { data: branchesData } = useQuery({
+    queryKey: ['branches', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await axios.get(`/${currentTenant!.slug}/branches`)
+      return response.data.branches
+    },
+    enabled: !!currentTenant
+  })
+
+  const { data: salesPointsData } = useQuery({
+    queryKey: ['sales-points', currentTenant?.slug, selectedBranch?.id],
+    queryFn: async () => {
+      const response = await axios.get(`/${currentTenant!.slug}/sales-points`, {
+        params: selectedBranch?.id ? { branchId: selectedBranch.id } : {}
+      })
+      return response.data.salesPoints
+    },
+    enabled: !!currentTenant && !!selectedBranch
   })
 
   const { data: customersData } = useQuery({
@@ -192,7 +259,8 @@ export default function NewSalePage() {
             }
           ],
           canClose: false,
-          pendingSaleData: data
+          pendingSaleData: data,
+          saleResult: undefined
         })
       }
 
@@ -208,34 +276,52 @@ export default function NewSalePage() {
           steps: prev.steps.map(step => {
             if (step.id === 'check-afip') return { ...step, status: 'success', message: 'Sincronización verificada' }
             if (step.id === 'create-sale') return { ...step, status: 'success', message: 'Venta creada exitosamente' }
-            if (step.id === 'request-cae' && response.caeInfo) {
+            if (step.id === 'request-cae' && response.sale.caeInfo) {
+              const caeExpiration = new Date(response.sale.caeInfo.caeExpiration).toLocaleDateString('es-AR')
               return {
                 ...step,
                 status: 'success',
-                message: 'CAE autorizado',
-                detail: `CAE: ${response.caeInfo.cae}`
+                message: 'CAE autorizado exitosamente',
+                detail: `CAE: ${response.sale.caeInfo.cae}\nVencimiento: ${caeExpiration}`
+              }
+            }
+            if (step.id === 'request-cae' && response.sale.caeError) {
+              return {
+                ...step,
+                status: 'error',
+                message: response.sale.caeError.message,
+                detail: response.sale.caeError.detail
               }
             }
             return step
           }),
-          canClose: true
-        }))
-
-        // Cerrar modal después de 2 segundos
-        setTimeout(() => {
-          setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null })
-          setSaleResultModal({
-            show: true,
+          canClose: true,
+          saleResult: {
             sale: response.sale,
-            caeInfo: response.caeInfo
-          })
-        }, 2000)
+            caeInfo: response.sale.caeInfo,
+            caeError: response.sale.caeError,
+            payments: (response.sale.payments || []).map((p: any) => ({
+              paymentMethodName: p.paymentMethodName || p.paymentMethod?.name || 'Sin especificar',
+              amount: Number(p.amount)
+            }))
+          }
+        }))
       } else {
-        // Si no hay modal de progreso, mostrar resultado directamente
-        setSaleResultModal({
+        // Si no hay modal de progreso (venta sin CAE), mostrar modal con resultado directamente
+        setAfipProgressModal({
           show: true,
-          sale: response.sale,
-          caeInfo: response.caeInfo
+          steps: [],
+          canClose: true,
+          pendingSaleData: null,
+          saleResult: {
+            sale: response.sale,
+            caeInfo: response.sale.caeInfo,
+            caeError: response.sale.caeError,
+            payments: (response.sale.payments || []).map((p: any) => ({
+              paymentMethodName: p.paymentMethodName || p.paymentMethod?.name || 'Sin especificar',
+              amount: Number(p.amount)
+            }))
+          }
         })
       }
 
@@ -243,8 +329,19 @@ export default function NewSalePage() {
       setCart([])
       setPayments([])
       setNotes('')
-      setSelectedCustomer(null)
       setProductSearchTerm('')
+
+      // Reselect default customer
+      if (customersData && customersData.length > 0) {
+        const defaultCustomer = customersData.find((c: Customer) => c.isDefaultCustomer)
+        if (defaultCustomer) {
+          setSelectedCustomer(defaultCustomer)
+        } else {
+          setSelectedCustomer(null)
+        }
+      } else {
+        setSelectedCustomer(null)
+      }
     },
     onError: (error: any) => {
       // Verificar si es error de desincronización AFIP
@@ -286,12 +383,36 @@ export default function NewSalePage() {
         }, 500)
       } else {
         // Otro error
+        console.log('[Sale Error] Full error object:', error)
+        console.log('[Sale Error] Response:', error.response)
+        console.log('[Sale Error] Response data:', error.response?.data)
+        console.log('[Sale Error] Response data.data:', error.response?.data?.data)
+
         if (afipProgressModal.show) {
+          // Extraer detalles del error de AFIP si están disponibles
+          const errorMessage = error.response?.data?.error || error.message
+          const errorData = error.response?.data?.data
+          const errorDetail = errorData?.detail || null
+
+          console.log('[Sale Error] Extracted message:', errorMessage)
+          console.log('[Sale Error] Extracted errorData:', errorData)
+          console.log('[Sale Error] Extracted detail:', errorDetail)
+          console.log('[Sale Error] Will show detail in modal:', !!errorDetail)
+
           setAfipProgressModal(prev => ({
             ...prev,
-            steps: prev.steps.map(step =>
-              step.status === 'loading' ? { ...step, status: 'error', message: error.response?.data?.error || error.message } : step
-            ),
+            steps: prev.steps.map(step => {
+              if (step.status === 'loading') {
+                console.log('[Sale Error] Updating step:', step.id, 'with detail:', errorDetail)
+                return {
+                  ...step,
+                  status: 'error',
+                  message: errorMessage,
+                  detail: errorDetail || undefined
+                }
+              }
+              return step
+            }),
             canClose: true
           }))
         } else {
@@ -325,29 +446,100 @@ export default function NewSalePage() {
     }
   }, [warehousesData])
 
+  // Auto-select default customer when data changes or customer is null
+  useEffect(() => {
+    if (customersData && customersData.length > 0) {
+      const customerIds = customersData.map((c: Customer) => c.id)
+      if (!selectedCustomer || !customerIds.includes(selectedCustomer.id)) {
+        const defaultCustomer = customersData.find((c: Customer) => c.isDefaultCustomer)
+        if (defaultCustomer) {
+          setSelectedCustomer(defaultCustomer)
+        }
+      }
+    }
+  }, [customersData])
+
+  // Auto-select first branch when data changes or branch is null
+  useEffect(() => {
+    if (branchesData && branchesData.length > 0) {
+      const branchIds = branchesData.map((b: Branch) => b.id)
+      if (!selectedBranch || !branchIds.includes(selectedBranch.id)) {
+        // Seleccionar la primera sucursal por defecto
+        setSelectedBranch(branchesData[0])
+      }
+    }
+  }, [branchesData])
+
+  // Auto-select first sales point when data changes or branch changes
+  useEffect(() => {
+    if (salesPointsData && salesPointsData.length > 0) {
+      const salesPointIds = salesPointsData.map((sp: SalesPoint) => sp.id)
+      if (!selectedSalesPoint || !salesPointIds.includes(selectedSalesPoint.id)) {
+        // Seleccionar el primer punto de venta por defecto
+        setSelectedSalesPoint(salesPointsData[0])
+      }
+    } else {
+      // Si no hay puntos de venta para esta sucursal, limpiar selección
+      setSelectedSalesPoint(null)
+    }
+  }, [salesPointsData, selectedBranch])
+
   // Determine voucher type when customer or document class changes
   useEffect(() => {
     const determineVoucher = async () => {
+      console.log('[Voucher] Determining voucher type...', {
+        hasCustomer: !!selectedCustomer,
+        hasTenant: !!currentTenant,
+        documentClass,
+        branchId: selectedBranch?.id
+      })
+
       if (!selectedCustomer || !currentTenant) {
+        console.log('[Voucher] Missing customer or tenant, clearing voucherInfo')
         setVoucherInfo(null)
         return
       }
 
       try {
+        console.log('[Voucher] Calling API...')
         const response = await axios.post(`/${currentTenant.slug}/voucher/determine`, {
           customerId: selectedCustomer.id,
           documentClass,
-          branchId: selectedWarehouse?.id
+          branchId: selectedBranch?.id
         })
+        console.log('[Voucher] API response:', response.data)
         setVoucherInfo(response.data)
       } catch (error: any) {
-        console.error('Error determining voucher:', error)
+        console.error('[Voucher] Error determining voucher:', error)
         setVoucherInfo(null)
       }
     }
 
     determineVoucher()
-  }, [selectedCustomer, documentClass, selectedWarehouse, currentTenant])
+  }, [selectedCustomer, documentClass, selectedBranch, currentTenant])
+
+  // Auto-expand product search when fiscal data is complete
+  useEffect(() => {
+    // Datos fiscales completos: cliente, sucursal, punto de venta, almacén y voucher determinado
+    console.log('Checking fiscal data:', {
+      voucherInfo: !!voucherInfo,
+      selectedBranch: !!selectedBranch,
+      selectedSalesPoint: !!selectedSalesPoint,
+      selectedWarehouse: !!selectedWarehouse
+    })
+
+    const fiscalDataComplete = voucherInfo && selectedBranch && selectedSalesPoint && selectedWarehouse
+
+    if (fiscalDataComplete) {
+      console.log('✅ Fiscal data complete - expanding products accordion')
+      setProductSearchExpanded(true)
+      setFiscalDataExpanded(false)
+      // Focus on product search input when expanded
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 100)
+    }
+  }, [voucherInfo, selectedBranch, selectedSalesPoint, selectedWarehouse])
 
   // Focus input on mount
   useEffect(() => {
@@ -795,14 +987,51 @@ export default function NewSalePage() {
         <div className="col-span-4 flex flex-col gap-4 overflow-hidden">
           {/* Header */}
           <div className="flex-shrink-0">
-            <h1 className="text-2xl font-bold text-gray-900">Axioma Mini - Venta Mostrador</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Nueva Venta</h1>
           </div>
 
-          {/* Cliente y Almacén */}
-          <div className="bg-white rounded-lg shadow p-4 space-y-3 flex-shrink-0">
+          {/* Acordeón 1: Datos Fiscales */}
+          <div className="bg-white rounded-lg shadow flex-shrink-0">
+            <button
+              onClick={() => setFiscalDataExpanded(!fiscalDataExpanded)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-gray-50 transition-colors rounded-t-lg"
+            >
+              <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                {fiscalDataExpanded ? (
+                  <>
+                    <span className="text-lg font-semibold text-gray-900">
+                      {voucherInfo ? `1. ${voucherInfo.voucherType.name}` : '1. Datos Fiscales'}
+                    </span>
+                    {voucherInfo && (
+                      <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded whitespace-nowrap">
+                        {selectedCustomer?.name}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span
+                    className="text-lg font-semibold text-gray-900 truncate"
+                    title={voucherInfo && selectedCustomer ? `${voucherInfo.voucherType.name} - ${selectedCustomer.name}` : undefined}
+                  >
+                    {voucherInfo && selectedCustomer
+                      ? `${voucherInfo.voucherType.name} - ${selectedCustomer.name}`
+                      : '1. Datos Fiscales'
+                    }
+                  </span>
+                )}
+              </div>
+              {fiscalDataExpanded ? (
+                <ChevronUp className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0" />
+              )}
+            </button>
+
+            {fiscalDataExpanded && (
+              <div className="p-4 space-y-3 border-t border-gray-200">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Cliente (opcional)
+                Cliente
               </label>
               <select
                 value={selectedCustomer?.id || ''}
@@ -819,6 +1048,56 @@ export default function NewSalePage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sucursal
+              </label>
+              <select
+                value={selectedBranch?.id || ''}
+                onChange={(e) => {
+                  const branch = branchesData?.find((b: Branch) => b.id === e.target.value)
+                  setSelectedBranch(branch || null)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                {branchesData?.map((branch: Branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Punto de Venta
+              </label>
+              <select
+                value={selectedSalesPoint?.id || ''}
+                onChange={(e) => {
+                  const salesPoint = salesPointsData?.find((sp: SalesPoint) => sp.id === e.target.value)
+                  setSelectedSalesPoint(salesPoint || null)
+                }}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                disabled={!selectedBranch || !salesPointsData || salesPointsData.length === 0}
+              >
+                {salesPointsData && salesPointsData.length > 0 ? (
+                  salesPointsData.map((sp: SalesPoint) => (
+                    <option key={sp.id} value={sp.id}>
+                      PV {sp.number.toString().padStart(5, '0')} - {sp.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No hay puntos de venta</option>
+                )}
+              </select>
+              {!salesPointsData || salesPointsData.length === 0 ? (
+                <p className="mt-1 text-xs text-red-600">
+                  Configure un punto de venta para esta sucursal
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -884,10 +1163,47 @@ export default function NewSalePage() {
                 Seleccione un cliente para determinar el tipo de comprobante
               </div>
             )}
+              </div>
+            )}
           </div>
 
-          {/* Product Search */}
-          <div className="bg-white rounded-lg shadow p-4 flex-1 flex flex-col overflow-hidden">
+          {/* Acordeón 2: Selección de Productos */}
+          <div className="bg-white rounded-lg shadow flex-1 flex flex-col overflow-hidden">
+            {console.log('[ProductAccordion] fiscalDataComplete:', fiscalDataComplete, 'expanded:', productSearchExpanded)}
+            {!fiscalDataComplete && (
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200">
+                <p className="text-xs text-amber-800">
+                  Complete todos los datos fiscales para habilitar la selección de productos
+                </p>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                console.log('[ProductAccordion Button] Click!', 'fiscalDataComplete:', fiscalDataComplete)
+                fiscalDataComplete && setProductSearchExpanded(!productSearchExpanded)
+              }}
+              className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors flex-shrink-0 ${
+                fiscalDataComplete ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50 bg-gray-50'
+              }`}
+              disabled={!fiscalDataComplete}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-semibold text-gray-900">2. Selección de Productos</span>
+                {cart.length > 0 && (
+                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                    {cart.length} item{cart.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              {productSearchExpanded ? (
+                <ChevronUp className="h-5 w-5 text-gray-500" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-gray-500" />
+              )}
+            </button>
+
+            {productSearchExpanded && (
+              <div className="p-4 flex-1 flex flex-col overflow-hidden border-t border-gray-200">
             <label className="block text-sm font-medium text-gray-700 mb-2 flex-shrink-0">
               Buscar Producto (SKU, nombre o código de barras)
             </label>
@@ -933,6 +1249,8 @@ export default function NewSalePage() {
                 </div>
               )}
             </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1086,9 +1404,11 @@ export default function NewSalePage() {
               {/* Payment Method Cards */}
               <div className="mt-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Formas de Pago Rápidas</h3>
+                {console.log('[PaymentButtons] fiscalDataComplete:', fiscalDataComplete, 'cart:', cart.length, 'warehouse:', !!selectedWarehouse)}
                 <div className="flex gap-2 overflow-x-auto">
                   {paymentMethodsData?.slice(0, 5).map((pm: PaymentMethod) => {
-                    const isDisabled = cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
+                    const isDisabled = !fiscalDataComplete || cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
+                    console.log(`[PaymentButton ${pm.name}] disabled:`, isDisabled, 'fiscalDataComplete:', fiscalDataComplete)
 
                     return (
                       <button
@@ -1114,10 +1434,10 @@ export default function NewSalePage() {
                   {/* Otros - Opens modal */}
                   <button
                     onClick={() => setShowPaymentModal(true)}
-                    disabled={cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending}
+                    disabled={!fiscalDataComplete || cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending}
                     className={`
                       flex-shrink-0 p-3 rounded-lg border-2 transition-all min-w-[140px]
-                      ${cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
+                      ${!fiscalDataComplete || cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
                         ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-gradient-to-br from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 border-purple-600 text-white shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
                       }
@@ -1272,73 +1592,12 @@ export default function NewSalePage() {
               </button>
               <button
                 onClick={handleSubmitSale}
-                disabled={Math.abs(balance) > 0.01 || createSaleMutation.isPending}
+                disabled={!fiscalDataComplete || Math.abs(balance) > 0.01 || createSaleMutation.isPending}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold"
               >
                 {createSaleMutation.isPending ? 'Procesando...' : 'CONFIRMAR VENTA'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Sale Result Modal */}
-      {saleResultModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h2 className="text-2xl font-bold text-green-600 mb-4 text-center">✓ Venta Registrada</h2>
-
-            <div className="space-y-3 mb-6">
-              <div className="border-b pb-2">
-                <div className="text-sm text-gray-600">Número de Venta</div>
-                <div className="text-xl font-bold">{saleResultModal.sale?.saleNumber}</div>
-              </div>
-
-              <div className="border-b pb-2">
-                <div className="text-sm text-gray-600">Tipo de Comprobante</div>
-                <div className="text-lg font-semibold">{saleResultModal.sale?.voucherType || 'Ticket'}</div>
-              </div>
-
-              <div className="border-b pb-2">
-                <div className="text-sm text-gray-600">Total</div>
-                <div className="text-2xl font-bold text-green-600">
-                  ${Number(saleResultModal.sale?.totalAmount || 0).toFixed(2)}
-                </div>
-              </div>
-
-              {saleResultModal.caeInfo && (
-                <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mt-4">
-                    <div className="text-sm font-semibold text-blue-900 mb-2">✓ CAE Autorizado por AFIP</div>
-                    <div className="space-y-1">
-                      <div className="text-xs text-gray-600">CAE:</div>
-                      <div className="font-mono text-sm font-bold text-blue-700">{saleResultModal.caeInfo.cae}</div>
-                      <div className="text-xs text-gray-600 mt-2">Vencimiento:</div>
-                      <div className="text-sm">{new Date(saleResultModal.caeInfo.caeExpiration).toLocaleDateString()}</div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {saleResultModal.sale?.afipStatus === 'error' && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 mt-4">
-                  <div className="text-sm font-semibold text-red-900 mb-1">⚠ Error en AFIP</div>
-                  <div className="text-xs text-red-700">
-                    {saleResultModal.sale?.afipErrorMessage || 'No se pudo obtener CAE. Revisar configuración AFIP.'}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={() => {
-                setSaleResultModal({ show: false, sale: null, caeInfo: null })
-                inputRef.current?.focus()
-              }}
-              className="w-full px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold text-lg"
-            >
-              ACEPTAR
-            </button>
           </div>
         </div>
       )}
@@ -1368,7 +1627,11 @@ export default function NewSalePage() {
         isOpen={afipProgressModal.show}
         steps={afipProgressModal.steps}
         canClose={afipProgressModal.canClose}
-        onClose={() => setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null })}
+        saleResult={afipProgressModal.saleResult}
+        onClose={() => {
+          setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null, saleResult: undefined })
+          inputRef.current?.focus()
+        }}
       />
     </>
   )

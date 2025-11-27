@@ -143,6 +143,7 @@ model Entity {
   // Configuración para clientes
   customerPaymentTerms Int?   @map("customer_payment_terms")
   customerCreditLimit  Decimal? @map("customer_credit_limit") @db.Decimal(15, 2)
+  isDefaultCustomer    Boolean @default(false) @map("is_default_customer")
   // Configuración para proveedores
   supplierPaymentTerms Int?   @map("supplier_payment_terms")
   supplierCategory     String? @map("supplier_category")
@@ -296,7 +297,8 @@ model VatCondition {
   taxRate        Decimal? @map("tax_rate") @db.Decimal(5, 2)
   isExempt       Boolean  @default(false) @map("is_exempt")
   isActive       Boolean  @default(true) @map("is_active")
-  afipCode       Int?     @map("afip_code")
+  afipCode       Int?     @map("afip_code") // Código de condición IVA para AFIP (1=RI, 3=NR, 4=EX, 5=CF, 6=MT)
+  afipDocumentType Int?   @map("afip_document_type") // Tipo de documento AFIP (80=CUIT, 86=CUIL, 96=DNI, 99=CF)
   canIssueA      Boolean  @default(false) @map("can_issue_a")
   issuesOnlyC    Boolean  @default(false) @map("issues_only_c")
   allowedVoucherTypes Json @default("[]") @map("allowed_voucher_types") // Códigos de comprobantes que puede emitir: ["FA", "FB", "FC", "NCA", etc]
@@ -652,6 +654,7 @@ model Sale {
   items                SaleItem[]
   payments             SalePayment[]
 
+  @@unique([tenantId, branchId, salesPointNumber, voucherNumber], name: "sale_unique_voucher")
   @@unique([tenantId, saleNumber])
   @@index([tenantId, saleDate])
   @@index([tenantId, paymentStatus])
@@ -796,6 +799,7 @@ model Branch {
   tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   voucherConfigurations VoucherConfiguration[]
   sales                 Sale[]                   @relation("SaleBranch")
+  salesPoints           SalesPoint[]
 
   @@unique([tenantId, code])
   @@map("branches")
@@ -835,6 +839,7 @@ model AfipConnection {
 model SalesPoint {
   id          String   @id @default(cuid())
   tenantId    String   @map("tenant_id")
+  branchId    String?  @map("branch_id")
   number      Int
   name        String
   description String?
@@ -843,6 +848,7 @@ model SalesPoint {
 
   // Relations
   tenant                Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch                Branch?                  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   voucherConfigurations VoucherConfiguration[]
 
   @@unique([tenantId, number])

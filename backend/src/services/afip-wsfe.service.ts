@@ -13,6 +13,7 @@ export class AfipWSFEService {
     this.wsaaService = new AfipWSAAService(prisma)
   }
 
+
   /**
    * Obtiene el último número de comprobante autorizado en AFIP
    */
@@ -58,10 +59,20 @@ export class AfipWSFEService {
 
       // Verificar errores
       if (response.Errors) {
-        const error = response.Errors.Err[0]
+        const errors = Array.isArray(response.Errors.Err) ? response.Errors.Err : [response.Errors.Err]
+        const primaryError = errors[0]
+
+        // Construir mensaje detallado con todos los errores
+        const errorDetails = errors.map((err: any) => `[${err.Code}] ${err.Msg}`).join('\n')
+
         throw new AppError(
-          `Error AFIP ${error.Code}: ${error.Msg}`,
-          400
+          `Error AFIP: ${primaryError.Msg}`,
+          400,
+          {
+            code: primaryError.Code,
+            afipErrors: errors,
+            detail: errorDetails
+          }
         )
       }
 
@@ -90,6 +101,7 @@ export class AfipWSFEService {
       documentDate: Date
       customerDocType: number // 80=CUIT, 86=CUIL, 96=DNI, 99=Consumidor Final
       customerDocNumber: string
+      customerVatConditionAfipCode: number | null // Código AFIP de condición IVA: 1=RI, 3=NR, 4=EX, 5=CF, 6=MT
       subtotal: number
       iva: number
       total: number
@@ -129,6 +141,9 @@ export class AfipWSFEService {
       // Crear cliente SOAP
       const client = await soap.createClientAsync(wsfeUrl)
 
+      // Condición de IVA del receptor (RG 5616)
+      const ivaReceptor = voucherData.customerVatConditionAfipCode || 5 // Default: Consumidor Final
+
       // Preparar request
       const request = {
         Auth: {
@@ -158,12 +173,46 @@ export class AfipWSFEService {
               ImpTrib: 0, // Otros tributos
               MonId: 'PES', // Moneda (PES=Pesos)
               MonCotiz: 1,
+              CondicionIVAReceptorId: ivaReceptor, // RG 5616 - Condición IVA del receptor
               Iva: voucherData.items.length > 0 ? {
-                AlicIva: voucherData.items.map(item => ({
-                  Id: item.ivaRate === 21 ? 5 : (item.ivaRate === 10.5 ? 4 : 3), // 5=21%, 4=10.5%, 3=0%
-                  BaseImp: item.subtotal,
-                  Importe: item.ivaAmount
-                }))
+                AlicIva: (() => {
+                  // Agrupar items por alícuota de IVA
+                  const alicuotasMap = new Map<number, { baseImp: number, importe: number }>()
+
+                  voucherData.items.forEach(item => {
+                    // Determinar código de alícuota según tasa y monto
+                    let alicuotaId = 3 // Default: 0% / No gravado
+                    if (item.ivaAmount > 0) {
+                      if (item.ivaRate === 21) {
+                        alicuotaId = 5 // 21%
+                      } else if (item.ivaRate === 10.5) {
+                        alicuotaId = 4 // 10.5%
+                      }
+                    }
+
+                    // Calcular base imponible sin IVA
+                    // subtotal incluye IVA, entonces base = subtotal - ivaAmount
+                    const baseImponible = item.subtotal - item.ivaAmount
+
+                    const existing = alicuotasMap.get(alicuotaId)
+                    if (existing) {
+                      existing.baseImp += baseImponible
+                      existing.importe += item.ivaAmount
+                    } else {
+                      alicuotasMap.set(alicuotaId, {
+                        baseImp: baseImponible,
+                        importe: item.ivaAmount
+                      })
+                    }
+                  })
+
+                  // Convertir a array para AFIP
+                  return Array.from(alicuotasMap.entries()).map(([id, values]) => ({
+                    Id: id,
+                    BaseImp: values.baseImp,
+                    Importe: values.importe
+                  }))
+                })()
               } : undefined
             }
           }
@@ -171,6 +220,7 @@ export class AfipWSFEService {
       }
 
       console.log('[WSFE] Solicitando CAE...')
+      console.log(`[WSFE] Condición IVA receptor - Código AFIP: ${ivaReceptor}`)
       console.log(JSON.stringify(request, null, 2))
 
       // Llamar a FECAESolicitar
@@ -180,10 +230,20 @@ export class AfipWSFEService {
 
       // Verificar errores
       if (response.Errors) {
-        const error = response.Errors.Err[0]
+        const errors = Array.isArray(response.Errors.Err) ? response.Errors.Err : [response.Errors.Err]
+        const primaryError = errors[0]
+
+        // Construir mensaje detallado con todos los errores
+        const errorDetails = errors.map((err: any) => `[${err.Code}] ${err.Msg}`).join('\n')
+
         throw new AppError(
-          `Error AFIP ${error.Code}: ${error.Msg}`,
-          400
+          `Error AFIP: ${primaryError.Msg}`,
+          400,
+          {
+            code: primaryError.Code,
+            afipErrors: errors,
+            detail: errorDetails
+          }
         )
       }
 
@@ -191,10 +251,22 @@ export class AfipWSFEService {
 
       // Verificar resultado
       if (detalle.Resultado !== 'A') {
-        const obs = detalle.Observaciones?.Obs?.[0]
+        const observations = detalle.Observaciones?.Obs || []
+        const obsArray = Array.isArray(observations) ? observations : [observations]
+        const primaryObs = obsArray[0]
+
+        // Construir mensaje detallado con todas las observaciones
+        const obsDetails = obsArray.map((obs: any) => `[${obs.Code}] ${obs.Msg}`).join('\n')
+
         throw new AppError(
-          `Comprobante rechazado por AFIP: ${obs ? `${obs.Code} - ${obs.Msg}` : 'Sin detalles'}`,
-          400
+          `Comprobante rechazado por AFIP: ${primaryObs ? primaryObs.Msg : 'Sin detalles'}`,
+          400,
+          {
+            code: primaryObs?.Code,
+            resultado: detalle.Resultado,
+            afipObservations: obsArray,
+            detail: obsDetails || 'Sin observaciones detalladas'
+          }
         )
       }
 

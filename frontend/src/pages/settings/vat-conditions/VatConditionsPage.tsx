@@ -35,6 +35,8 @@ const vatConditionSchema = z.object({
   description: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
   isExempt: z.boolean().optional(),
+  afipCode: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().int().min(1).max(99).optional()),
+  afipDocumentType: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().int().min(1).max(99).optional()),
   allowedVoucherTypes: z.array(z.string()).optional()
 })
 
@@ -226,6 +228,9 @@ export default function VatConditionsPage() {
                       Código
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Cód. AFIP
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tasa IVA
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -258,6 +263,15 @@ export default function VatConditionsPage() {
                         <Badge variant="info">
                           {vatCondition.code}
                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {vatCondition.afipCode ? (
+                            <Badge variant="success">{vatCondition.afipCode}</Badge>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
@@ -341,6 +355,32 @@ export default function VatConditionsPage() {
               error={errors.description?.message}
               {...register('description')}
             />
+
+            <Input
+              label="Código AFIP"
+              type="number"
+              min="1"
+              max="99"
+              placeholder="Ej: 1 (RI), 5 (CF), 4 (EX), 6 (MT), 3 (NR)"
+              error={errors.afipCode?.message}
+              {...register('afipCode', { valueAsNumber: true })}
+            />
+            <p className="text-xs text-gray-500 -mt-3">
+              Código de condición IVA según AFIP (RG 5616): 1=RI, 3=NR, 4=EX, 5=CF, 6=MT
+            </p>
+
+            <Input
+              label="Tipo de Documento AFIP"
+              type="number"
+              min="1"
+              max="99"
+              placeholder="Ej: 80 (CUIT), 86 (CUIL), 96 (DNI), 99 (CF)"
+              error={errors.afipDocumentType?.message}
+              {...register('afipDocumentType', { valueAsNumber: true })}
+            />
+            <p className="text-xs text-gray-500 -mt-3">
+              Tipo de documento para facturar: 80=CUIT, 86=CUIL, 96=DNI, 99=Consumidor Final
+            </p>
 
             {/* Tipos de Comprobantes Permitidos */}
             <div>

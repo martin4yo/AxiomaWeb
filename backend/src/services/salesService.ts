@@ -3,7 +3,6 @@ import { Decimal } from '@prisma/client/runtime/library'
 import {
   calculateSaleItem,
   calculateSaleTotals,
-  determineVoucherType,
   validatePayments,
   calculatePaymentStatus,
   SaleItemResult
@@ -99,26 +98,18 @@ export class SalesService {
       throw new AppError('Tenant no encontrado', 404)
     }
 
-    // 3. Si no hay cliente, buscar el cliente "Consumidor Final" por defecto
-    let finalCustomerId = customerId
-    if (!finalCustomerId) {
-      // Buscar cliente "Consumidor Final"
-      const consumidorFinal = await this.prisma.entity.findFirst({
-        where: {
-          tenantId: this.tenantId,
-          name: 'Consumidor Final',
-          isCustomer: true
-        }
-      })
-
-      if (consumidorFinal) {
-        finalCustomerId = consumidorFinal.id
-      }
+    // 3. Validar que se proporcionó un cliente
+    if (!customerId) {
+      throw new AppError('Debe seleccionar un cliente', 400)
     }
+
+    const finalCustomerId = customerId
 
     // 4. Obtener datos del cliente
     let customer = null
     let customerVatCondition = null
+    let customerVatConditionAfipCode: number | null = null
+    let customerDocType = 99 // Consumidor Final por defecto
     let customerName = 'Consumidor Final'
     let customerType = 'final'
 
@@ -139,6 +130,31 @@ export class SalesService {
       customerName = customer.name
       customerVatCondition = customer.ivaCondition
       customerType = customer.name === 'Consumidor Final' ? 'final' : 'registered'
+
+      // Obtener código AFIP de la condición IVA y tipo de documento
+      if (customerVatCondition) {
+        const vatCondition = await this.prisma.vatCondition.findFirst({
+          where: {
+            tenantId: this.tenantId,
+            code: customerVatCondition,
+            isActive: true
+          }
+        })
+
+        if (vatCondition) {
+          if (vatCondition.afipCode) {
+            customerVatConditionAfipCode = vatCondition.afipCode
+          }
+          if (vatCondition.afipDocumentType) {
+            customerDocType = vatCondition.afipDocumentType
+          }
+        }
+      }
+
+      // Default: Consumidor Final (código 5)
+      if (!customerVatConditionAfipCode) {
+        customerVatConditionAfipCode = 5
+      }
     }
 
     // 5. Determinar tipo de comprobante usando VoucherService
@@ -147,26 +163,16 @@ export class SalesService {
     let discriminateVAT = false
     let finalVoucherType = 'FC' // Default: Factura C
 
-    try {
-      voucherInfo = await this.voucherService.determineVoucherType(
-        this.tenantId,
-        finalCustomerId,
-        documentClass,
-        undefined // branchId
-      )
-      finalVoucherType = voucherInfo.voucherType.code
-      // Determinar si discrimina IVA según la letra del comprobante
-      discriminateVAT = finalVoucherType.includes('A') // FA, NCA, NDA discriminan IVA
-    } catch (error: any) {
-      console.warn('[Sales] Error determinando tipo de comprobante:', error.message)
-      // Fallback: usar función vieja solo si falla
-      const fallback = determineVoucherType(
-        tenant.tenantVatCondition?.code || null,
-        customerVatCondition
-      )
-      discriminateVAT = fallback.discriminateVAT
-      finalVoucherType = fallback.voucherType
-    }
+    // Determinar tipo de comprobante - sin fallback
+    voucherInfo = await this.voucherService.determineVoucherType(
+      this.tenantId,
+      finalCustomerId,
+      documentClass,
+      undefined // No branch-specific configs, use global
+    )
+    finalVoucherType = voucherInfo.voucherType.code
+    // Determinar si discrimina IVA según la letra del comprobante
+    discriminateVAT = finalVoucherType.includes('A') // FA, NCA, NDA discriminan IVA
 
     // 6. Obtener tasa de IVA por defecto (21% para Argentina)
     const defaultTaxRate = tenant.tenantVatCondition?.taxRate || new Decimal(21)
@@ -268,6 +274,7 @@ export class SalesService {
 
     // 10. Determinar si se usa numeración AFIP o local
     let caeData: any = null
+    let caeError: any = null
     let finalVoucherNumber: string = '' // Se inicializa vacío, se asigna dentro de la transacción
 
     // Si debe facturar Y hay voucherInfo con configuración AFIP, usar numeración AFIP
@@ -507,17 +514,12 @@ export class SalesService {
       try {
         console.log(`[Sales:${requestId}] Solicitando CAE a AFIP...`)
 
-        // Preparar datos del cliente
-        let customerDocType = 99 // Consumidor Final por defecto
+        // Preparar número de documento del cliente
         let customerDocNumber = '0'
 
         if (customer.cuit) {
-          // CUIT/CUIL son formato 80 en AFIP
-          customerDocType = 80
           customerDocNumber = customer.cuit.replace(/[^0-9]/g, '')
         } else if (customer.taxId) {
-          // Si tiene taxId, asumir que es DNI
-          customerDocType = 96
           customerDocNumber = customer.taxId.replace(/[^0-9]/g, '')
         }
 
@@ -550,6 +552,7 @@ export class SalesService {
             documentDate: sale.saleDate,
             customerDocType,
             customerDocNumber,
+            customerVatConditionAfipCode, // RG 5616 - Condición IVA del receptor (código AFIP)
             subtotal: parseFloat(totals.subtotal.toString()),
             iva: parseFloat(totals.taxAmount.toString()),
             total: parseFloat(totals.totalAmount.toString()),
@@ -583,8 +586,13 @@ export class SalesService {
           }
         })
 
-        // No lanzar error para no cancelar la venta, pero informar al usuario
-        console.warn('[Sales] Venta creada pero sin CAE. Revisar configuración AFIP.')
+        // Guardar información del error para retornar al frontend
+        // La venta se guarda igual pero con estado 'error'
+        caeError = {
+          message: error.message,
+          detail: error.data?.detail || null,
+          code: error.data?.code || null
+        }
       }
     }
     // NOTA: Ya no incrementamos nextVoucherNumber aquí porque se hace dentro de la transacción
@@ -598,7 +606,8 @@ export class SalesService {
       caeInfo: caeData ? {
         cae: caeData.cae,
         caeExpiration: caeData.caeExpiration
-      } : null
+      } : null,
+      caeError: caeError
     }
   }
 
@@ -703,6 +712,7 @@ export class SalesService {
       include: {
         customer: true,
         warehouse: true,
+        voucherTypeRelation: true,
         creator: {
           select: {
             id: true,
@@ -747,6 +757,8 @@ export class SalesService {
     paymentStatus?: string
     afipStatus?: string
     search?: string
+    orderBy?: string
+    orderDirection?: 'asc' | 'desc'
   }) {
     const {
       page = 1,
@@ -756,7 +768,9 @@ export class SalesService {
       customerId,
       paymentStatus,
       afipStatus,
-      search
+      search,
+      orderBy = 'saleDate',
+      orderDirection = 'desc'
     } = filters
 
     const skip = (page - 1) * limit
@@ -795,15 +809,20 @@ export class SalesService {
       ]
     }
 
+    // Construir orderBy dinámico
+    const orderByClause: any = {}
+    orderByClause[orderBy] = orderDirection
+
     const [sales, total] = await Promise.all([
       this.prisma.sale.findMany({
         where,
         skip,
         take,
-        orderBy: { saleDate: 'desc' },
+        orderBy: orderByClause,
         include: {
           customer: true,
           warehouse: true,
+          voucherTypeRelation: true,
           creator: {
             select: {
               id: true,
@@ -921,6 +940,177 @@ export class SalesService {
 
       return updatedSale
     })
+  }
+
+  /**
+   * Reintenta solicitar CAE para una venta específica
+   */
+  async retryCaeForSale(saleId: string) {
+    // Obtener la venta completa
+    const sale = await this.getSaleById(saleId)
+
+    // Validar que la venta existe y pertenece al tenant
+    if (!sale) {
+      throw new AppError('Venta no encontrada', 404)
+    }
+
+    // Validar que la venta necesita CAE
+    if (sale.afipStatus === 'authorized') {
+      throw new AppError('Esta venta ya tiene un CAE autorizado', 400)
+    }
+
+    if (!sale.voucherType) {
+      throw new AppError('Esta venta no tiene información de comprobante', 400)
+    }
+
+    // Buscar el tipo de comprobante por código
+    const voucherType = await this.prisma.voucherType.findFirst({
+      where: {
+        code: sale.voucherType,
+        isActive: true
+      }
+    })
+
+    if (!voucherType || !voucherType.afipCode) {
+      throw new AppError('Tipo de comprobante no encontrado o sin código AFIP', 400)
+    }
+
+    // Obtener configuración de facturación
+    const voucherConfig = await this.prisma.voucherConfiguration.findFirst({
+      where: {
+        tenantId: this.tenantId,
+        voucherTypeId: voucherType.id,
+        isActive: true
+      },
+      include: {
+        voucherType: true,
+        salesPoint: true,
+        afipConnection: true
+      }
+    })
+
+    if (!voucherConfig || !voucherConfig.afipConnection) {
+      throw new AppError('No hay configuración AFIP para este tipo de comprobante', 400)
+    }
+
+    // Obtener código AFIP de condición IVA del cliente y tipo de documento
+    let customerVatConditionAfipCode: number | null = null
+    let customerDocType = 99 // Consumidor Final por defecto
+
+    if (sale.customer?.ivaCondition) {
+      const vatCondition = await this.prisma.vatCondition.findFirst({
+        where: {
+          tenantId: this.tenantId,
+          code: sale.customer.ivaCondition,
+          isActive: true
+        }
+      })
+
+      if (vatCondition) {
+        if (vatCondition.afipCode) {
+          customerVatConditionAfipCode = vatCondition.afipCode
+        }
+        if (vatCondition.afipDocumentType) {
+          customerDocType = vatCondition.afipDocumentType
+        }
+      }
+    }
+
+    // Default: Consumidor Final (código 5)
+    if (!customerVatConditionAfipCode) {
+      customerVatConditionAfipCode = 5
+    }
+
+    // Preparar número de documento del cliente
+    let customerDocNumber = '0'
+
+    if (sale.customer?.cuit) {
+      customerDocNumber = sale.customer.cuit.replace(/[^0-9]/g, '')
+    } else if (sale.customer?.taxId) {
+      customerDocNumber = sale.customer.taxId.replace(/[^0-9]/g, '')
+    }
+
+    // Preparar items para AFIP
+    const afipItems = sale.items.map(item => ({
+      description: item.productName,
+      quantity: parseFloat(item.quantity.toString()),
+      unitPrice: parseFloat(item.unitPrice.toString()),
+      subtotal: parseFloat(item.subtotal.toString()),
+      ivaRate: parseFloat(item.taxRate.toString()),
+      ivaAmount: parseFloat(item.taxAmount.toString())
+    }))
+
+    let caeData: any = null
+    let caeError: any = null
+
+    try {
+      // Extraer número de comprobante del saleNumber (formato: 00001-00000040)
+      const voucherNumberMatch = sale.saleNumber.match(/-(\d+)$/)
+      const voucherNumberRaw = voucherNumberMatch ? parseInt(voucherNumberMatch[1]) : 0
+
+      if (voucherNumberRaw === 0) {
+        throw new AppError('No se pudo extraer el número de comprobante', 400)
+      }
+
+      // Solicitar CAE
+      caeData = await this.afipService.requestCAE(
+        voucherConfig.afipConnection.id,
+        {
+          salesPointNumber: voucherConfig.salesPoint?.number || 1,
+          voucherTypeCode: voucherType.afipCode!,
+          voucherNumber: voucherNumberRaw,
+          documentDate: sale.saleDate,
+          customerDocType,
+          customerDocNumber,
+          customerVatConditionAfipCode,
+          subtotal: parseFloat(sale.subtotal.toString()),
+          iva: parseFloat(sale.taxAmount.toString()),
+          total: parseFloat(sale.totalAmount.toString()),
+          items: afipItems
+        }
+      )
+
+      // Actualizar venta con CAE
+      await this.prisma.sale.update({
+        where: { id: sale.id },
+        data: {
+          afipStatus: 'authorized',
+          afipCae: caeData.cae,
+          caeExpiration: caeData.caeExpiration
+        }
+      })
+
+      console.log(`[Sales] CAE obtenido para venta ${sale.saleNumber}: ${caeData.cae}`)
+    } catch (error: any) {
+      console.error('[Sales] Error solicitando CAE:', error.message)
+
+      // Actualizar estado a error
+      await this.prisma.sale.update({
+        where: { id: sale.id },
+        data: {
+          afipStatus: 'error'
+        }
+      })
+
+      // Guardar información del error para retornar al frontend
+      caeError = {
+        message: error.message,
+        detail: error.data?.detail || null,
+        code: error.data?.code || null
+      }
+    }
+
+    // Obtener venta actualizada
+    const updatedSale = await this.getSaleById(sale.id)
+
+    return {
+      ...updatedSale,
+      caeInfo: caeData ? {
+        cae: caeData.cae,
+        caeExpiration: caeData.caeExpiration
+      } : null,
+      caeError: caeError
+    }
   }
 
   /**
