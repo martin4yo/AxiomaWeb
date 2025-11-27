@@ -20,6 +20,7 @@ export default function SalesPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
+  const [afipStatus, setAfipStatus] = useState('')
   const [orderBy, setOrderBy] = useState('saleDate')
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
 
@@ -43,12 +44,13 @@ export default function SalesPage() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sales', page, search, paymentStatus, orderBy, orderDirection],
+    queryKey: ['sales', page, search, paymentStatus, afipStatus, orderBy, orderDirection],
     queryFn: () => salesApi.getSales({
       page,
       limit: 20,
       search: search || undefined,
       paymentStatus: paymentStatus || undefined,
+      afipStatus: afipStatus || undefined,
       orderBy,
       orderDirection
     })
@@ -150,7 +152,7 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="mb-6 bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Buscar
@@ -176,6 +178,23 @@ export default function SalesPage() {
               <option value="pending">Pendiente</option>
               <option value="partial">Parcial</option>
               <option value="paid">Pagado</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Estado AFIP
+            </label>
+            <select
+              value={afipStatus}
+              onChange={(e) => setAfipStatus(e.target.value)}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="">Todos</option>
+              <option value="authorized">Autorizado</option>
+              <option value="pending">Pendiente</option>
+              <option value="error">Error</option>
+              <option value="rejected">Rechazado</option>
+              <option value="not_sent">Sin CAE</option>
             </select>
           </div>
           <div>
@@ -331,7 +350,8 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
-                       (sale.voucherType || sale.voucherTypeRelation) && (
+                       (sale.voucherType || sale.voucherTypeRelation) &&
+                       sale.voucherConfiguration?.afipConnection && (
                         <button
                           onClick={() => handleRetryCae(sale.id)}
                           disabled={retryCaeMutation.isPending}
