@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 import {
   Home,
-  FileText,
   BarChart3,
   Settings,
   X,
@@ -55,12 +54,10 @@ const navigation: NavigationItem[] = [
     children: [
       { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCart },
       { name: 'Clientes', href: '/customers', icon: Users },
-      { name: 'Categorías de Clientes', href: '/customer-categories', icon: LayoutGrid },
+      { name: 'Categorías', href: '/customer-categories', icon: LayoutGrid },
     ]
   },
   { name: 'Entidades', href: '/entities', icon: Users },
-  { name: 'Documentos', href: '/documents', icon: FileText },
-  { name: 'Sucursales', href: '/branches', icon: Building2 },
   { name: 'Reportes', href: '/reports', icon: BarChart3 },
   {
     name: 'Configuración',
@@ -74,6 +71,7 @@ const navigation: NavigationItem[] = [
       { name: 'Condiciones de IVA', href: '/settings/vat-conditions', icon: Banknote },
       { name: 'Comprobantes', href: '/settings/documents', icon: ClipboardList },
       { name: 'Conexiones AFIP', href: '/settings/afip-connections', icon: LinkIcon },
+      { name: 'Sucursales', href: '/branches', icon: Building2 },
       { name: 'Puntos de Venta', href: '/settings/sales-points', icon: Store },
       { name: 'Configuración de Comprobantes', href: '/settings/voucher-configurations', icon: Settings },
     ]
