@@ -40,12 +40,13 @@ const schema = z.object({
   isEmployee: z.boolean().default(false),
   category: z.string().optional(),
   currency: z.string().default('ARS'),
-  customerPaymentTerms: z.number().optional(),
-  customerCreditLimit: z.number().optional(),
-  supplierPaymentTerms: z.number().optional(),
-  supplierCategory: z.string().optional(),
-  employeePosition: z.string().optional(),
-  employeeSalary: z.number().optional(),
+  customerPaymentTerms: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
+  customerCreditLimit: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
+  isDefaultCustomer: z.boolean().default(false),
+  supplierPaymentTerms: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
+  supplierCategory: z.preprocess((val) => val === '' || val === null ? undefined : val, z.string().optional()),
+  employeePosition: z.preprocess((val) => val === '' || val === null ? undefined : val, z.string().optional()),
+  employeeSalary: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
   // Datos fiscales
   ivaCondition: z.string().optional(),
   grossIncomeNumber: z.string().optional(),
@@ -85,6 +86,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
       isCustomer: false,
       isSupplier: false,
       isEmployee: false,
+      isDefaultCustomer: false,
       deliveryAddresses: []
     }
   })
@@ -105,6 +107,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
         isCustomer: entity?.isCustomer || false,
         isSupplier: entity?.isSupplier || false,
         isEmployee: entity?.isEmployee || false,
+        isDefaultCustomer: false,
         deliveryAddresses: []
       })
       setDeliveryAddresses([])
@@ -123,12 +126,11 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
 
   // Argentina IVA conditions
   const ivaConditions = [
-    { value: 'responsable_inscripto', label: 'Responsable Inscripto' },
-    { value: 'exento', label: 'Exento' },
-    { value: 'consumidor_final', label: 'Consumidor Final' },
-    { value: 'monotributo', label: 'Monotributo' },
-    { value: 'no_responsable', label: 'No Responsable' },
-    { value: 'responsable_no_inscripto', label: 'Responsable No Inscripto' }
+    { value: 'RI', label: 'Responsable Inscripto' },
+    { value: 'EX', label: 'Exento' },
+    { value: 'CF', label: 'Consumidor Final' },
+    { value: 'MT', label: 'Monotributo' },
+    { value: 'NR', label: 'No Responsable' }
   ]
 
   const addDeliveryAddress = () => {
@@ -208,12 +210,28 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
 
   const onSubmit = (data: FormData) => {
     console.log('[EntityModal] onSubmit called:', { mode, data })
-    const submitData = { ...data, deliveryAddresses }
-    if (mode === 'create') {
-      createEntity.mutate(submitData)
-    } else {
-      updateEntity.mutate(submitData)
+
+    // Clean up numeric fields - convert empty strings to undefined
+    const cleanedData = {
+      ...data,
+      customerPaymentTerms: data.customerPaymentTerms || undefined,
+      customerCreditLimit: data.customerCreditLimit || undefined,
+      supplierPaymentTerms: data.supplierPaymentTerms || undefined,
+      employeeSalary: data.employeeSalary || undefined,
+      deliveryAddresses
     }
+
+    console.log('[EntityModal] Cleaned data:', cleanedData)
+
+    if (mode === 'create') {
+      createEntity.mutate(cleanedData)
+    } else {
+      updateEntity.mutate(cleanedData)
+    }
+  }
+
+  const onError = (errors: any) => {
+    console.error('[EntityModal] Validation errors:', errors)
   }
 
   const title = mode === 'create' ? 'Nueva Entidad' : 'Editar Entidad'
@@ -399,6 +417,17 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
                   error={errors.customerCreditLimit?.message}
                   {...register('customerCreditLimit', { valueAsNumber: true })}
                 />
+                <div className="flex items-center pt-6">
+                  <input
+                    type="checkbox"
+                    id="isDefaultCustomer"
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    {...register('isDefaultCustomer')}
+                  />
+                  <label htmlFor="isDefaultCustomer" className="ml-2 block text-sm text-gray-900">
+                    Cliente por defecto
+                  </label>
+                </div>
               </>
             )}
             {isSupplier && (
@@ -576,7 +605,13 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title} size="xl">
-      <form onSubmit={handleSubmit(onSubmit)} className="h-full flex flex-col">
+      <form
+        onSubmit={(e) => {
+          console.log('[EntityModal] Form submit event triggered')
+          handleSubmit(onSubmit, onError)(e)
+        }}
+        className="h-full flex flex-col"
+      >
         <div className="flex-1 overflow-y-auto">
           <Tabs tabs={tabs} defaultTab="general" />
         </div>
@@ -586,7 +621,11 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" loading={isSubmitting}>
+          <Button
+            type="submit"
+            loading={isSubmitting}
+            onClick={() => console.log('[EntityModal] Submit button clicked')}
+          >
             {mode === 'create' ? 'Crear Entidad' : 'Guardar Cambios'}
           </Button>
         </div>

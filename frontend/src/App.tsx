@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useErrorStore } from '@/stores/errorStore'
 import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import DashboardLayout from '@/components/layout/DashboardLayout'
@@ -21,20 +22,28 @@ import SalesPointsPage from '@/pages/settings/SalesPointsPage'
 import BranchesPage from '@/pages/BranchesPage'
 import VoucherConfigurationsPage from '@/pages/settings/VoucherConfigurationsPage'
 import NewVoucherConfigurationPage from '@/pages/settings/NewVoucherConfigurationPage'
+import EditVoucherConfigurationPage from '@/pages/settings/EditVoucherConfigurationPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
 import ReportsPage from '@/pages/reports/ReportsPage'
 import { TenantsPage } from '@/pages/tenants/TenantsPage'
 import { UsersPage } from '@/pages/users/UsersPage'
+import ErrorPage from '@/pages/ErrorPage'
 
 function App() {
   const { isAuthenticated, currentTenant, _hasHydrated } = useAuthStore()
+  const { hasConnectionError, setConnectionError } = useErrorStore()
 
   // Wait for store to hydrate from localStorage
   if (!_hasHydrated) {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="text-gray-600">Cargando...</div>
     </div>
+  }
+
+  // If there's a connection error, show error page
+  if (hasConnectionError) {
+    return <ErrorPage onRetry={() => setConnectionError(false)} />
   }
 
   // If not authenticated, show auth routes
@@ -79,6 +88,7 @@ function App() {
         <Route path="settings/sales-points" element={<SalesPointsPage />} />
         <Route path="settings/voucher-configurations" element={<VoucherConfigurationsPage />} />
         <Route path="settings/voucher-configurations/new" element={<NewVoucherConfigurationPage />} />
+        <Route path="settings/voucher-configurations/:id/edit" element={<EditVoucherConfigurationPage />} />
       </Route>
       <Route path="/sales/new" element={<NewSalePage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />

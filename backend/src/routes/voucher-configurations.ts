@@ -284,7 +284,22 @@ router.post('/:id/check-afip-number', authMiddleware, async (req, res, next) => 
       })
     }
 
-    // Consultar último número en AFIP
+    // 1. Buscar último número generado en la base de datos local
+    const lastLocalSale = await req.tenantDb!.sale.findFirst({
+      where: {
+        voucherConfigurationId: configuration.id
+      },
+      orderBy: {
+        voucherNumber: 'desc'
+      },
+      select: {
+        voucherNumber: true
+      }
+    })
+
+    const lastDbNumber = lastLocalSale?.voucherNumber || 0
+
+    // 2. Consultar último número en AFIP
     const afipService = new AfipWSFEService(prisma)
 
     const lastAfipNumber = await afipService.getLastAuthorizedNumber(
@@ -293,13 +308,13 @@ router.post('/:id/check-afip-number', authMiddleware, async (req, res, next) => 
       configuration.voucherType.afipCode
     )
 
-    const nextSuggested = lastAfipNumber + 1
-    const needsSync = lastAfipNumber >= configuration.nextVoucherNumber
-    let wasUpdated = false
+    // 3. Usar el mayor de ambos
+    const maxNumber = Math.max(lastDbNumber, lastAfipNumber)
+    const nextSuggested = maxNumber + 1
 
-    // Si el número local es menor al de AFIP, actualizar automáticamente
-    // Si el número local es mayor, no actualizar (hay comprobantes pendientes de CAE)
-    if (needsSync) {
+    // Actualizar la configuración con el mayor número + 1
+    let wasUpdated = false
+    if (configuration.nextVoucherNumber !== nextSuggested) {
       await req.tenantDb!.voucherConfiguration.update({
         where: { id: req.params.id },
         data: { nextVoucherNumber: nextSuggested }
@@ -310,11 +325,12 @@ router.post('/:id/check-afip-number', authMiddleware, async (req, res, next) => 
     res.json({
       success: true,
       localNumber: configuration.nextVoucherNumber,
+      dbNumber: lastDbNumber,
       afipNumber: lastAfipNumber,
+      maxNumber,
       nextSuggested,
-      needsSync,
       wasUpdated,
-      newLocalNumber: wasUpdated ? nextSuggested : configuration.nextVoucherNumber
+      newLocalNumber: nextSuggested
     })
   } catch (error: any) {
     // Si falla AFIP, devolver info local

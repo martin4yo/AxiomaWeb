@@ -75,9 +75,10 @@ export const voucherConfigurationsApi = {
   async checkAfipNumber(tenantSlug: string, id: string): Promise<{
     success: boolean
     localNumber: number
+    dbNumber?: number
     afipNumber?: number
+    maxNumber?: number
     nextSuggested?: number
-    needsSync?: boolean
     wasUpdated?: boolean
     newLocalNumber?: number
     error?: string

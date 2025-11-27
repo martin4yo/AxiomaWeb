@@ -279,14 +279,28 @@ export default function VoucherConfigurationsPage() {
 
                   <div className="mt-3 space-y-2 text-sm">
                     <div className="flex justify-between">
+                      <span className="text-gray-600">Último número en BD local:</span>
+                      <span className="font-mono font-bold text-gray-900">
+                        {afipCheckResult.data.dbNumber?.toString().padStart(8, '0')}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
                       <span className="text-gray-600">Último número en AFIP:</span>
                       <span className="font-mono font-bold text-gray-900">
                         {afipCheckResult.data.afipNumber?.toString().padStart(8, '0')}
                       </span>
                     </div>
 
+                    <div className="flex justify-between border-t pt-2 mt-2">
+                      <span className="text-gray-600 font-semibold">Mayor de ambos:</span>
+                      <span className="font-mono font-bold text-blue-600">
+                        {afipCheckResult.data.maxNumber?.toString().padStart(8, '0')}
+                      </span>
+                    </div>
+
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Número local anterior:</span>
+                      <span className="text-gray-600">Configuración anterior:</span>
                       <span className="font-mono font-bold text-gray-900">
                         {afipCheckResult.data.localNumber?.toString().padStart(8, '0')}
                       </span>
@@ -294,37 +308,24 @@ export default function VoucherConfigurationsPage() {
 
                     {afipCheckResult.data.wasUpdated && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Nuevo número local:</span>
+                        <span className="text-gray-600 font-semibold">Nueva configuración:</span>
                         <span className="font-mono font-bold text-green-600">
                           {afipCheckResult.data.newLocalNumber?.toString().padStart(8, '0')}
                         </span>
                       </div>
                     )}
-
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Próximo sugerido:</span>
-                      <span className="font-mono font-bold text-blue-600">
-                        {afipCheckResult.data.nextSuggested?.toString().padStart(8, '0')}
-                      </span>
-                    </div>
                   </div>
 
                   {afipCheckResult.data.wasUpdated ? (
                     <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
                       <p className="text-xs text-green-800">
-                        ✓ Número local actualizado automáticamente para sincronizar con AFIP.
-                      </p>
-                    </div>
-                  ) : afipCheckResult.data.needsSync ? (
-                    <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded">
-                      <p className="text-xs text-yellow-800">
-                        ⚠ El número local es mayor al de AFIP. Hay comprobantes pendientes de solicitar CAE.
+                        ✓ Número local actualizado al mayor entre BD local y AFIP + 1.
                       </p>
                     </div>
                   ) : (
                     <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
                       <p className="text-xs text-blue-800">
-                        ✓ El número local está sincronizado con AFIP.
+                        ✓ La configuración ya está sincronizada.
                       </p>
                     </div>
                   )}

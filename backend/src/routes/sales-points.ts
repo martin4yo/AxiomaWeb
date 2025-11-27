@@ -10,13 +10,25 @@ const salesPointSchema = z.object({
   number: z.number().int().min(1).max(99999),
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
+  branchId: z.string().optional().nullable(),
   isActive: z.boolean().default(true)
 })
 
 // Get all sales points
 router.get('/', authMiddleware, async (req, res, next) => {
   try {
+    const { branchId } = req.query
+
+    const where: any = {}
+    if (branchId) {
+      where.branchId = branchId as string
+    }
+
     const salesPoints = await req.tenantDb!.salesPoint.findMany({
+      where,
+      include: {
+        branch: true
+      },
       orderBy: { number: 'asc' }
     })
 

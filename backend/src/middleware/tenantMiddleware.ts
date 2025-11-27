@@ -59,6 +59,7 @@ export const tenantMiddleware = async (
             const skipModels = [
               'User',
               'Tenant',
+              'VoucherType',
               'SaleItem',
               'SalePayment',
               'EntityDeliveryAddress',

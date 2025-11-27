@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/authStore'
+import { useErrorStore } from '@/stores/errorStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -42,13 +43,26 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Si la respuesta es exitosa, limpiar el error de conexión
+    useErrorStore.getState().setConnectionError(false)
+    return response
+  },
   (error) => {
+    // Detectar errores de conexión
+    if (!error.response) {
+      // Network error, timeout, or server down
+      console.error('[API] Error de conexión:', error.message)
+      useErrorStore.getState().setConnectionError(true)
+      return Promise.reject(error)
+    }
+
     if (error.response?.status === 401) {
       // Token expired or invalid
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }
+
     return Promise.reject(error)
   }
 )

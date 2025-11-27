@@ -39,6 +39,7 @@ const entitySchema = z.object({
   // Configuración para clientes
   customerPaymentTerms: z.number().optional(),
   customerCreditLimit: z.number().optional(),
+  isDefaultCustomer: z.boolean().optional(),
   // Configuración para proveedores
   supplierPaymentTerms: z.number().optional(),
   supplierCategory: z.string().optional(),
@@ -147,6 +148,20 @@ router.post('/', authMiddleware, async (req, res, next) => {
 
     // Create entity with delivery addresses in a transaction
     const entity = await req.tenantDb!.$transaction(async (tx: any) => {
+      // If marking this as default customer, unmark all others
+      if (entityData.isDefaultCustomer && entityData.isCustomer) {
+        await tx.entity.updateMany({
+          where: {
+            tenantId: req.tenant!.id,
+            isCustomer: true,
+            isDefaultCustomer: true
+          },
+          data: {
+            isDefaultCustomer: false
+          }
+        })
+      }
+
       // Create the entity
       const newEntity = await tx.entity.create({
         data: {
@@ -215,6 +230,21 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
       if (codeExists) {
         throw new AppError('Entity code already exists', 400)
       }
+    }
+
+    // If marking this as default customer, unmark all others
+    if (entityData.isDefaultCustomer && (entityData.isCustomer || existing.isCustomer)) {
+      await req.tenantDb!.entity.updateMany({
+        where: {
+          tenantId: req.tenant!.id,
+          isCustomer: true,
+          isDefaultCustomer: true,
+          id: { not: req.params.id }
+        },
+        data: {
+          isDefaultCustomer: false
+        }
+      })
     }
 
     const entity = await req.tenantDb!.entity.update({
