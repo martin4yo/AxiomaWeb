@@ -11,9 +11,9 @@ import { useEffect } from 'react'
 
 const schema = z.object({
   voucherTypeId: z.string().min(1, 'Seleccione un tipo de comprobante'),
-  branchId: z.string().optional().nullable(),
-  afipConnectionId: z.string().optional().nullable(),
-  salesPointId: z.string().optional().nullable(),
+  branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  afipConnectionId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   nextVoucherNumber: z.number().int().min(1).default(1)
 })
 
