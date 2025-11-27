@@ -68,7 +68,9 @@ router.get('/', authMiddleware, async (req, res, next) => {
       customerId,
       paymentStatus,
       afipStatus,
-      search
+      search,
+      orderBy,
+      orderDirection
     } = req.query
 
     const salesService = new SalesService(
@@ -85,7 +87,9 @@ router.get('/', authMiddleware, async (req, res, next) => {
       customerId: customerId as string,
       paymentStatus: paymentStatus as string,
       afipStatus: afipStatus as string,
-      search: search as string
+      search: search as string,
+      orderBy: orderBy as string,
+      orderDirection: orderDirection as 'asc' | 'desc'
     })
 
     res.json(result)
@@ -147,6 +151,26 @@ router.post('/resync-cae', authMiddleware, async (req, res, next) => {
     res.json({
       message: `Resincronización completada: ${result.successful} exitosas, ${result.failed} fallidas`,
       ...result
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// POST /api/:tenantSlug/sales/:id/retry-cae - Reintentar CAE para una venta específica
+router.post('/:id/retry-cae', authMiddleware, async (req, res, next) => {
+  try {
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    const result = await salesService.retryCaeForSale(req.params.id)
+
+    res.json({
+      message: 'Solicitud de CAE procesada',
+      sale: result
     })
   } catch (error) {
     next(error)

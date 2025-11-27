@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
+import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
+import { RefreshCw } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -14,19 +16,124 @@ const formatNumber = (value: string | number, decimals: number = 2): string => {
 }
 
 export default function SalesPage() {
+  const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
+  const [orderBy, setOrderBy] = useState('saleDate')
+  const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
+
+  // AFIP Progress Modal
+  const [afipProgressModal, setAfipProgressModal] = useState<{
+    show: boolean
+    steps: Array<{
+      id: string
+      label: string
+      status: 'pending' | 'loading' | 'success' | 'error' | 'warning'
+      message?: string
+      detail?: string
+    }>
+    canClose: boolean
+    saleId: string | null
+  }>({
+    show: false,
+    steps: [],
+    canClose: false,
+    saleId: null
+  })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['sales', page, search, paymentStatus],
+    queryKey: ['sales', page, search, paymentStatus, orderBy, orderDirection],
     queryFn: () => salesApi.getSales({
       page,
       limit: 20,
       search: search || undefined,
-      paymentStatus: paymentStatus || undefined
+      paymentStatus: paymentStatus || undefined,
+      orderBy,
+      orderDirection
     })
   })
+
+  // Mutation para reintentar CAE
+  const retryCaeMutation = useMutation({
+    mutationFn: (saleId: string) => salesApi.retryCae(saleId),
+    onSuccess: (response: any) => {
+      // Actualizar progreso si el modal está abierto
+      if (afipProgressModal.show) {
+        setAfipProgressModal(prev => ({
+          ...prev,
+          steps: prev.steps.map(step => {
+            if (step.id === 'request-cae' && response.sale.caeInfo) {
+              const caeExpiration = new Date(response.sale.caeInfo.caeExpiration).toLocaleDateString('es-AR')
+              return {
+                ...step,
+                status: 'success',
+                message: 'CAE autorizado exitosamente',
+                detail: `CAE: ${response.sale.caeInfo.cae}\nVencimiento: ${caeExpiration}`
+              }
+            }
+            if (step.id === 'request-cae' && response.sale.caeError) {
+              return {
+                ...step,
+                status: 'error',
+                message: response.sale.caeError.message,
+                detail: response.sale.caeError.detail
+              }
+            }
+            return step
+          }),
+          canClose: true
+        }))
+
+        // Cerrar modal después de 3 segundos si fue exitoso
+        if (response.sale.caeInfo) {
+          setTimeout(() => {
+            setAfipProgressModal({ show: false, steps: [], canClose: false, saleId: null })
+            queryClient.invalidateQueries({ queryKey: ['sales'] })
+          }, 3000)
+        }
+      }
+    },
+    onError: (error: any) => {
+      if (afipProgressModal.show) {
+        const errorMessage = error.response?.data?.error || error.message
+        setAfipProgressModal(prev => ({
+          ...prev,
+          steps: prev.steps.map(step => {
+            if (step.status === 'loading') {
+              return {
+                ...step,
+                status: 'error',
+                message: errorMessage
+              }
+            }
+            return step
+          }),
+          canClose: true
+        }))
+      }
+    }
+  })
+
+  const handleRetryCae = (saleId: string) => {
+    // Mostrar modal de progreso
+    setAfipProgressModal({
+      show: true,
+      steps: [
+        {
+          id: 'request-cae',
+          label: 'Solicitando CAE a AFIP',
+          status: 'loading',
+          message: 'Procesando solicitud...'
+        }
+      ],
+      canClose: false,
+      saleId
+    })
+
+    // Ejecutar mutation
+    retryCaeMutation.mutate(saleId)
+  }
 
   return (
     <div className="p-6">
@@ -43,7 +150,7 @@ export default function SalesPage() {
 
       {/* Filters */}
       <div className="mb-6 bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Buscar
@@ -71,6 +178,35 @@ export default function SalesPage() {
               <option value="paid">Pagado</option>
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Ordenar por
+            </label>
+            <select
+              value={orderBy}
+              onChange={(e) => setOrderBy(e.target.value)}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="saleDate">Fecha</option>
+              <option value="saleNumber">Número</option>
+              <option value="totalAmount">Total</option>
+              <option value="customerName">Cliente</option>
+              <option value="afipStatus">Estado AFIP</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Dirección
+            </label>
+            <select
+              value={orderDirection}
+              onChange={(e) => setOrderDirection(e.target.value as 'asc' | 'desc')}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            >
+              <option value="desc">Descendente</option>
+              <option value="asc">Ascendente</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -88,7 +224,7 @@ export default function SalesPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Número
+                    Comprobante
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha
@@ -106,10 +242,13 @@ export default function SalesPage() {
                     Estado Pago
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo Factura
+                    CAE
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     AFIP
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
                   </th>
                 </tr>
               </thead>
@@ -117,9 +256,12 @@ export default function SalesPage() {
                 {data?.sales.map((sale: any) => (
                   <tr key={sale.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-xs text-gray-500 mb-1">
+                        {sale.voucherTypeRelation?.name || sale.voucherType || 'Ticket'}
+                      </div>
                       <Link
                         to={`/sales/${sale.id}`}
-                        className="text-blue-600 hover:text-blue-700 font-medium"
+                        className="text-blue-600 hover:text-blue-700 font-medium text-sm"
                       >
                         {sale.saleNumber}
                       </Link>
@@ -148,8 +290,17 @@ export default function SalesPage() {
                          sale.paymentStatus === 'partial' ? 'Parcial' : 'Pendiente'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {sale.voucherType || '-'}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {sale.afipCae ? (
+                        <div>
+                          <div className="text-xs font-mono text-gray-900">{sale.afipCae}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Vto: {new Date(sale.caeExpiration).toLocaleDateString('es-AR')}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {sale.afipStatus === 'authorized' && (
@@ -171,6 +322,24 @@ export default function SalesPage() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
                           Rechazado
                         </span>
+                      )}
+                      {sale.afipStatus === 'error' && (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Error
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center">
+                      {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
+                       (sale.voucherType || sale.voucherTypeRelation) && (
+                        <button
+                          onClick={() => handleRetryCae(sale.id)}
+                          disabled={retryCaeMutation.isPending}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                          title="Reintentar CAE"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
                       )}
                     </td>
                   </tr>
@@ -231,6 +400,17 @@ export default function SalesPage() {
           </div>
         )}
       </div>
+
+      {/* AFIP Progress Modal */}
+      <AFIPProgressModal
+        isOpen={afipProgressModal.show}
+        steps={afipProgressModal.steps}
+        canClose={afipProgressModal.canClose}
+        onClose={() => {
+          setAfipProgressModal({ show: false, steps: [], canClose: false, saleId: null })
+          queryClient.invalidateQueries({ queryKey: ['sales'] })
+        }}
+      />
     </div>
   )
 }

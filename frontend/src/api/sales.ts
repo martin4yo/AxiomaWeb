@@ -35,6 +35,8 @@ export interface SalesFilters {
   paymentStatus?: string
   afipStatus?: string
   search?: string
+  orderBy?: string
+  orderDirection?: 'asc' | 'desc'
 }
 
 export const salesApi = {
@@ -59,6 +61,12 @@ export const salesApi = {
   // Cancelar venta
   cancelSale: async (id: string) => {
     const response = await api.put(`/sales/${id}/cancel`)
+    return response.data
+  },
+
+  // Reintentar CAE para una venta
+  retryCae: async (id: string) => {
+    const response = await api.post(`/sales/${id}/retry-cae`)
     return response.data
   }
 }
