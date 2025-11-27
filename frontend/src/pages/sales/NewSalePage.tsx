@@ -367,20 +367,6 @@ export default function NewSalePage() {
           canClose: true,
           pendingSaleData: afipProgressModal.pendingSaleData
         }))
-
-        // Mostrar diálogo de confirmación
-        setTimeout(() => {
-          showConfirm(
-            'Desincronización con AFIP',
-            `El último número autorizado en AFIP es ${lastAfipNumber}, pero el número local es ${localNumber}.\n\n` +
-            `Esto indica que hay comprobantes sin sincronizar.\n\n` +
-            `¿Desea guardar esta venta SIN CAE y resincronizar después?`,
-            () => handleRetryWithoutCAE(),
-            'warning',
-            'Guardar sin CAE',
-            'Cancelar'
-          )
-        }, 500)
       } else {
         // Otro error
         console.log('[Sale Error] Full error object:', error)
@@ -896,27 +882,6 @@ export default function NewSalePage() {
     createSaleMutation.mutate(saleData)
   }
 
-  // Retry sale without CAE after AFIP out of sync error
-  const handleRetryWithoutCAE = () => {
-    if (!afipProgressModal.pendingSaleData) return
-
-    // Actualizar modal para mostrar que se está guardando sin CAE
-    setAfipProgressModal(prev => ({
-      ...prev,
-      steps: prev.steps.map(step => {
-        if (step.id === 'create-sale') return { ...step, status: 'loading', message: 'Guardando venta sin CAE...' }
-        return step
-      }),
-      canClose: false
-    }))
-
-    // Reintentar con forceWithoutCAE
-    createSaleMutation.mutate({
-      ...afipProgressModal.pendingSaleData,
-      forceWithoutCAE: true
-    })
-  }
-
   // Quick payment with confirmation - pays with single payment method
   const handleQuickPayment = (paymentMethod: PaymentMethod) => {
     if (!validateCart()) {
@@ -1169,7 +1134,6 @@ export default function NewSalePage() {
 
           {/* Acordeón 2: Selección de Productos */}
           <div className="bg-white rounded-lg shadow flex-1 flex flex-col overflow-hidden">
-            {console.log('[ProductAccordion] fiscalDataComplete:', fiscalDataComplete, 'expanded:', productSearchExpanded)}
             {!fiscalDataComplete && (
               <div className="px-4 py-2 bg-amber-50 border-b border-amber-200">
                 <p className="text-xs text-amber-800">
@@ -1180,7 +1144,7 @@ export default function NewSalePage() {
             <button
               onClick={() => {
                 console.log('[ProductAccordion Button] Click!', 'fiscalDataComplete:', fiscalDataComplete)
-                fiscalDataComplete && setProductSearchExpanded(!productSearchExpanded)
+                if (fiscalDataComplete) setProductSearchExpanded(!productSearchExpanded)
               }}
               className={`w-full px-4 py-3 flex items-center justify-between text-left transition-colors flex-shrink-0 ${
                 fiscalDataComplete ? 'hover:bg-gray-50 cursor-pointer' : 'cursor-not-allowed opacity-50 bg-gray-50'
@@ -1404,11 +1368,9 @@ export default function NewSalePage() {
               {/* Payment Method Cards */}
               <div className="mt-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">Formas de Pago Rápidas</h3>
-                {console.log('[PaymentButtons] fiscalDataComplete:', fiscalDataComplete, 'cart:', cart.length, 'warehouse:', !!selectedWarehouse)}
                 <div className="flex gap-2 overflow-x-auto">
                   {paymentMethodsData?.slice(0, 5).map((pm: PaymentMethod) => {
                     const isDisabled = !fiscalDataComplete || cart.length === 0 || !selectedWarehouse || createSaleMutation.isPending
-                    console.log(`[PaymentButton ${pm.name}] disabled:`, isDisabled, 'fiscalDataComplete:', fiscalDataComplete)
 
                     return (
                       <button
