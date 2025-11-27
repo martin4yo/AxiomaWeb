@@ -144,6 +144,9 @@ export class AfipWSFEService {
       // Condición de IVA del receptor (RG 5616)
       const ivaReceptor = voucherData.customerVatConditionAfipCode || 5 // Default: Consumidor Final
 
+      // Helper para redondear a 2 decimales
+      const round2 = (num: number) => Math.round(num * 100) / 100
+
       // Preparar request
       const request = {
         Auth: {
@@ -165,11 +168,11 @@ export class AfipWSFEService {
               CbteDesde: voucherData.voucherNumber,
               CbteHasta: voucherData.voucherNumber,
               CbteFch: voucherData.documentDate.toISOString().slice(0, 10).replace(/-/g, ''),
-              ImpTotal: voucherData.total,
+              ImpTotal: round2(voucherData.total),
               ImpTotConc: 0, // Importe neto no gravado
-              ImpNeto: voucherData.subtotal,
+              ImpNeto: round2(voucherData.subtotal),
               ImpOpEx: 0, // Importe exento
-              ImpIVA: voucherData.iva,
+              ImpIVA: round2(voucherData.iva),
               ImpTrib: 0, // Otros tributos
               MonId: 'PES', // Moneda (PES=Pesos)
               MonCotiz: 1,
@@ -206,11 +209,11 @@ export class AfipWSFEService {
                     }
                   })
 
-                  // Convertir a array para AFIP
+                  // Convertir a array para AFIP (redondear a 2 decimales)
                   return Array.from(alicuotasMap.entries()).map(([id, values]) => ({
                     Id: id,
-                    BaseImp: values.baseImp,
-                    Importe: values.importe
+                    BaseImp: round2(values.baseImp),
+                    Importe: round2(values.importe)
                   }))
                 })()
               } : undefined
