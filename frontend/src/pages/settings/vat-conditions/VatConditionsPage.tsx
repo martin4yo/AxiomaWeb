@@ -26,7 +26,8 @@ const VOUCHER_TYPES = [
   { code: 'NDA', name: 'Nota de Débito A' },
   { code: 'NDB', name: 'Nota de Débito B' },
   { code: 'NDC', name: 'Nota de Débito C' },
-  { code: 'NDE', name: 'Nota de Débito E' }
+  { code: 'NDE', name: 'Nota de Débito E' },
+  { code: 'PR', name: 'Presupuesto' }
 ]
 
 const vatConditionSchema = z.object({

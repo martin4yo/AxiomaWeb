@@ -100,7 +100,9 @@ export default function NewSalePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [notes, setNotes] = useState('')
-  const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>('invoice')
+  const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>(
+    (currentTenant?.defaultDocumentClass as 'invoice' | 'credit_note' | 'debit_note' | 'quote') || 'invoice'
+  )
   const [voucherInfo, setVoucherInfo] = useState<any>(null)
   const [fiscalDataExpanded, setFiscalDataExpanded] = useState(true)
   const [productSearchExpanded, setProductSearchExpanded] = useState(false)
@@ -862,6 +864,7 @@ export default function NewSalePage() {
     // Prepare data
     const saleData = {
       customerId: selectedCustomer?.id,
+      branchId: selectedBranch?.id,
       warehouseId: selectedWarehouse.id,
       items: cart.map(item => ({
         productId: item.productId,
@@ -915,6 +918,7 @@ export default function NewSalePage() {
     setTimeout(() => {
       const saleData = {
         customerId: selectedCustomer?.id,
+        branchId: selectedBranch?.id,
         warehouseId: selectedWarehouse!.id,
         items: cart.map(item => ({
           productId: item.productId,

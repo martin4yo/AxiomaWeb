@@ -23,6 +23,7 @@ const createSalePaymentSchema = z.object({
 
 const createSaleSchema = z.object({
   customerId: z.string().optional(),
+  branchId: z.string().optional(),
   warehouseId: z.string(),
   items: z.array(createSaleItemSchema).min(1, 'Debe haber al menos un item'),
   payments: z.array(createSalePaymentSchema).min(1, 'Debe haber al menos una forma de pago'),

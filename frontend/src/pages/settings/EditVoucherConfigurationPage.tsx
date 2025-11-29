@@ -14,7 +14,8 @@ const schema = z.object({
   branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   afipConnectionId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
-  nextVoucherNumber: z.number().int().min(1).default(1)
+  nextVoucherNumber: z.number().int().min(1).default(1),
+  isDefault: z.boolean().optional().default(false)
 })
 
 type FormData = z.infer<typeof schema>
@@ -47,22 +48,6 @@ export default function EditVoucherConfigurationPage() {
     },
     enabled: !!currentTenant && !!id
   })
-
-  // Populate form with existing data
-  useEffect(() => {
-    if (configuration) {
-      console.log('Configuration loaded:', configuration)
-      const config = configuration.configuration || configuration
-      console.log('Using config:', config)
-      reset({
-        voucherTypeId: config.voucherTypeId,
-        branchId: config.branchId || null,
-        afipConnectionId: config.afipConnectionId || null,
-        salesPointId: config.salesPointId || null,
-        nextVoucherNumber: config.nextVoucherNumber
-      })
-    }
-  }, [configuration, reset])
 
   // Fetch voucher types
   const { data: voucherTypes = [] } = useQuery({
@@ -103,6 +88,22 @@ export default function EditVoucherConfigurationPage() {
     },
     enabled: !!currentTenant
   })
+
+  // Populate form with existing data
+  useEffect(() => {
+    if (configuration && salesPoints.length > 0) {
+      const config = configuration.configuration || configuration
+      const formData = {
+        voucherTypeId: config.voucherTypeId,
+        branchId: config.branchId || '',
+        afipConnectionId: config.afipConnectionId || '',
+        salesPointId: config.salesPointId || '',
+        nextVoucherNumber: config.nextVoucherNumber,
+        isDefault: config.isDefault || false
+      }
+      reset(formData)
+    }
+  }, [configuration, salesPoints, reset])
 
   const updateMutation = useMutation({
     mutationFn: (data: FormData) => voucherConfigurationsApi.update(currentTenant!.slug, id!, data),
@@ -259,6 +260,18 @@ export default function EditVoucherConfigurationPage() {
               <p className="mt-1 text-sm text-gray-500">
                 El sistema comenzará a numerar desde este valor
               </p>
+            </div>
+
+            {/* Configuración por defecto */}
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                {...register('isDefault')}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label className="ml-2 text-sm text-gray-700">
+                Usar como configuración por defecto para este tipo de comprobante
+              </label>
             </div>
 
             <div className="flex justify-end space-x-3 pt-6 border-t">

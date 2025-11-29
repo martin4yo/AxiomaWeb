@@ -23,6 +23,7 @@ import BranchesPage from '@/pages/BranchesPage'
 import VoucherConfigurationsPage from '@/pages/settings/VoucherConfigurationsPage'
 import NewVoucherConfigurationPage from '@/pages/settings/NewVoucherConfigurationPage'
 import EditVoucherConfigurationPage from '@/pages/settings/EditVoucherConfigurationPage'
+import GeneralSettingsPage from '@/pages/settings/GeneralSettingsPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
 import ReportsPage from '@/pages/reports/ReportsPage'
@@ -80,6 +81,7 @@ function App() {
         <Route path="branches" element={<BranchesPage />} />
         <Route path="tenants" element={<TenantsPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="settings" element={<GeneralSettingsPage />} />
         <Route path="settings/taxes" element={<TaxesPage />} />
         <Route path="settings/payment-methods" element={<PaymentMethodsPage />} />
         <Route path="settings/vat-conditions" element={<VatConditionsPage />} />

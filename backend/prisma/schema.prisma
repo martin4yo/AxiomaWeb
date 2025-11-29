@@ -18,6 +18,7 @@ model Tenant {
   planType  String   @default("basic") @map("plan_type")
   status    String   @default("active")
   settings  Json     @default("{}")
+  defaultDocumentClass String @default("invoice") @map("default_document_class") // Tipo de documento por defecto: invoice, quote, credit_note, debit_note
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -885,6 +886,7 @@ model VoucherConfiguration {
   salesPointId       String?  @map("sales_point_id")
   nextVoucherNumber  Int      @default(1) @map("next_voucher_number")
   isActive           Boolean  @default(true) @map("is_active")
+  isDefault          Boolean  @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

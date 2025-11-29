@@ -50,14 +50,44 @@ router.get('/current', authMiddleware, async (req, res, next) => {
   }
 })
 
+// Get tenant settings
+router.get('/settings', authMiddleware, async (req, res, next) => {
+  try {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: req.tenant!.id },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        settings: true,
+        defaultDocumentClass: true
+      }
+    })
+
+    res.json({
+      tenant
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 // Update tenant settings (admin only)
 router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, next) => {
   try {
-    const tenant = await req.tenantDb!.tenant.update({
+    const updateData: any = {}
+
+    if (req.body.settings) {
+      updateData.settings = req.body.settings
+    }
+
+    if (req.body.defaultDocumentClass) {
+      updateData.defaultDocumentClass = req.body.defaultDocumentClass
+    }
+
+    const tenant = await prisma.tenant.update({
       where: { id: req.tenant!.id },
-      data: {
-        settings: req.body.settings || req.tenant!.settings
-      }
+      data: updateData
     })
 
     res.json({

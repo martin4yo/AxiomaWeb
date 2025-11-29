@@ -29,6 +29,7 @@ interface CreateSalePaymentInput {
 
 interface CreateSaleInput {
   customerId?: string
+  branchId?: string
   warehouseId: string
   items: CreateSaleItemInput[]
   payments: CreateSalePaymentInput[]
@@ -163,12 +164,12 @@ export class SalesService {
     let discriminateVAT = false
     let finalVoucherType = 'FC' // Default: Factura C
 
-    // Determinar tipo de comprobante - sin fallback
+    // Determinar tipo de comprobante
     voucherInfo = await this.voucherService.determineVoucherType(
       this.tenantId,
       finalCustomerId,
       documentClass,
-      undefined // No branch-specific configs, use global
+      data.branchId // Pass branchId to find branch-specific or global configuration
     )
     finalVoucherType = voucherInfo.voucherType.code
     // Determinar si discrimina IVA según la letra del comprobante

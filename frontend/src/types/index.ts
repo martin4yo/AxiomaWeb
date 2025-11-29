@@ -11,6 +11,7 @@ export interface Tenant {
   slug: string
   name: string
   role?: string
+  defaultDocumentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
 }
 
 export interface AuthState {

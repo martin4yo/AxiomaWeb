@@ -63,6 +63,7 @@ const navigation: NavigationItem[] = [
     icon: Settings,
     requiresAdmin: true,
     children: [
+      { name: 'General', href: '/settings', icon: Settings },
       { name: 'Tenants', href: '/tenants', icon: Building2 },
       { name: 'Usuarios', href: '/users', icon: Users },
       { name: 'Formas de Pago', href: '/settings/payment-methods', icon: CreditCard },

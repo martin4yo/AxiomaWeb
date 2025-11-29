@@ -10,10 +10,11 @@ const router = Router({ mergeParams: true })
 // Validation schema
 const voucherConfigSchema = z.object({
   voucherTypeId: z.string().min(1, 'El tipo de comprobante es requerido'),
-  branchId: z.string().optional().nullable(),
-  afipConnectionId: z.string().optional().nullable(),
-  salesPointId: z.string().optional().nullable(),
-  nextVoucherNumber: z.number().int().min(1).default(1)
+  branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  afipConnectionId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  nextVoucherNumber: z.number().int().min(1).default(1),
+  isDefault: z.boolean().optional().default(false)
 })
 
 // Get all voucher configurations
@@ -121,6 +122,20 @@ router.post('/', authMiddleware, async (req, res, next) => {
       )
     }
 
+    // Si se marca como default, desmarcar otras configuraciones del mismo tipo
+    if (data.isDefault) {
+      await req.tenantDb!.voucherConfiguration.updateMany({
+        where: {
+          tenantId: req.tenant!.id,
+          voucherTypeId: data.voucherTypeId,
+          isDefault: true
+        },
+        data: {
+          isDefault: false
+        }
+      })
+    }
+
     const configuration = await req.tenantDb!.voucherConfiguration.create({
       data: {
         ...data,
@@ -192,6 +207,23 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
       if (!salesPoint) {
         throw new AppError('Punto de venta no encontrado', 404)
       }
+    }
+
+    // Si se marca como default, desmarcar otras configuraciones del mismo tipo
+    if (data.isDefault) {
+      await req.tenantDb!.voucherConfiguration.updateMany({
+        where: {
+          tenantId: req.tenant!.id,
+          voucherTypeId: data.voucherTypeId || existing.voucherTypeId,
+          isDefault: true,
+          NOT: {
+            id: req.params.id
+          }
+        },
+        data: {
+          isDefault: false
+        }
+      })
     }
 
     const configuration = await req.tenantDb!.voucherConfiguration.update({

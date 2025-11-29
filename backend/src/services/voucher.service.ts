@@ -31,6 +31,13 @@ export class VoucherService {
     documentClass: 'invoice' | 'credit_note' | 'debit_note' | 'quote',
     branchId?: string
   ) {
+    console.log('[VoucherService] determineVoucherType called with:', {
+      tenantId,
+      customerId,
+      documentClass,
+      branchId
+    })
+
     // Get customer
     const customer = await this.prisma.entity.findUnique({
       where: { id: customerId }
@@ -130,29 +137,51 @@ export class VoucherService {
     }
 
     // Find configuration for this voucher type and branch
-    const configuration = await this.prisma.voucherConfiguration.findFirst({
+    console.log('[VoucherService] Searching configuration with:', {
+      tenantId,
+      voucherTypeId: voucherType.id,
+      voucherCode: voucherType.code,
+      branchId
+    })
+
+    // First try to find configuration specific for this branch
+    let configuration = branchId ? await this.prisma.voucherConfiguration.findFirst({
       where: {
         tenantId,
         voucherTypeId: voucherType.id,
-        OR: [
-          { branchId: branchId || null },
-          { branchId: null } // Fallback to global config
-        ]
+        branchId
       },
       include: {
         voucherType: true,
         branch: true,
         afipConnection: true,
         salesPoint: true
-      },
-      orderBy: {
-        branchId: 'desc' // Prefer specific branch config over global
       }
-    })
+    }) : null
+
+    console.log('[VoucherService] Configuration found for branch:', configuration ? 'YES' : 'NO')
+
+    // If not found, fallback to global configuration (without branch)
+    if (!configuration) {
+      configuration = await this.prisma.voucherConfiguration.findFirst({
+        where: {
+          tenantId,
+          voucherTypeId: voucherType.id,
+          branchId: null
+        },
+        include: {
+          voucherType: true,
+          branch: true,
+          afipConnection: true,
+          salesPoint: true
+        }
+      })
+      console.log('[VoucherService] Global configuration found:', configuration ? 'YES' : 'NO')
+    }
 
     if (!configuration) {
       throw new AppError(
-        `No hay configuración para ${voucherType.name}. Configure en Configuración de Comprobantes.`,
+        `No hay configuración para ${voucherType.name}${branchId ? ' en la sucursal seleccionada' : ''}. Configure en Configuración de Comprobantes.`,
         404
       )
     }
