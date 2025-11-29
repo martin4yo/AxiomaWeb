@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
@@ -28,13 +28,15 @@ export default function GeneralSettingsPage() {
       const response = await api.get(`/${currentTenant!.slug}/tenants/settings`)
       return response.data
     },
-    enabled: !!currentTenant,
-    onSuccess: (data: any) => {
-      if (data.tenant?.defaultDocumentClass) {
-        setSelectedDocumentClass(data.tenant.defaultDocumentClass)
-      }
-    }
+    enabled: !!currentTenant
   })
+
+  // Update selectedDocumentClass when data is loaded
+  useEffect(() => {
+    if (tenantData?.tenant?.defaultDocumentClass) {
+      setSelectedDocumentClass(tenantData.tenant.defaultDocumentClass)
+    }
+  }, [tenantData])
 
   // Update tenant settings mutation
   const updateSettingsMutation = useMutation({
@@ -42,7 +44,7 @@ export default function GeneralSettingsPage() {
       const response = await api.put(`/${currentTenant!.slug}/tenants/settings`, data)
       return response.data
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Update the current tenant in the auth store
       if (currentTenant) {
         setCurrentTenant({
@@ -97,10 +99,7 @@ export default function GeneralSettingsPage() {
       />
 
       <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader
-          title="Configuración General"
-          description="Configure las opciones generales del sistema"
-        />
+        <PageHeader title="Configuración General" />
 
       <div className="mt-8 max-w-3xl">
         <Card>
