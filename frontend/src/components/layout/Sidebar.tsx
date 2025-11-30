@@ -9,6 +9,7 @@ import {
   X,
   Archive,
   ShoppingCart,
+  ShoppingBag,
   ChevronDown,
   ChevronRight,
   Tag,
@@ -20,6 +21,8 @@ import {
   ClipboardList,
   Building2,
   Link as LinkIcon,
+  FileText,
+  Wallet,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -54,6 +57,14 @@ const navigation: NavigationItem[] = [
       { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCart },
       { name: 'Clientes', href: '/customers', icon: Users },
       { name: 'Categorías', href: '/customer-categories', icon: LayoutGrid },
+    ]
+  },
+  {
+    name: 'Compras',
+    icon: ShoppingBag,
+    children: [
+      { name: 'Listado de Compras', href: '/purchases', icon: FileText },
+      { name: 'Cuenta Corriente', href: '/supplier-accounts', icon: Wallet },
     ]
   },
   { name: 'Entidades', href: '/entities', icon: Users },

@@ -26,6 +26,12 @@ import EditVoucherConfigurationPage from '@/pages/settings/EditVoucherConfigurat
 import GeneralSettingsPage from '@/pages/settings/GeneralSettingsPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
+import PurchasesPage from '@/pages/purchases/PurchasesPage'
+import NewPurchasePage from '@/pages/purchases/NewPurchasePage'
+import PurchaseDetailPage from '@/pages/purchases/PurchaseDetailPage'
+import RegisterPaymentPage from '@/pages/purchases/RegisterPaymentPage'
+import SupplierAccountsPage from '@/pages/purchases/SupplierAccountsPage'
+import SupplierAccountDetailPage from '@/pages/purchases/SupplierAccountDetailPage'
 import ReportsPage from '@/pages/reports/ReportsPage'
 import { TenantsPage } from '@/pages/tenants/TenantsPage'
 import { UsersPage } from '@/pages/users/UsersPage'
@@ -77,6 +83,8 @@ function App() {
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="sales" element={<SalesPage />} />
+        <Route path="purchases" element={<PurchasesPage />} />
+        <Route path="supplier-accounts" element={<SupplierAccountsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="branches" element={<BranchesPage />} />
         <Route path="tenants" element={<TenantsPage />} />
@@ -93,6 +101,10 @@ function App() {
         <Route path="settings/voucher-configurations/:id/edit" element={<EditVoucherConfigurationPage />} />
       </Route>
       <Route path="/sales/new" element={<NewSalePage />} />
+      <Route path="/purchases/new" element={<NewPurchasePage />} />
+      <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
+      <Route path="/purchases/:id/payment" element={<RegisterPaymentPage />} />
+      <Route path="/supplier-accounts/:supplierId" element={<SupplierAccountDetailPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

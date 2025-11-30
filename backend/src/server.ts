@@ -30,6 +30,8 @@ import voucherConfigRoutes from './routes/voucher-configurations.js'
 import voucherTypeRoutes from './routes/voucher-types.js'
 import voucherDeterminationRoutes from './routes/voucher-determination.js'
 import vatConditionRoutes from './routes/vat-conditions.js'
+import purchaseRoutes from './routes/purchases.js'
+import supplierAccountRoutes from './routes/supplier-accounts.js'
 
 // Load environment variables
 config()
@@ -92,6 +94,8 @@ app.use('/api/:tenantSlug/voucher-configurations', voucherConfigRoutes)
 app.use('/api/:tenantSlug/voucher-types', voucherTypeRoutes)
 app.use('/api/:tenantSlug/voucher', voucherDeterminationRoutes)
 app.use('/api/:tenantSlug/vat-conditions', vatConditionRoutes)
+app.use('/api/:tenantSlug/purchases', purchaseRoutes)
+app.use('/api/:tenantSlug/supplier-accounts', supplierAccountRoutes)
 app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
 
 // Error handling
