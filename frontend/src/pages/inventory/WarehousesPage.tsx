@@ -56,8 +56,8 @@ export default function WarehousesPage() {
       alert('Almacén creado exitosamente')
     },
     onError: (error: any) => {
-      console.error('❌ Error al crear almacén:', error)
-      console.error('❌ Detalle del error:', error.response?.data)
+      console.error('[ERROR] Error al crear almacén:', error)
+      console.error('[ERROR] Detalle del error:', error.response?.data)
       const errorMessage = error.response?.data?.error || error.message || 'Error al crear almacén'
       if (errorMessage.includes('Unique constraint') || errorMessage.includes('unique constraint')) {
         alert('Ya existe un almacén con ese código. Por favor, use un código diferente.')

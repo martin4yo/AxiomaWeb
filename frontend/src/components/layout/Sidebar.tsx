@@ -63,8 +63,17 @@ const navigation: NavigationItem[] = [
     name: 'Compras',
     icon: ShoppingBag,
     children: [
+      { name: 'Proveedores', href: '/suppliers', icon: Users },
       { name: 'Listado de Compras', href: '/purchases', icon: FileText },
       { name: 'Cuenta Corriente', href: '/supplier-accounts', icon: Wallet },
+    ]
+  },
+  {
+    name: 'Fondos',
+    icon: Wallet,
+    children: [
+      { name: 'Movimientos de Caja', href: '/cash/movements', icon: Banknote },
+      { name: 'Balance de Cuentas', href: '/cash/accounts', icon: CreditCard },
     ]
   },
   { name: 'Entidades', href: '/entities', icon: Users },

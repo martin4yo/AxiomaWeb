@@ -32,6 +32,7 @@ import voucherDeterminationRoutes from './routes/voucher-determination.js'
 import vatConditionRoutes from './routes/vat-conditions.js'
 import purchaseRoutes from './routes/purchases.js'
 import supplierAccountRoutes from './routes/supplier-accounts.js'
+import cashRoutes from './routes/cash.js'
 
 // Load environment variables
 config()
@@ -96,6 +97,7 @@ app.use('/api/:tenantSlug/voucher', voucherDeterminationRoutes)
 app.use('/api/:tenantSlug/vat-conditions', vatConditionRoutes)
 app.use('/api/:tenantSlug/purchases', purchaseRoutes)
 app.use('/api/:tenantSlug/supplier-accounts', supplierAccountRoutes)
+app.use('/api/:tenantSlug/cash', cashRoutes)
 app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
 
 // Error handling
@@ -118,9 +120,9 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(port, () => {
-  logger.info(`🚀 Axioma ERP Backend running on port ${port}`)
-  logger.info(`📊 Environment: ${process.env.NODE_ENV}`)
-  logger.info(`🌐 CORS enabled for: ${process.env.FRONTEND_URL}`)
+  logger.info(`[START] Axioma ERP Backend running on port ${port}`)
+  logger.info(`[INFO] Environment: ${process.env.NODE_ENV}`)
+  logger.info(`[CORS] CORS enabled for: ${process.env.FRONTEND_URL}`)
 })
 
 export default app

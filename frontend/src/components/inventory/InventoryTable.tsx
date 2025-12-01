@@ -1,4 +1,5 @@
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { Package } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 
@@ -24,9 +25,7 @@ export function InventoryTable({ data, isLoading, onMovement }: InventoryTablePr
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="mx-auto h-12 w-12 text-gray-400">
-          📦
-        </div>
+        <Package className="mx-auto h-12 w-12 text-gray-400" />
         <h3 className="mt-2 text-sm font-medium text-gray-900">Sin stock</h3>
         <p className="mt-1 text-sm text-gray-500">
           No hay productos en stock en el almacén seleccionado.

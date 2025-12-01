@@ -26,14 +26,14 @@ class InventoryController {
 
   async createWarehouse(req: Request, res: Response) {
     try {
-      console.log('📦 Creating warehouse with data:', req.body)
+      console.log('[PACKAGE] Creating warehouse with data:', req.body)
       console.log('🔑 Tenant ID:', req.tenant?.id)
       const warehouse = await inventoryService.createWarehouse(req.tenantDb, req.body)
-      console.log('✅ Warehouse created:', warehouse)
+      console.log('[OK] Warehouse created:', warehouse)
       res.status(201).json(warehouse)
     } catch (error: any) {
-      console.error('❌ Error creating warehouse:', error)
-      console.error('❌ Error stack:', error.stack)
+      console.error('[ERROR] Error creating warehouse:', error)
+      console.error('[ERROR] Error stack:', error.stack)
       res.status(500).json({ error: error.message || 'Error al crear almacén' })
     }
   }

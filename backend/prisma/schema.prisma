@@ -50,6 +50,8 @@ model Tenant {
   salesPoints       SalesPoint[]
   voucherConfigurations VoucherConfiguration[]
   purchases         Purchase[]
+  cashAccounts      CashAccount[] @relation("CashAccountTenant")
+  cashMovements     CashMovement[] @relation("CashMovementTenant")
 
   @@map("tenants")
 }
@@ -75,6 +77,8 @@ model User {
   createdSales     Sale[] @relation("SaleCreatedBy")
   createdPurchases Purchase[] @relation("PurchaseCreatedBy")
   createdPurchasePayments PurchasePayment[] @relation("PurchasePaymentCreatedBy")
+  createdCashAccounts CashAccount[] @relation("CashAccountCreatedBy")
+  createdCashMovements CashMovement[] @relation("CashMovementCreatedBy")
 
   @@map("users")
 }
@@ -281,13 +285,16 @@ model PaymentMethod {
   requiresReference Boolean  @default(false) @map("requires_reference")
   daysToCollection  Int?     @default(0) @map("days_to_collection")
   isActive          Boolean  @default(true) @map("is_active")
+  cashAccountId     String?  @map("cash_account_id") // Cuenta de caja asociada
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
   // Relations
   tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cashAccount     CashAccount?      @relation("PaymentMethodCashAccount", fields: [cashAccountId], references: [id], onDelete: SetNull)
   salePayments    SalePayment[]
   purchasePayments PurchasePayment[] @relation("PurchasePaymentMethod")
+  cashMovements   CashMovement[] @relation("CashMovementPaymentMethod")
 
   @@unique([tenantId, name])
   @@map("payment_methods")
@@ -661,6 +668,7 @@ model Sale {
   voucherConfiguration VoucherConfiguration?  @relation(fields: [voucherConfigurationId], references: [id])
   items                SaleItem[]
   payments             SalePayment[]
+  cashMovements        CashMovement[] @relation("CashMovementSale")
 
   @@unique([tenantId, branchId, salesPointNumber, voucherNumber], name: "sale_unique_voucher")
   @@unique([tenantId, saleNumber])
@@ -741,6 +749,7 @@ model SalePayment {
   // Relations
   sale          Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
   paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+  cashMovements CashMovement[] @relation("CashMovementSalePayment")
 
   @@index([saleId])
   @@index([paymentMethodId])
@@ -956,6 +965,7 @@ model Purchase {
   creator   User            @relation("PurchaseCreatedBy", fields: [createdBy], references: [id])
   items     PurchaseItem[]
   payments  PurchasePayment[]
+  cashMovements CashMovement[] @relation("CashMovementPurchase")
 
   @@unique([tenantId, purchaseNumber])
   @@index([tenantId, purchaseDate])
@@ -973,6 +983,7 @@ model PurchaseItem {
   productSku      String? @map("product_sku")
   productName     String  @map("product_name")
   description     String?
+  expirationDate  DateTime? @map("expiration_date") @db.Date
 
   // Cantidades y precios
   quantity        Decimal @db.Decimal(15, 4)
@@ -1028,10 +1039,105 @@ model PurchasePayment {
   purchase      Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   paymentMethod PaymentMethod @relation("PurchasePaymentMethod", fields: [paymentMethodId], references: [id])
   creator       User          @relation("PurchasePaymentCreatedBy", fields: [createdBy], references: [id])
+  cashMovements CashMovement[] @relation("CashMovementPurchasePayment")
 
   @@index([purchaseId])
   @@index([paymentMethodId])
   @@index([status])
   @@index([paymentDate])
   @@map("purchase_payments")
+}
+
+// 💰 CUENTAS DE CAJA/BANCO
+model CashAccount {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+
+  // Información básica
+  name        String
+  description String?
+  accountType String   @map("account_type") // cash, bank, mercadopago, etc.
+
+  // Estado
+  isActive    Boolean  @default(true) @map("is_active")
+  isDefault   Boolean  @default(false) @map("is_default") // Cuenta por defecto
+
+  // Balance inicial (para arqueo)
+  initialBalance Decimal @default(0) @map("initial_balance") @db.Decimal(15, 2)
+
+  // Metadata
+  metadata    Json     @default("{}")
+
+  createdBy   String   @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant       Tenant         @relation("CashAccountTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator      User           @relation("CashAccountCreatedBy", fields: [createdBy], references: [id])
+  movements    CashMovement[]
+  paymentMethods PaymentMethod[] @relation("PaymentMethodCashAccount")
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([isDefault])
+  @@map("cash_accounts")
+}
+
+// 💸 MOVIMIENTOS DE CAJA
+model CashMovement {
+  id              String   @id @default(cuid())
+  tenantId        String   @map("tenant_id")
+  cashAccountId   String   @map("cash_account_id")
+
+  // Tipo de movimiento
+  movementType    String   @map("movement_type") // income, expense
+  category        String   // sale, purchase, payment, withdrawal, deposit, adjustment, etc.
+
+  // Monto
+  amount          Decimal  @db.Decimal(15, 2)
+
+  // Referencias
+  description     String
+  reference       String?  // Número de comprobante, transferencia, etc.
+
+  // Relaciones opcionales con ventas/compras
+  saleId          String?  @map("sale_id")
+  purchaseId      String?  @map("purchase_id")
+  salePaymentId   String?  @map("sale_payment_id")
+  purchasePaymentId String? @map("purchase_payment_id")
+
+  // Método de pago asociado
+  paymentMethodId String?  @map("payment_method_id")
+
+  // Fecha del movimiento
+  movementDate    DateTime @map("movement_date")
+
+  // Notas
+  notes           String?
+  metadata        Json     @default("{}")
+
+  createdBy       String   @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant          Tenant         @relation("CashMovementTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  cashAccount     CashAccount    @relation(fields: [cashAccountId], references: [id], onDelete: Cascade)
+  sale            Sale?          @relation("CashMovementSale", fields: [saleId], references: [id], onDelete: SetNull)
+  purchase        Purchase?      @relation("CashMovementPurchase", fields: [purchaseId], references: [id], onDelete: SetNull)
+  salePayment     SalePayment?   @relation("CashMovementSalePayment", fields: [salePaymentId], references: [id], onDelete: SetNull)
+  purchasePayment PurchasePayment? @relation("CashMovementPurchasePayment", fields: [purchasePaymentId], references: [id], onDelete: SetNull)
+  paymentMethod   PaymentMethod? @relation("CashMovementPaymentMethod", fields: [paymentMethodId], references: [id], onDelete: SetNull)
+  creator         User           @relation("CashMovementCreatedBy", fields: [createdBy], references: [id])
+
+  @@index([tenantId])
+  @@index([cashAccountId])
+  @@index([movementType])
+  @@index([category])
+  @@index([movementDate])
+  @@index([saleId])
+  @@index([purchaseId])
+  @@index([paymentMethodId])
+  @@map("cash_movements")
 }

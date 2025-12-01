@@ -64,9 +64,15 @@ export const tenantMiddleware = async (
               'SalePayment',
               'EntityDeliveryAddress',
               'EntityCustomerCategory',
-              'ProductCategoryMapping',
-              'ProductBrandMapping',
-              'DocumentItem'
+              'ProductCategoryProduct',
+              'ProductBrandProduct',
+              'DocumentItem',
+              'PurchaseItem',
+              'PurchasePayment',
+              'WarehouseStock',
+              'StockMovement',
+              'TenantUser',
+              'CashMovement'
             ]
 
             if (skipModels.includes(model)) {

@@ -32,7 +32,10 @@ import PurchaseDetailPage from '@/pages/purchases/PurchaseDetailPage'
 import RegisterPaymentPage from '@/pages/purchases/RegisterPaymentPage'
 import SupplierAccountsPage from '@/pages/purchases/SupplierAccountsPage'
 import SupplierAccountDetailPage from '@/pages/purchases/SupplierAccountDetailPage'
+import SuppliersPage from '@/pages/suppliers/SuppliersPage'
 import ReportsPage from '@/pages/reports/ReportsPage'
+import CashMovementsPage from '@/pages/cash/CashMovementsPage'
+import CashAccountsPage from '@/pages/cash/CashAccountsPage'
 import { TenantsPage } from '@/pages/tenants/TenantsPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import ErrorPage from '@/pages/ErrorPage'
@@ -84,6 +87,7 @@ function App() {
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
+        <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="supplier-accounts" element={<SupplierAccountsPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="branches" element={<BranchesPage />} />
@@ -99,12 +103,14 @@ function App() {
         <Route path="settings/voucher-configurations" element={<VoucherConfigurationsPage />} />
         <Route path="settings/voucher-configurations/new" element={<NewVoucherConfigurationPage />} />
         <Route path="settings/voucher-configurations/:id/edit" element={<EditVoucherConfigurationPage />} />
+        <Route path="cash/movements" element={<CashMovementsPage />} />
+        <Route path="cash/accounts" element={<CashAccountsPage />} />
+        <Route path="supplier-accounts/:supplierId" element={<SupplierAccountDetailPage />} />
+        <Route path="purchases/:id" element={<PurchaseDetailPage />} />
+        <Route path="purchases/:id/payment" element={<RegisterPaymentPage />} />
       </Route>
       <Route path="/sales/new" element={<NewSalePage />} />
       <Route path="/purchases/new" element={<NewPurchasePage />} />
-      <Route path="/purchases/:id" element={<PurchaseDetailPage />} />
-      <Route path="/purchases/:id/payment" element={<RegisterPaymentPage />} />
-      <Route path="/supplier-accounts/:supplierId" element={<SupplierAccountDetailPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<Navigate to="/" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />

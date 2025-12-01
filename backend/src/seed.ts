@@ -24,7 +24,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Demo tenant created:', demoTenant.name)
+  console.log('[OK] Demo tenant created:', demoTenant.name)
 
   // Create demo user
   const passwordHash = await bcrypt.hash('demo123', 12)
@@ -40,7 +40,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Demo user created:', demoUser.email)
+  console.log('[OK] Demo user created:', demoUser.email)
 
   // Create tenant-user relationship
   await prisma.tenantUser.upsert({
@@ -60,7 +60,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Tenant-user relationship created')
+  console.log('[OK] Tenant-user relationship created')
 
   // Create document types
   const documentTypes = [
@@ -127,7 +127,7 @@ async function main() {
     })
   }
 
-  console.log('✅ Document types created')
+  console.log('[OK] Document types created')
 
   // Create demo entities (clients/suppliers)
   const entities = [
@@ -209,7 +209,7 @@ async function main() {
     })
   }
 
-  console.log('✅ Demo entities created')
+  console.log('[OK] Demo entities created')
 
   // Create demo products
   const products = [
@@ -276,7 +276,7 @@ async function main() {
     })
   }
 
-  console.log('✅ Demo products created')
+  console.log('[OK] Demo products created')
 
   // Create demo warehouses
   const warehouse = await prisma.warehouse.upsert({
@@ -298,7 +298,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Demo warehouse created')
+  console.log('[OK] Demo warehouse created')
 
   // Create warehouse stock for products with inventory
   const stockProducts = await prisma.product.findMany({
@@ -346,13 +346,13 @@ async function main() {
     })
   }
 
-  console.log('✅ Demo warehouse stock created')
+  console.log('[OK] Demo warehouse stock created')
 
   // ============================================
   // SISTEMA DE FACTURACIÓN
   // ============================================
 
-  console.log('📄 Creating voucher types...')
+  console.log('[DOC] Creating voucher types...')
 
   // Crear tipos de comprobante
   const voucherTypes = [
@@ -383,7 +383,7 @@ async function main() {
     })
   }
 
-  console.log(`✅ Created ${voucherTypes.length} voucher types`)
+  console.log(`[OK] Created ${voucherTypes.length} voucher types`)
 
   // Actualizar condiciones de IVA con códigos AFIP
   console.log('💼 Updating VAT conditions with AFIP codes...')
@@ -423,10 +423,10 @@ async function main() {
     })
   }
 
-  console.log('✅ VAT conditions updated with AFIP codes')
+  console.log('[OK] VAT conditions updated with AFIP codes')
 
   // Crear sucursal por defecto
-  console.log('🏢 Creating default branch...')
+  console.log('[COMPANY] Creating default branch...')
 
   const defaultBranch = await prisma.branch.upsert({
     where: {
@@ -449,7 +449,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Default branch created:', defaultBranch.name)
+  console.log('[OK] Default branch created:', defaultBranch.name)
 
   // Crear conexión AFIP de testing
   console.log('🔌 Creating AFIP connection...')
@@ -470,10 +470,10 @@ async function main() {
     }
   })
 
-  console.log('✅ AFIP connection created:', afipConnection.name)
+  console.log('[OK] AFIP connection created:', afipConnection.name)
 
   // Crear punto de venta
-  console.log('📊 Creating sales point...')
+  console.log('[INFO] Creating sales point...')
 
   const salesPoint = await prisma.salesPoint.upsert({
     where: {
@@ -492,7 +492,7 @@ async function main() {
     }
   })
 
-  console.log('✅ Sales point created:', salesPoint.name)
+  console.log('[OK] Sales point created:', salesPoint.name)
 
   // Configurar comprobantes para la sucursal (solo facturas por ahora)
   console.log('⚙️ Creating voucher configurations...')
@@ -527,7 +527,7 @@ async function main() {
     }
   }
 
-  console.log('✅ Voucher configurations created')
+  console.log('[OK] Voucher configurations created')
 
   console.log('🎉 Seeding completed successfully!')
   console.log('')
@@ -539,7 +539,7 @@ async function main() {
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding failed:', e)
+    console.error('[ERROR] Seeding failed:', e)
     process.exit(1)
   })
   .finally(async () => {

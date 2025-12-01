@@ -1,4 +1,5 @@
 import { ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { Lightbulb } from 'lucide-react'
 
 interface ErrorPageProps {
   onRetry?: () => void
@@ -42,8 +43,9 @@ export default function ErrorPage({ onRetry }: ErrorPageProps) {
               Por favor, intente nuevamente en unos momentos.
             </p>
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Consejo:</strong> Si el problema persiste, por favor contacte al administrador del sitio.
+              <p className="text-sm text-blue-800 flex items-center">
+                <Lightbulb className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span><strong>Consejo:</strong> Si el problema persiste, por favor contacte al administrador del sitio.</span>
               </p>
             </div>
           </div>

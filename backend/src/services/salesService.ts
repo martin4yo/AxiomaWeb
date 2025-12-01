@@ -11,6 +11,7 @@ import { AppError } from '../middleware/errorHandler.js'
 import { VoucherService } from './voucher.service.js'
 import { AfipWSFEService } from './afip-wsfe.service.js'
 import { prisma as globalPrisma } from '../server.js'
+import { cashMovementService } from './cashMovementService'
 
 interface CreateSaleItemInput {
   productId: string
@@ -18,6 +19,7 @@ interface CreateSaleItemInput {
   unitPrice?: number  // Opcional, se toma del producto si no se proporciona
   discountPercent?: number
   taxRate?: number  // Opcional, se usa tasa por defecto si no se proporciona
+  description?: string  // Descripción personalizada (sobrescribe la del producto)
 }
 
 interface CreateSalePaymentInput {
@@ -31,6 +33,7 @@ interface CreateSaleInput {
   customerId?: string
   branchId?: string
   warehouseId: string
+  saleDate?: string  // Fecha de la venta (ISO string), por defecto fecha actual
   items: CreateSaleItemInput[]
   payments: CreateSalePaymentInput[]
   notes?: string
@@ -64,6 +67,7 @@ export class SalesService {
     const {
       customerId,
       warehouseId,
+      saleDate,
       items: itemsInput,
       payments: paymentsInput,
       notes,
@@ -343,10 +347,16 @@ export class SalesService {
     }
 
     // 12. Crear venta en transacción
-    const sale = await this.prisma.$transaction(async (tx) => {
-      // Obtener fecha local sin hora
-      const now = new Date()
-      const localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const createdSale = await this.prisma.$transaction(async (tx) => {
+      // Obtener fecha local sin hora (usar saleDate si está presente, sino fecha actual)
+      let localDate: Date
+      if (saleDate) {
+        const inputDate = new Date(saleDate)
+        localDate = new Date(inputDate.getFullYear(), inputDate.getMonth(), inputDate.getDate())
+      } else {
+        const now = new Date()
+        localDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      }
 
       // Generar número local DENTRO de la transacción para evitar race conditions
       if (useLocalNumbering) {
@@ -416,7 +426,7 @@ export class SalesService {
             productId: item.product.id,
             productSku: item.product.sku,
             productName: item.product.name,
-            description: item.product.description,
+            description: item.input.description || item.product.description,
             quantity: new Decimal(item.input.quantity),
             unitPrice: item.input.unitPrice !== undefined
               ? new Decimal(item.input.unitPrice)
@@ -472,6 +482,7 @@ export class SalesService {
       }
 
       // Crear pagos
+      const createdPayments = []
       for (const paymentInput of paymentsInput) {
         const paymentMethod = await tx.paymentMethod.findFirst({
           where: {
@@ -485,7 +496,7 @@ export class SalesService {
           throw new AppError(`Forma de pago ${paymentInput.paymentMethodId} no encontrada`, 404)
         }
 
-        await tx.salePayment.create({
+        const salePayment = await tx.salePayment.create({
           data: {
             saleId: newSale.id,
             paymentMethodId: paymentMethod.id,
@@ -497,10 +508,39 @@ export class SalesService {
             collectionDate: new Date()
           }
         })
+        createdPayments.push(salePayment)
       }
 
-      return newSale
+      return { sale: newSale, payments: createdPayments }
     })
+
+    // Registrar ingresos en caja (fuera de la transacción)
+    for (const payment of createdSale.payments) {
+      try {
+        // Obtener el método de pago con su cuenta de caja asociada
+        const paymentMethod = await this.prisma.paymentMethod.findUnique({
+          where: { id: payment.paymentMethodId },
+          select: { cashAccountId: true },
+        })
+
+        await cashMovementService.registerIncome({
+          tenantId: this.tenantId,
+          cashAccountId: paymentMethod?.cashAccountId || undefined,
+          amount: payment.amount.toNumber(),
+          category: 'sale',
+          description: `Cobro de venta ${createdSale.sale.saleNumber} - ${customer?.name || 'Cliente Final'}`,
+          reference: createdSale.sale.fullVoucherNumber || createdSale.sale.saleNumber,
+          saleId: createdSale.sale.id,
+          salePaymentId: payment.id,
+          paymentMethodId: payment.paymentMethodId,
+          movementDate: payment.collectionDate || new Date(),
+          userId: this.userId,
+        })
+      } catch (error) {
+        console.error('Error registering cash movement for sale payment:', error)
+        // No fallar la venta si falla el registro del movimiento
+      }
+    }
 
     // 13. Solicitar CAE a AFIP si corresponde
     console.log(`[Sales:${requestId}] Evaluando si solicitar CAE:`, {
@@ -550,7 +590,7 @@ export class SalesService {
             salesPointNumber: voucherInfo.salesPoint?.number || 1,
             voucherTypeCode: voucherInfo.voucherType.afipCode!,
             voucherNumber: voucherInfo.nextNumberRaw,
-            documentDate: sale.saleDate,
+            documentDate: createdSale.sale.saleDate,
             customerDocType,
             customerDocNumber,
             customerVatConditionAfipCode, // RG 5616 - Condición IVA del receptor (código AFIP)
@@ -565,7 +605,7 @@ export class SalesService {
 
         // Actualizar venta con CAE
         await this.prisma.sale.update({
-          where: { id: sale.id },
+          where: { id: createdSale.sale.id },
           data: {
             afipStatus: 'authorized',
             afipCae: caeData.cae,
@@ -580,7 +620,7 @@ export class SalesService {
 
         // Actualizar estado a error
         await this.prisma.sale.update({
-          where: { id: sale.id },
+          where: { id: createdSale.sale.id },
           data: {
             afipStatus: 'error'
             // TODO: agregar campo afipErrorMessage al schema
@@ -600,7 +640,7 @@ export class SalesService {
     // para ambos casos (con CAE y sin CAE), evitando race conditions
 
     // 14. Retornar venta con todos sus datos
-    const finalSale = await this.getSaleById(sale.id)
+    const finalSale = await this.getSaleById(createdSale.sale.id)
 
     return {
       ...finalSale,

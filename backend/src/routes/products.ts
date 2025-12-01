@@ -1,9 +1,41 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs/promises'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { AppError } from '../middleware/errorHandler.js'
+import { ProductImportService } from '../services/productImportService.js'
 
 const router = Router({ mergeParams: true })
+
+// Configurar multer para guardar archivos temporalmente
+const storage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const uploadDir = path.join(process.cwd(), 'uploads', 'temp');
+    // Crear directorio si no existe
+    await fs.mkdir(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (ext !== '.xls' && ext !== '.xlsx') {
+      return cb(new Error('Solo se permiten archivos Excel (.xls, .xlsx)'));
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB máximo
+  }
+});
 
 // Validation schema
 const productSchema = z.object({
@@ -89,10 +121,46 @@ router.get('/top-selling', authMiddleware, async (req, res, next) => {
   }
 })
 
+// Import products from Excel
+router.post('/import', authMiddleware, upload.single('file'), async (req, res, next) => {
+  let filePath: string | null = null;
+
+  try {
+    if (!req.file) {
+      throw new AppError('No se ha proporcionado ningún archivo', 400);
+    }
+
+    filePath = req.file.path;
+    const tenantId = req.tenant!.id;
+
+    // Importar productos
+    const importService = new ProductImportService(req.tenantDb!, tenantId);
+    const result = await importService.importFromExcel(filePath);
+
+    res.json({
+      success: true,
+      message: 'Importación completada',
+      data: result
+    });
+
+  } catch (error: any) {
+    next(error);
+  } finally {
+    // Eliminar archivo temporal
+    if (filePath) {
+      try {
+        await fs.unlink(filePath);
+      } catch (err) {
+        console.error('Error al eliminar archivo temporal:', err);
+      }
+    }
+  }
+});
+
 // Get all products
 router.get('/', authMiddleware, async (req, res, next) => {
   try {
-    const { page = 1, limit = 50, search, category } = req.query
+    const { page = 1, limit = 50, search, categoryId, brandId } = req.query
 
     const skip = (Number(page) - 1) * Number(limit)
     const take = Number(limit)
@@ -107,8 +175,22 @@ router.get('/', authMiddleware, async (req, res, next) => {
       ]
     }
 
-    if (category) {
-      where.category = category
+    // Filtrar por categoría
+    if (categoryId) {
+      where.productCategories = {
+        some: {
+          categoryId: categoryId as string
+        }
+      }
+    }
+
+    // Filtrar por marca
+    if (brandId) {
+      where.productBrands = {
+        some: {
+          brandId: brandId as string
+        }
+      }
     }
 
     const [products, total] = await Promise.all([

@@ -20,6 +20,20 @@
 
 ### ✅ Módulos Completados
 
+#### **Sistema de Caja y Movimientos de Fondos** ⭐ NUEVO
+- [x] ABM de Cuentas de Fondos (Caja, Bancos, etc.)
+- [x] Registro automático de movimientos al crear ventas/compras
+- [x] Vinculación de métodos de pago con cuentas de fondos
+- [x] Listado de movimientos con filtros
+  - Filtro por fecha (desde/hasta)
+  - Filtro por tipo (ingreso/egreso)
+  - Filtro por cuenta específica
+- [x] Resumen de balances por cuenta
+- [x] Registro manual de ingresos/egresos
+- [x] Transferencias entre cuentas
+- [x] Integración completa con ventas y compras
+- [x] Actualización automática de cache (React Query)
+
 #### **Productos y Categorización**
 - [x] ABM completo de Productos
   - Código/SKU único
@@ -82,9 +96,22 @@
 - [x] Referencias entre documentos
 - [x] Auditoría (createdBy, updatedBy)
 
+#### **Módulo de Compras** ⭐ NUEVO
+- [x] ABM completo de Compras
+- [x] Gestión de proveedores
+- [x] Items de compra con precios
+- [x] Múltiples formas de pago
+- [x] Integración con inventario (incremento automático de stock)
+- [x] Cuenta corriente de proveedores
+- [x] Descripción personalizada por item
+- [x] Fecha de vencimiento por item (productos perecederos)
+- [x] Movimientos de caja automáticos
+
 ---
 
-## 🚀 PROGRESO DEL MÓDULO DE VENTAS - 95% COMPLETADO ✅
+## 🚀 PROGRESO DEL MÓDULO DE VENTAS - 100% COMPLETADO ✅
+## 🚀 PROGRESO DEL MÓDULO DE COMPRAS - 100% COMPLETADO ✅
+## 🚀 PROGRESO DEL MÓDULO DE CAJA - 85% COMPLETADO ✅
 
 ### ✅ COMPLETADO - Módulo de Ventas (Backend + Frontend)
 
@@ -840,6 +867,10 @@ El sistema debe calcular impuestos automáticamente basándose en:
 - [x] Cálculo automático de IVA según tipo de cliente
 - [x] Cancelación de ventas con reversión de stock
 - [x] Generación automática de números de venta
+- [x] Descripción personalizada por item (productos genéricos)
+- [x] Campo de fecha de venta configurable (default: hoy)
+- [x] Integración completa con sistema de caja
+- [x] Actualización automática de movimientos de fondos
 
 ### 🟡 Informes - 0% COMPLETADO
 - [ ] Ventas por producto
@@ -879,13 +910,13 @@ Para consultas durante el desarrollo:
 
 ---
 
-**Última actualización:** 2025-11-24
-**Versión del documento:** 2.0
-**Estado del proyecto:** 🚀 FASE 1 COMPLETADA - Módulo de Ventas Operativo
+**Última actualización:** 2025-12-01
+**Versión del documento:** 2.1
+**Estado del proyecto:** 🚀 FASES 1 y 2 COMPLETADAS - Módulos de Ventas, Compras y Caja Operativos
 
 ## 📈 RESUMEN EJECUTIVO
 
-### ✅ LO QUE FUNCIONA HOY (2025-11-24)
+### ✅ LO QUE FUNCIONA HOY (2025-12-01)
 
 **Sistema Completamente Funcional:**
 - ✅ Gestión completa de productos, inventario multi-almacén, clientes
@@ -898,11 +929,41 @@ Para consultas durante el desarrollo:
   - Generación de números de venta secuenciales
   - Cancelación de ventas con reversión de stock
   - Listado de ventas con filtros y paginación
+  - **NUEVO:** Descripción personalizada por item
+  - **NUEVO:** Selección de fecha de venta
+  - **NUEVO:** Integración con movimientos de caja
 
-**Líneas de código del Módulo de Ventas:**
-- Backend: 1,148 líneas (routes + services + utils)
-- Frontend: 857 líneas (pages + api)
-- **TOTAL: 2,005 líneas de código productivo**
+- ✅ **MÓDULO DE COMPRAS OPERATIVO**
+  - Crear compras con múltiples items
+  - Gestión de proveedores
+  - Múltiples formas de pago
+  - Incremento automático de stock
+  - Cuenta corriente de proveedores
+  - **NUEVO:** Descripción personalizada por item
+  - **NUEVO:** Fecha de vencimiento por item
+  - **NUEVO:** Integración con movimientos de caja
+
+- ✅ **SISTEMA DE CAJA Y MOVIMIENTOS DE FONDOS**
+  - Múltiples cuentas de fondos (Caja, Bancos, etc.)
+  - Registro automático al crear ventas/compras
+  - Registro manual de ingresos/egresos
+  - Transferencias entre cuentas
+  - **NUEVO:** Filtro por cuenta específica
+  - Resumen de balances en tiempo real
+  - Actualización automática de saldos
+
+**Líneas de código del Sistema:**
+- **Módulo de Ventas:**
+  - Backend: 1,148 líneas (routes + services + utils)
+  - Frontend: 857 líneas (pages + api)
+- **Módulo de Compras:**
+  - Backend: 850 líneas (routes + services)
+  - Frontend: 1,000 líneas (pages + api)
+- **Sistema de Caja:**
+  - Backend: 450 líneas (routes + services)
+  - Frontend: 600 líneas (pages + components)
+- **Mejoras Sesión 2025-12-01:** 326 líneas adicionales
+- **TOTAL: ~5,231 líneas de código productivo**
 
 ### 🎯 PRÓXIMOS PASOS
 
@@ -1465,7 +1526,75 @@ export default function PrintSettingsPage() {
 }
 ```
 
-#### **Distribución y Deployment**
+#### ---
+
+## 📅 CHANGELOG - SESIÓN 01/12/2025
+
+### Nuevas Funcionalidades Implementadas
+
+#### 1. **Descripción Personalizada en Items de Venta y Compra**
+- Agregado campo `description` opcional en SaleItem y PurchaseItem
+- Icono Edit3 para editar descripción en cada item del carrito
+- Modal de edición simple y rápido
+- Descripción personalizada mostrada en azul cursiva
+- Sobrescribe la descripción del producto si se proporciona
+- **Archivos modificados:**
+  - `backend/src/services/salesService.ts`
+  - `backend/src/services/purchaseService.ts`
+  - `frontend/src/pages/sales/NewSalePage.tsx`
+  - `frontend/src/pages/purchases/NewPurchasePage.tsx`
+
+#### 2. **Campo de Fecha de Venta Configurable**
+- Agregado campo `saleDate` opcional en CreateSaleInput
+- Date picker en formulario de venta (default: fecha actual)
+- Permite registrar ventas de días anteriores
+- **Archivos modificados:**
+  - `backend/src/services/salesService.ts`
+  - `frontend/src/pages/sales/NewSalePage.tsx`
+
+#### 3. **Fecha de Vencimiento en Items de Compra**
+- Nuevo campo en base de datos: `purchase_items.expiration_date`
+- Migración: `20251201200631_add_expiration_date_to_purchase_items`
+- Icono Calendar para editar fecha de vencimiento
+- Fecha mostrada en verde: "Vence: DD/MM/YYYY"
+- Útil para productos perecederos
+- **Archivos modificados:**
+  - `backend/prisma/schema.prisma`
+  - `backend/src/services/purchaseService.ts`
+  - `frontend/src/pages/purchases/NewPurchasePage.tsx`
+
+#### 4. **Filtro por Cuenta en Movimientos de Caja**
+- Agregado dropdown para seleccionar cuenta específica
+- Filtro se combina con fecha y tipo de movimiento
+- Actualización en tiempo real mediante React Query
+- **Archivos modificados:**
+  - `frontend/src/pages/cash/CashMovementsPage.tsx`
+
+### Bugs Corregidos
+
+#### 1. **Movimientos de Caja No se Actualizaban Automáticamente**
+- **Problema:** Al crear venta/compra, movimientos se registraban en DB pero no se mostraban en UI
+- **Causa:** Falta de invalidación de cache de React Query
+- **Solución:** Agregada invalidación de queries `cash-movements` y `cash-accounts`
+- **Archivos modificados:**
+  - `frontend/src/pages/sales/NewSalePage.tsx`
+  - `frontend/src/pages/purchases/NewPurchasePage.tsx`
+
+### Métricas de la Sesión
+- **Líneas agregadas:** 206
+- **Líneas modificadas:** 120
+- **Total líneas afectadas:** 326
+- **Archivos modificados:** 9
+- **Nueva migración de BD:** 1
+- **Bugs corregidos:** 1 (crítico de UX)
+
+### Documentación Generada
+- ✅ `docs/SESION_2025-12-01.md` - Documentación completa de la sesión
+- ✅ ROADMAP.md actualizado con nuevas funcionalidades
+
+---
+
+**Distribución y Deployment**
 
 **Compilación:**
 ```bash

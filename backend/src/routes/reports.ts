@@ -82,7 +82,7 @@ router.get('/sales-summary', authMiddleware, async (req, res, next) => {
       return res.status(400).json({ error: 'dateFrom and dateTo are required' })
     }
 
-    console.log('📊 Sales Summary Request:', { dateFrom, dateTo, tenant: req.tenant!.id })
+    console.log('[INFO] Sales Summary Request:', { dateFrom, dateTo, tenant: req.tenant!.id })
 
     const summary = await req.tenantDb!.$queryRaw`
       SELECT

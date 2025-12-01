@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp, Edit3 } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
 import { useAuthStore } from '../../stores/authStore'
@@ -69,6 +69,7 @@ interface SaleItem {
   productId: string
   productSku: string
   productName: string
+  description?: string
   quantity: number
   unitPrice: number
   discountPercent: number
@@ -100,6 +101,8 @@ export default function NewSalePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [payments, setPayments] = useState<Payment[]>([])
   const [notes, setNotes] = useState('')
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0])
+  const [editingDescription, setEditingDescription] = useState<{ lineId: string; description: string } | null>(null)
   const [documentClass, setDocumentClass] = useState<'invoice' | 'credit_note' | 'debit_note' | 'quote'>(
     (currentTenant?.defaultDocumentClass as 'invoice' | 'credit_note' | 'debit_note' | 'quote') || 'invoice'
   )
@@ -270,6 +273,8 @@ export default function NewSalePage() {
     },
     onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
+      queryClient.invalidateQueries({ queryKey: ['cash-movements'] })
+      queryClient.invalidateQueries({ queryKey: ['cash-accounts'] })
 
       // Actualizar progreso si el modal está abierto
       if (afipProgressModal.show) {
@@ -519,7 +524,7 @@ export default function NewSalePage() {
     const fiscalDataComplete = voucherInfo && selectedBranch && selectedSalesPoint && selectedWarehouse
 
     if (fiscalDataComplete) {
-      console.log('✅ Fiscal data complete - expanding products accordion')
+      console.log('[OK] Fiscal data complete - expanding products accordion')
       setProductSearchExpanded(true)
       setFiscalDataExpanded(false)
       // Focus on product search input when expanded
@@ -866,11 +871,13 @@ export default function NewSalePage() {
       customerId: selectedCustomer?.id,
       branchId: selectedBranch?.id,
       warehouseId: selectedWarehouse.id,
+      saleDate,
       items: cart.map(item => ({
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discountPercent: item.discountPercent
+        discountPercent: item.discountPercent,
+        description: item.description
       })) as APISaleItem[],
       payments: payments.map(p => ({
         paymentMethodId: p.paymentMethodId,
@@ -920,11 +927,13 @@ export default function NewSalePage() {
         customerId: selectedCustomer?.id,
         branchId: selectedBranch?.id,
         warehouseId: selectedWarehouse!.id,
+        saleDate,
         items: cart.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
-          discountPercent: item.discountPercent
+          discountPercent: item.discountPercent,
+          description: item.description
         })) as APISaleItem[],
         payments: [{
           paymentMethodId: paymentMethod.id,
@@ -1105,6 +1114,18 @@ export default function NewSalePage() {
               </select>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha de Venta
+              </label>
+              <input
+                type="date"
+                value={saleDate}
+                onChange={(e) => setSaleDate(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
             {/* Voucher Info */}
             {voucherInfo && (
               <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
@@ -1268,8 +1289,22 @@ export default function NewSalePage() {
                     return (
                     <div key={item.lineId} className={`flex items-end gap-3 p-3 border rounded-md ${hasError ? 'border-red-300 bg-red-50' : 'border-gray-200'}`}>
                       <div className="flex-1">
-                        <div className="font-medium">{item.productName}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{item.productName}</div>
+                          <button
+                            onClick={() => setEditingDescription({ lineId: item.lineId, description: item.description || '' })}
+                            className="text-blue-600 hover:text-blue-700 p-1"
+                            title="Editar descripción"
+                          >
+                            <Edit3 size={14} />
+                          </button>
+                        </div>
                         <div className="text-sm text-gray-500">SKU: {item.productSku}</div>
+                        {item.description && (
+                          <div className="text-xs text-blue-600 italic mt-1">
+                            {item.description}
+                          </div>
+                        )}
                         {hasError && (
                           <div className="text-xs text-red-600 font-semibold mt-1">
                             ⚠ Cantidad o precio no puede ser 0
@@ -1562,6 +1597,44 @@ export default function NewSalePage() {
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold"
               >
                 {createSaleMutation.isPending ? 'Procesando...' : 'CONFIRMAR VENTA'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Description Edit Modal */}
+      {editingDescription && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">Editar Descripción</h2>
+            <textarea
+              value={editingDescription.description}
+              onChange={(e) => setEditingDescription({ ...editingDescription, description: e.target.value })}
+              rows={3}
+              className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              placeholder="Descripción personalizada del producto..."
+              autoFocus
+            />
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setEditingDescription(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  setCart(cart.map(item =>
+                    item.lineId === editingDescription.lineId
+                      ? { ...item, description: editingDescription.description || undefined }
+                      : item
+                  ))
+                  setEditingDescription(null)
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold"
+              >
+                Guardar
               </button>
             </div>
           </div>

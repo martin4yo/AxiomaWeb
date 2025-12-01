@@ -20,6 +20,7 @@ const paymentMethodSchema = z.object({
   paymentType: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD', 'OTHER'], {
     errorMap: () => ({ message: 'Selecciona un tipo de pago válido' })
   }),
+  cashAccountId: z.string().optional(),
   requiresReference: z.boolean().optional(),
   daysToCollection: z.number().min(0).optional()
 })
@@ -56,6 +57,18 @@ export default function PaymentMethodsPage() {
     },
     enabled: !!currentTenant
   })
+
+  // Fetch cash accounts
+  const { data: cashAccountsData } = useQuery({
+    queryKey: ['cash-accounts', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get('/cash/accounts')
+      return response.data
+    },
+    enabled: !!currentTenant,
+  })
+
+  const cashAccounts = cashAccountsData?.accounts || []
 
   // Create payment method mutation
   const createPaymentMethod = useMutation({
@@ -227,6 +240,11 @@ export default function PaymentMethodsPage() {
                             Requiere referencia
                           </div>
                         )}
+                        {paymentMethod.cashAccount && (
+                          <div className="text-sm text-purple-600">
+                            Cuenta: {paymentMethod.cashAccount.name}
+                          </div>
+                        )}
                         <Badge variant={paymentMethod.isActive ? 'success' : 'error'} size="sm">
                           {paymentMethod.isActive ? 'Activa' : 'Inactiva'}
                         </Badge>
@@ -306,6 +324,28 @@ export default function PaymentMethodsPage() {
                 error={errors.daysToCollection?.message}
                 {...register('daysToCollection', { valueAsNumber: true })}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Cuenta de Fondos
+              </label>
+              <select
+                {...register('cashAccountId')}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">Por defecto</option>
+                {cashAccounts.map((account: any) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name} - {account.accountType}
+                  </option>
+                ))}
+              </select>
+              {errors.cashAccountId && (
+                <p className="mt-1 text-sm text-red-600">{errors.cashAccountId.message}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Selecciona la cuenta donde se registrarán los movimientos de esta forma de pago
+              </p>
             </div>
             <div className="flex items-center">
               <input

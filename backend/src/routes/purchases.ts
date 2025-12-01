@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { purchaseService } from '../services/purchaseService';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -7,9 +8,10 @@ const router = Router();
  * Crear una nueva compra
  * POST /api/:tenantSlug/purchases
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { tenantId, userId } = req as any;
+    const tenantId = req.tenant!.id;
+    const userId = req.user!.id;
     const { supplierId, warehouseId, invoiceNumber, invoiceDate, items, payments, discountPercent, notes } =
       req.body;
 
@@ -50,9 +52,9 @@ router.post('/', async (req: Request, res: Response) => {
  * Listar compras
  * GET /api/:tenantSlug/purchases
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = req.tenant!.id;
     const { page, limit, dateFrom, dateTo, supplierId, paymentStatus, search } = req.query;
 
     const result = await purchaseService.listPurchases(tenantId, {
@@ -76,9 +78,9 @@ router.get('/', async (req: Request, res: Response) => {
  * Obtener una compra por ID
  * GET /api/:tenantSlug/purchases/:id
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = req.tenant!.id;
     const { id } = req.params;
 
     const purchase = await purchaseService.getPurchaseById(tenantId, id);
@@ -93,9 +95,10 @@ router.get('/:id', async (req: Request, res: Response) => {
  * Agregar un pago a una compra
  * POST /api/:tenantSlug/purchases/:id/payments
  */
-router.post('/:id/payments', async (req: Request, res: Response) => {
+router.post('/:id/payments', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { tenantId, userId } = req as any;
+    const tenantId = req.tenant!.id;
+    const userId = req.user!.id;
     const { id } = req.params;
     const { paymentMethodId, amount, reference, referenceDate, notes } = req.body;
 
@@ -130,9 +133,10 @@ router.post('/:id/payments', async (req: Request, res: Response) => {
  * Cancelar una compra
  * PUT /api/:tenantSlug/purchases/:id/cancel
  */
-router.put('/:id/cancel', async (req: Request, res: Response) => {
+router.put('/:id/cancel', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { tenantId, userId } = req as any;
+    const tenantId = req.tenant!.id;
+    const userId = req.user!.id;
     const { id } = req.params;
 
     const purchase = await purchaseService.cancelPurchase(tenantId, id, userId);

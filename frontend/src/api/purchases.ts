@@ -1,6 +1,6 @@
-import axios from 'axios';
+import { api as axios } from '../services/api';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface PurchaseItem {
   productId: string;

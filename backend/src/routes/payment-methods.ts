@@ -10,6 +10,7 @@ const paymentMethodSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   paymentType: z.enum(['CASH', 'TRANSFER', 'CHECK', 'CARD', 'OTHER']),
+  cashAccountId: z.string().optional().nullable(),
   requiresReference: z.boolean().default(false),
   daysToCollection: z.number().int().min(0).default(0)
 })
@@ -19,6 +20,15 @@ router.get('/', authMiddleware, async (req, res, next) => {
   try {
     const paymentMethods = await req.tenantDb!.paymentMethod.findMany({
       where: { isActive: true },
+      include: {
+        cashAccount: {
+          select: {
+            id: true,
+            name: true,
+            accountType: true,
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     })
 

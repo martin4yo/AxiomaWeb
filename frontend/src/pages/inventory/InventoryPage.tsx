@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PlusIcon, AdjustmentsHorizontalIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { DollarSign, AlertTriangle, Warehouse } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { InventoryTable } from '../../components/inventory/InventoryTable'
@@ -91,7 +92,7 @@ export function InventoryPage() {
                 </p>
               </div>
               <div className="h-8 w-8 rounded-md bg-green-100 flex items-center justify-center">
-                <span className="text-lg">💰</span>
+                <DollarSign className="h-5 w-5 text-green-600" />
               </div>
             </div>
           </div>
@@ -105,7 +106,7 @@ export function InventoryPage() {
                 <p className="text-2xl font-bold text-red-600">{lowStockCount}</p>
               </div>
               <div className="h-8 w-8 rounded-md bg-red-100 flex items-center justify-center">
-                <span className="text-lg">⚠️</span>
+                <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
             </div>
           </div>
@@ -119,7 +120,7 @@ export function InventoryPage() {
                 <p className="text-2xl font-bold text-gray-900">{warehouses?.length || 0}</p>
               </div>
               <div className="h-8 w-8 rounded-md bg-purple-100 flex items-center justify-center">
-                <span className="text-lg">🏭</span>
+                <Warehouse className="h-5 w-5 text-purple-600" />
               </div>
             </div>
           </div>
@@ -160,8 +161,9 @@ export function InventoryPage() {
       {lowStockCount > 0 && (
         <Card>
           <div className="p-6">
-            <h3 className="text-lg font-medium text-red-600 mb-4">
-              ⚠️ Productos con Stock Bajo ({lowStockCount})
+            <h3 className="text-lg font-medium text-red-600 mb-4 flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Productos con Stock Bajo ({lowStockCount})
             </h3>
             <div className="space-y-2">
               {lowStock?.map((product: any) => (

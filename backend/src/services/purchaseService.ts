@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { cashMovementService } from './cashMovementService';
 
 const globalPrisma = new PrismaClient();
 
@@ -8,6 +9,7 @@ interface PurchaseItemInput {
   productSku?: string;
   productName: string;
   description?: string;
+  expirationDate?: string;
   quantity: number;
   unitPrice: number;
   discountPercent?: number;
@@ -349,6 +351,7 @@ export class PurchaseService {
             productSku: item.productSku,
             productName: item.productName,
             description: item.description,
+            expirationDate: item.expirationDate ? new Date(item.expirationDate) : null,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
@@ -375,8 +378,9 @@ export class PurchaseService {
       }
 
       // Crear los pagos
+      const createdPayments = [];
       for (const payment of payments) {
-        await tx.purchasePayment.create({
+        const purchasePayment = await tx.purchasePayment.create({
           data: {
             purchaseId: newPurchase.id,
             paymentMethodId: payment.paymentMethodId,
@@ -390,13 +394,43 @@ export class PurchaseService {
             createdBy: userId,
           },
         });
+        createdPayments.push(purchasePayment);
       }
 
-      return newPurchase;
+      return { purchase: newPurchase, payments: createdPayments };
     });
 
+    // Registrar egresos en caja (fuera de la transacción)
+    for (const payment of purchase.payments) {
+      try {
+        // Obtener el método de pago con su cuenta de caja asociada
+        const paymentMethod = await tenantPrisma.paymentMethod.findUnique({
+          where: { id: payment.paymentMethodId },
+          select: { cashAccountId: true },
+        });
+
+        await cashMovementService.registerExpense({
+          tenantId,
+          cashAccountId: paymentMethod?.cashAccountId || undefined,
+          amount: payment.amount.toNumber(),
+          category: 'purchase',
+          description: `Pago de compra ${purchaseNumber} - ${supplier.name}`,
+          reference: invoiceNumber || purchaseNumber,
+          purchaseId: purchase.purchase.id,
+          purchasePaymentId: payment.id,
+          paymentMethodId: payment.paymentMethodId,
+          movementDate: payment.paymentDate || new Date(),
+          notes: payment.notes || undefined,
+          userId,
+        });
+      } catch (error) {
+        console.error('Error registering cash movement for purchase payment:', error);
+        // No fallar la compra si falla el registro del movimiento
+      }
+    }
+
     // Retornar la compra completa con sus relaciones
-    return this.getPurchaseById(tenantId, purchase.id);
+    return this.getPurchaseById(tenantId, purchase.purchase.id);
   }
 
   /**
@@ -610,6 +644,33 @@ export class PurchaseService {
 
       return { payment, purchase: updatedPurchase };
     });
+
+    // Registrar egreso en caja
+    try {
+      // Obtener el método de pago con su cuenta de caja asociada
+      const paymentMethod = await tenantPrisma.paymentMethod.findUnique({
+        where: { id: paymentMethodId },
+        select: { cashAccountId: true },
+      });
+
+      await cashMovementService.registerExpense({
+        tenantId,
+        cashAccountId: paymentMethod?.cashAccountId || undefined,
+        amount: result.payment.amount.toNumber(),
+        category: 'purchase_payment',
+        description: `Pago adicional de compra ${purchase.purchaseNumber} - ${purchase.supplierName}`,
+        reference: reference || purchase.purchaseNumber,
+        purchaseId: purchase.id,
+        purchasePaymentId: result.payment.id,
+        paymentMethodId,
+        movementDate: result.payment.paymentDate || new Date(),
+        notes: notes || undefined,
+        userId,
+      });
+    } catch (error) {
+      console.error('Error registering cash movement for additional purchase payment:', error);
+      // No fallar el pago si falla el registro del movimiento
+    }
 
     return result;
   }

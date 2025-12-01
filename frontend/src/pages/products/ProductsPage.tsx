@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { PlusIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, MagnifyingGlassIcon, TrashIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { Package } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Badge } from '../../components/ui/Badge'
+import { Pagination } from '../../components/ui/Pagination'
 import { ProductModal } from '../../components/products/ProductModal'
+import { ProductImportModal } from '../../components/products/ProductImportModal'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../services/api'
 import { useDialog } from '../../hooks/useDialog'
@@ -22,9 +25,12 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [brandFilter, setBrandFilter] = useState('')
   const [stockFilter, setStockFilter] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(20)
   const [showModal, setShowModal] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+  const [showImportModal, setShowImportModal] = useState(false)
 
   // Check for action=new in URL params
   useEffect(() => {
@@ -36,21 +42,51 @@ export default function ProductsPage() {
     }
   }, [searchParams])
 
-  // Fetch products
-  const { data: products, isLoading } = useQuery({
-    queryKey: ['products', currentTenant?.slug, search, categoryFilter, brandFilter, stockFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams()
-      if (search) params.append('search', search)
-      if (categoryFilter) params.append('category', categoryFilter)
-      if (brandFilter) params.append('brand', brandFilter)
-      if (stockFilter) params.append('stock', stockFilter)
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, categoryFilter, brandFilter, stockFilter])
 
-      const response = await api.get(`/${currentTenant!.slug}/products?${params}`)
-      return response.data.products || []
+  // Fetch categories
+  const { data: categories } = useQuery({
+    queryKey: ['product-categories', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant!.slug}/product-categories`)
+      return response.data.categories || []
     },
     enabled: !!currentTenant
   })
+
+  // Fetch brands
+  const { data: brands } = useQuery({
+    queryKey: ['product-brands', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant!.slug}/product-brands`)
+      return response.data.brands || []
+    },
+    enabled: !!currentTenant
+  })
+
+  // Fetch products with pagination
+  const { data: productsData, isLoading } = useQuery({
+    queryKey: ['products', currentTenant?.slug, search, categoryFilter, brandFilter, stockFilter, currentPage, itemsPerPage],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.append('page', currentPage.toString())
+      params.append('limit', itemsPerPage.toString())
+      if (search) params.append('search', search)
+      if (categoryFilter) params.append('categoryId', categoryFilter)
+      if (brandFilter) params.append('brandId', brandFilter)
+      if (stockFilter) params.append('stock', stockFilter)
+
+      const response = await api.get(`/${currentTenant!.slug}/products?${params}`)
+      return response.data
+    },
+    enabled: !!currentTenant
+  })
+
+  const products = productsData?.products || []
+  const pagination = productsData?.pagination
 
   const handleCreate = () => {
     setSelectedProduct(null)
@@ -67,6 +103,14 @@ export default function ProductsPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setSelectedProduct(null)
+  }
+
+  const handleImport = () => {
+    setShowImportModal(true)
+  }
+
+  const handleCloseImportModal = () => {
+    setShowImportModal(false)
   }
 
   // Delete mutation
@@ -103,6 +147,12 @@ export default function ProductsPage() {
 
   const actions = [
     {
+      label: 'Importar Excel',
+      icon: ArrowUpTrayIcon,
+      onClick: handleImport,
+      variant: 'secondary' as const
+    },
+    {
       label: 'Nuevo Producto',
       icon: PlusIcon,
       onClick: handleCreate,
@@ -137,19 +187,22 @@ export default function ProductsPage() {
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
               <option value="">Todas las categorías</option>
-              <option value="Electrónicos">Electrónicos</option>
-              <option value="Accesorios">Accesorios</option>
-              <option value="Software">Software</option>
-              <option value="Servicios">Servicios</option>
-              <option value="Otros">Otros</option>
+              {categories?.map((category: any) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
             </Select>
             <Select
               value={brandFilter}
               onChange={(e) => setBrandFilter(e.target.value)}
             >
               <option value="">Todas las marcas</option>
-              <option value="Marca A">Marca A</option>
-              <option value="Marca B">Marca B</option>
+              {brands?.map((brand: any) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
             </Select>
             <Select
               value={stockFilter}
@@ -168,7 +221,7 @@ export default function ProductsPage() {
       <Card>
         <div className="p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            Productos ({products?.length || 0})
+            Productos ({pagination?.total || 0})
           </h3>
 
           {isLoading ? (
@@ -179,9 +232,7 @@ export default function ProductsPage() {
             </div>
           ) : !products || products.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                📦
-              </div>
+              <Package className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Sin productos</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {search || categoryFilter || brandFilter || stockFilter
@@ -240,12 +291,20 @@ export default function ProductsPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge variant="info" size="sm">
-                            {product.category || 'Sin categoría'}
-                          </Badge>
-                          {product.brand && (
+                          {product.productCategories && product.productCategories.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {product.productCategories.map((pc: any) => (
+                                <Badge key={pc.category.id} variant="info" size="sm">
+                                  {pc.category.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <Badge variant="info" size="sm">Sin categoría</Badge>
+                          )}
+                          {product.productBrands && product.productBrands.length > 0 && (
                             <div className="text-xs text-gray-500 mt-1">
-                              {product.brand}
+                              {product.productBrands.map((pb: any) => pb.brand.name).join(', ')}
                             </div>
                           )}
                         </td>
@@ -312,6 +371,17 @@ export default function ProductsPage() {
               </table>
             </div>
           )}
+
+          {/* Paginación */}
+          {pagination && pagination.pages > 1 && (
+            <Pagination
+              currentPage={pagination.page}
+              totalPages={pagination.pages}
+              totalItems={pagination.total}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </div>
       </Card>
 
@@ -321,6 +391,12 @@ export default function ProductsPage() {
         onClose={handleCloseModal}
         product={selectedProduct}
         mode={modalMode}
+      />
+
+      {/* Import Modal */}
+      <ProductImportModal
+        isOpen={showImportModal}
+        onClose={handleCloseImportModal}
       />
 
       {/* Dialogs */}
