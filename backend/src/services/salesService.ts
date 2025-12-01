@@ -407,6 +407,7 @@ export class SalesService {
           balanceAmount: totals.totalAmount.sub(new Decimal(totalPaid)),
           paymentStatus,
           voucherType: finalVoucherType,
+          voucherConfigurationId: voucherInfo?.configuration?.id || null,
           warehouseId,
           notes: notes || null,
           status: 'completed',
@@ -754,6 +755,7 @@ export class SalesService {
         customer: true,
         warehouse: true,
         voucherTypeRelation: true,
+        voucherConfiguration: true,
         creator: {
           select: {
             id: true,

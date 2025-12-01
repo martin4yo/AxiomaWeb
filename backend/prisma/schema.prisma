@@ -26,6 +26,12 @@ model Tenant {
   vatConditionId  String?  @map("vat_condition_id")
   cuit            String?
 
+  // Datos del negocio para impresión de tickets
+  businessName    String?  @map("business_name")  // Nombre comercial (si es distinto al name)
+  address         String?  // Dirección del negocio
+  phone           String?  // Teléfono de contacto
+  email           String?  // Email de contacto
+
   // Relations
   tenantUsers       TenantUser[]
   documentTypes     DocumentType[]
@@ -903,6 +909,7 @@ model VoucherConfiguration {
   nextVoucherNumber  Int      @default(1) @map("next_voucher_number")
   isActive           Boolean  @default(true) @map("is_active")
   isDefault          Boolean  @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
+  printTemplateId    String?  @map("print_template_id") // ID del template de impresión a usar (ej: 'ticket-venta-80mm', 'factura-a-80mm')
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

@@ -14,7 +14,8 @@ const voucherConfigSchema = z.object({
   afipConnectionId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   nextVoucherNumber: z.number().int().min(1).default(1),
-  isDefault: z.boolean().optional().default(false)
+  isDefault: z.boolean().optional().default(false),
+  printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
 })
 
 // Get all voucher configurations

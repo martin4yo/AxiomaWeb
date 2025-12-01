@@ -60,7 +60,12 @@ router.get('/settings', authMiddleware, async (req, res, next) => {
         name: true,
         slug: true,
         settings: true,
-        defaultDocumentClass: true
+        defaultDocumentClass: true,
+        cuit: true,
+        businessName: true,
+        address: true,
+        phone: true,
+        email: true
       }
     })
 
@@ -83,6 +88,27 @@ router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, n
 
     if (req.body.defaultDocumentClass) {
       updateData.defaultDocumentClass = req.body.defaultDocumentClass
+    }
+
+    // Campos de información del negocio
+    if (req.body.businessName !== undefined) {
+      updateData.businessName = req.body.businessName
+    }
+
+    if (req.body.cuit !== undefined) {
+      updateData.cuit = req.body.cuit
+    }
+
+    if (req.body.address !== undefined) {
+      updateData.address = req.body.address
+    }
+
+    if (req.body.phone !== undefined) {
+      updateData.phone = req.body.phone
+    }
+
+    if (req.body.email !== undefined) {
+      updateData.email = req.body.email
     }
 
     const tenant = await prisma.tenant.update({
@@ -189,6 +215,11 @@ router.post(
             timezone: 'America/Argentina/Buenos_Aires',
             dateFormat: 'DD/MM/YYYY',
           },
+          businessName: data.businessName,
+          cuit: data.cuit,
+          address: data.address,
+          phone: data.phone,
+          email: data.email,
         },
       })
 
@@ -241,6 +272,12 @@ router.put(
           ...data.settings,
         }
       }
+      // Datos del negocio
+      if (data.businessName !== undefined) updateData.businessName = data.businessName
+      if (data.cuit !== undefined) updateData.cuit = data.cuit
+      if (data.address !== undefined) updateData.address = data.address
+      if (data.phone !== undefined) updateData.phone = data.phone
+      if (data.email !== undefined) updateData.email = data.email
 
       const tenant = await prisma.tenant.update({
         where: { id: req.params.id },
