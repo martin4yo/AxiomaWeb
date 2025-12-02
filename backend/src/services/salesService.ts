@@ -11,7 +11,7 @@ import { AppError } from '../middleware/errorHandler.js'
 import { VoucherService } from './voucher.service.js'
 import { AfipWSFEService } from './afip-wsfe.service.js'
 import { prisma as globalPrisma } from '../server.js'
-import { cashMovementService } from './cashMovementService'
+import { cashMovementService } from './cashMovementService.js'
 
 interface CreateSaleItemInput {
   productId: string

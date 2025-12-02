@@ -1,6 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { cashMovementService } from './cashMovementService';
+import { cashMovementService } from './cashMovementService.js';
 
 const globalPrisma = new PrismaClient();
 
