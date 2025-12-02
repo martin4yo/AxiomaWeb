@@ -49,6 +49,11 @@ tmp/
 temp/
 *.tmp
 
+# Excel and Office lock files
+*.xls
+*.xlsx
+.~lock.*#
+
 # Scripts (opcionales, descomenta si no quieres versionarlos)
 # kill-ports.sh
 
