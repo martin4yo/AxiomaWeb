@@ -27,6 +27,15 @@ Sistema ERP moderno y multi-tenant construido con Node.js, React y PostgreSQL, c
 - **Sincronización**: Numeración automática con AFIP
 - **Multi-ambiente**: Testing y Producción
 
+### Impresión de Tickets y Facturas 🖨️
+- **Templates Flexibles**: Sistema JSON para múltiples formatos
+- **Impresión Automática**: Se imprime al completar venta
+- **Impresoras Térmicas**: Soporte nativo para 58mm y 80mm
+- **Códigos QR**: Generación automática para validación AFIP
+- **Datos de CAE**: Integrado con facturación electrónica
+- **Templates por Comprobante**: Formato diferente según tipo
+- **Sin Dependencias**: Funciona con cualquier impresora del SO
+
 ## 🛠️ Stack Tecnológico
 
 ### Backend
@@ -255,6 +264,19 @@ Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
   - Solicitud de CAE con WSFE
   - Troubleshooting completo
 
+- **[Sistema de Impresión](./docs/SISTEMA_IMPRESION.md)** - Sistema completo de tickets y facturas
+  - Configuración de impresoras térmicas
+  - Templates disponibles
+  - Personalización de formatos
+  - Códigos QR y datos AFIP
+  - Solución de problemas
+
+- **[Decisiones de Arquitectura](./docs/DECISIONES_ARQUITECTURA.md)** - Diseño del sistema de impresión
+  - Decisiones técnicas y trade-offs
+  - Patrones de diseño utilizados
+  - Performance y seguridad
+  - Lecciones aprendidas
+
 - **[Deployment](./docs/DEPLOYMENT.md)** - Guía de deploy en producción
   - Configuración del servidor
   - Base de datos y migraciones
@@ -262,6 +284,36 @@ Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
   - Nginx y SSL
   - Backups y monitoreo
   - Scripts de deploy
+
+### Guías Rápidas
+
+#### Configurar Impresión (5 minutos)
+
+Ver **[Quick Start Impresión](./docs/QUICK_START_IMPRESION.md)** para inicio rápido
+
+1. **Configurar Datos del Negocio**
+   ```
+   Configuración → Tenants → Editar → Datos del Negocio
+   - Nombre del Negocio
+   - CUIT
+   - Dirección
+   - Teléfono
+   ```
+
+2. **Asignar Template**
+   ```
+   Configuración → Configuración de Comprobantes → Editar
+   - Formato de Impresión: Seleccionar template
+   ```
+
+3. **Configurar Impresora**
+   - Establecer impresora térmica como predeterminada en el SO
+
+4. **¡Listo!**
+   - Al crear venta se imprime automáticamente
+   - Botón de reimpresión en listado de ventas
+
+Ver ejemplos de código en **[Ejemplos de Código](./docs/EJEMPLOS_CODIGO.md)**
 
 ### Guías Rápidas
 
