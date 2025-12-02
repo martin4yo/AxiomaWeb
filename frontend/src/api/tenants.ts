@@ -11,6 +11,11 @@ export interface Tenant {
     timezone: string
     dateFormat: string
   }
+  businessName?: string
+  cuit?: string
+  address?: string
+  phone?: string
+  email?: string
   createdAt: string
   updatedAt: string
   _count?: {
@@ -28,6 +33,11 @@ export interface CreateTenantData {
     timezone?: string
     dateFormat?: string
   }
+  businessName?: string | null
+  cuit?: string | null
+  address?: string | null
+  phone?: string | null
+  email?: string | null
 }
 
 export interface UpdateTenantData {
@@ -40,6 +50,11 @@ export interface UpdateTenantData {
     timezone?: string
     dateFormat?: string
   }
+  businessName?: string | null
+  cuit?: string | null
+  address?: string | null
+  phone?: string | null
+  email?: string | null
 }
 
 export const tenantsApi = {

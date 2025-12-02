@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
+import { getAvailableTemplates } from '../../services/printTemplates'
 
 const schema = z.object({
   voucherTypeId: z.string().min(1, 'Seleccione un tipo de comprobante'),
@@ -14,7 +15,8 @@ const schema = z.object({
   afipConnectionId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   nextVoucherNumber: z.number().int().min(1).default(1),
-  isDefault: z.boolean().optional().default(false)
+  isDefault: z.boolean().optional().default(false),
+  printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
 })
 
 type FormData = z.infer<typeof schema>
@@ -217,6 +219,27 @@ export default function NewVoucherConfigurationPage() {
               )}
               <p className="mt-1 text-sm text-gray-500">
                 El sistema comenzará a numerar desde este valor
+              </p>
+            </div>
+
+            {/* Template de Impresión */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Formato de Impresión
+              </label>
+              <select
+                {...register('printTemplateId')}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Seleccione un formato (opcional)</option>
+                {getAvailableTemplates().map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-sm text-gray-500">
+                Define cómo se imprimirá este tipo de comprobante
               </p>
             </div>
 

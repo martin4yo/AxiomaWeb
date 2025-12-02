@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,12 +15,18 @@ const schema = z.object({
   slug: z
     .string()
     .min(2, 'El slug debe tener al menos 2 caracteres')
-    .regex(/^[a-z0-9-]+$/, 'Solo se permiten letras minúsculas, números y guiones'),
+    .regex(/^[a-z0-9-]+$/, 'Solo se permiten letras minÃºsculas, nÃºmeros y guiones'),
   planType: z.enum(['free', 'basic', 'premium']),
   status: z.enum(['active', 'inactive', 'suspended']),
   currency: z.string().default('ARS'),
   timezone: z.string().default('America/Argentina/Buenos_Aires'),
   dateFormat: z.string().default('DD/MM/YYYY'),
+  // Datos del negocio para impresiÃ³n
+  businessName: z.string().optional(),
+  cuit: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email('Email invÃ¡lido').optional().or(z.literal('')),
 })
 
 type FormData = z.infer<typeof schema>
@@ -34,6 +40,7 @@ interface TenantModalProps {
 export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState<'general' | 'config' | 'business'>('general')
 
   const {
     register,
@@ -61,10 +68,22 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       setValue('currency', tenant.settings.currency)
       setValue('timezone', tenant.settings.timezone)
       setValue('dateFormat', tenant.settings.dateFormat)
+      setValue('businessName', tenant.businessName || '')
+      setValue('cuit', tenant.cuit || '')
+      setValue('address', tenant.address || '')
+      setValue('phone', tenant.phone || '')
+      setValue('email', tenant.email || '')
     } else {
       reset()
     }
   }, [tenant, setValue, reset])
+
+  // Reset tab when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab('general')
+    }
+  }, [isOpen])
 
   const createMutation = useMutation({
     mutationFn: (data: FormData) =>
@@ -78,6 +97,11 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
           timezone: data.timezone,
           dateFormat: data.dateFormat,
         },
+        businessName: data.businessName || null,
+        cuit: data.cuit || null,
+        address: data.address || null,
+        phone: data.phone || null,
+        email: data.email || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
@@ -98,6 +122,11 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
           timezone: data.timezone,
           dateFormat: data.dateFormat,
         },
+        businessName: data.businessName || null,
+        cuit: data.cuit || null,
+        address: data.address || null,
+        phone: data.phone || null,
+        email: data.email || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
@@ -138,8 +167,50 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       title={tenant ? 'Editar Tenant' : 'Nuevo Tenant'}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Información básica */}
-        <div className="space-y-4">
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              type="button"
+              onClick={() => setActiveTab('general')}
+              className={`${
+                activeTab === 'general'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Datos Principales
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('config')}
+              className={`${
+                activeTab === 'config'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              ConfiguraciÃ³n
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('business')}
+              className={`${
+                activeTab === 'business'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Datos del Negocio
+            </button>
+          </nav>
+        </div>
+
+        {/* Tab Content con altura fija igual a Datos del Negocio */}
+        <div className="min-h-[520px]">
+          {/* Tab: Datos Principales */}
+          {activeTab === 'general' && (
+            <div className="space-y-4">
           <Input
             label="Nombre"
             error={errors.name?.message}
@@ -156,7 +227,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
             helperText={
               tenant
                 ? 'El slug no puede ser modificado'
-                : 'Se genera automáticamente del nombre'
+                : 'Se genera automï¿½ticamente del nombre'
             }
             {...register('slug')}
           />
@@ -172,22 +243,21 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
             <option value="inactive">Inactivo</option>
             <option value="suspended">Suspendido</option>
           </Select>
-        </div>
+            </div>
+          )}
 
-        {/* Configuración */}
-        <div className="border-t border-gray-200 pt-6">
-          <h3 className="text-sm font-medium text-gray-900 mb-4">Configuración</h3>
-
-          <div className="space-y-4">
+          {/* Tab: ConfiguraciÃ³n */}
+          {activeTab === 'config' && (
+            <div className="space-y-4">
             <Select
               label="Moneda"
               error={errors.currency?.message}
               {...register('currency')}
             >
               <option value="ARS">Peso Argentino (ARS)</option>
-              <option value="USD">Dólar Estadounidense (USD)</option>
+              <option value="USD">Dï¿½lar Estadounidense (USD)</option>
               <option value="EUR">Euro (EUR)</option>
-              <option value="BRL">Real Brasileño (BRL)</option>
+              <option value="BRL">Real Brasileï¿½o (BRL)</option>
             </Select>
 
             <Select
@@ -196,8 +266,8 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
               {...register('timezone')}
             >
               <option value="America/Argentina/Buenos_Aires">Buenos Aires (GMT-3)</option>
-              <option value="America/Sao_Paulo">São Paulo (GMT-3)</option>
-              <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
+              <option value="America/Sao_Paulo">Sï¿½o Paulo (GMT-3)</option>
+              <option value="America/Mexico_City">Ciudad de Mï¿½xico (GMT-6)</option>
               <option value="America/New_York">Nueva York (GMT-5)</option>
               <option value="Europe/Madrid">Madrid (GMT+1)</option>
             </Select>
@@ -211,7 +281,53 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
               <option value="MM/DD/YYYY">MM/DD/YYYY</option>
               <option value="YYYY-MM-DD">YYYY-MM-DD</option>
             </Select>
-          </div>
+            </div>
+          )}
+
+          {/* Tab: Datos del Negocio */}
+          {activeTab === 'business' && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-500 mb-4">
+                Esta informaciÃ³n se utilizarÃ¡ en la impresiÃ³n de tickets y comprobantes
+              </p>
+            <Input
+              label="Nombre Comercial"
+              placeholder="Nombre del negocio (opcional)"
+              error={errors.businessName?.message}
+              helperText="Si estÃ¡ vacÃ­o, se usarÃ¡ el nombre del tenant"
+              {...register('businessName')}
+            />
+
+            <Input
+              label="CUIT"
+              placeholder="20-12345678-9"
+              error={errors.cuit?.message}
+              {...register('cuit')}
+            />
+
+            <Input
+              label="DirecciÃ³n"
+              placeholder="Av. Corrientes 1234, CABA"
+              error={errors.address?.message}
+              {...register('address')}
+            />
+
+            <Input
+              label="TelÃ©fono"
+              placeholder="(011) 4567-8900"
+              error={errors.phone?.message}
+              {...register('phone')}
+            />
+
+            <Input
+              label="Email"
+              type="email"
+              placeholder="contacto@negocio.com"
+              error={errors.email?.message}
+              {...register('email')}
+            />
+            </div>
+          )}
         </div>
 
         {/* Botones */}

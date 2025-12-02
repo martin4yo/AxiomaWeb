@@ -8,6 +8,8 @@ import { useAuthStore } from '../../stores/authStore'
 import { AlertDialog } from '../../components/ui/AlertDialog'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
+import { printService } from '../../services/printService'
+import { getTemplate, TicketData } from '../../services/printTemplates'
 
 interface Product {
   id: string
@@ -349,6 +351,9 @@ export default function NewSalePage() {
       } else {
         setSelectedCustomer(null)
       }
+
+      // Imprimir ticket automáticamente
+      handlePrintTicket(response)
     },
     onError: (error: any) => {
       // Verificar si es error de desincronización AFIP
@@ -816,6 +821,62 @@ export default function NewSalePage() {
   // Show alert dialog helper
   const showAlert = (title: string, message: string, type: 'error' | 'warning' | 'info' | 'success' = 'info') => {
     setAlertDialog({ show: true, title, message, type })
+  }
+
+  // Print ticket helper
+  const handlePrintTicket = async (saleResponse: any) => {
+    try {
+      const sale = saleResponse.sale
+
+      // Preparar datos del ticket
+      const ticketData: TicketData = {
+        business: {
+          name: currentTenant?.businessName || currentTenant?.name || 'MI NEGOCIO',
+          cuit: currentTenant?.cuit || '',
+          address: currentTenant?.address || '',
+          phone: currentTenant?.phone || '',
+          email: currentTenant?.email
+        },
+        sale: {
+          number: sale.saleNumber,
+          date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
+          time: new Date(sale.createdAt).toLocaleTimeString('es-AR'),
+          customer: sale.customerName || 'Consumidor Final',
+          items: sale.items.map((item: any) => ({
+            productName: item.productName,
+            productSku: item.productSku,
+            description: item.description,
+            quantity: parseFloat(item.quantity),
+            unitPrice: parseFloat(item.unitPrice),
+            discountPercent: parseFloat(item.discountPercent || 0),
+            lineTotal: parseFloat(item.lineTotal)
+          })),
+          subtotal: parseFloat(sale.subtotal),
+          discountAmount: parseFloat(sale.discountAmount || 0),
+          taxAmount: parseFloat(sale.taxAmount || 0),
+          totalAmount: parseFloat(sale.totalAmount),
+          payments: sale.payments?.map((p: any) => ({
+            name: p.paymentMethodName,
+            amount: parseFloat(p.amount)
+          })),
+          notes: sale.notes
+        }
+      }
+
+      // Usar el template configurado en el voucher, o fallback a ticket estándar
+      const templateId = sale.voucherConfiguration?.printTemplateId || 'ticket-venta-80mm'
+      const template = getTemplate(templateId)
+
+      // Imprimir
+      const success = await printService.printTicket(template, ticketData)
+
+      if (success) {
+        console.log('Ticket enviado a impresora')
+      }
+    } catch (error) {
+      console.error('Error al imprimir ticket:', error)
+      showAlert('Error de Impresión', 'No se pudo imprimir el ticket. Verifique su impresora.', 'error')
+    }
   }
 
   // Validate cart items

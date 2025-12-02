@@ -12,6 +12,11 @@ export interface Tenant {
   name: string
   role?: string
   defaultDocumentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
+  cuit?: string
+  businessName?: string
+  address?: string
+  phone?: string
+  email?: string
 }
 
 export interface AuthState {

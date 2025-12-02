@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Printer } from 'lucide-react'
+import { printService } from '../../services/printService'
+import { getTemplate, TicketData } from '../../services/printTemplates'
+import { useAuthStore } from '../../stores/authStore'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -17,6 +20,7 @@ const formatNumber = (value: string | number, decimals: number = 2): string => {
 
 export default function SalesPage() {
   const queryClient = useQueryClient()
+  const { currentTenant } = useAuthStore()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
@@ -135,6 +139,57 @@ export default function SalesPage() {
 
     // Ejecutar mutation
     retryCaeMutation.mutate(saleId)
+  }
+
+  // Reimprimir ticket de venta
+  const handlePrintSale = async (saleId: string) => {
+    try {
+      // Obtener detalles completos de la venta
+      const response = await salesApi.getSale(saleId)
+      const sale = response.sale
+
+      // Preparar datos del ticket
+      const ticketData: TicketData = {
+        business: {
+          name: currentTenant?.businessName || currentTenant?.name || 'MI NEGOCIO',
+          cuit: currentTenant?.cuit || '',
+          address: currentTenant?.address || '',
+          phone: currentTenant?.phone || '',
+          email: currentTenant?.email
+        },
+        sale: {
+          number: sale.saleNumber,
+          date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
+          time: new Date(sale.createdAt).toLocaleTimeString('es-AR'),
+          customer: sale.customerName || 'Consumidor Final',
+          items: sale.items.map((item: any) => ({
+            productName: item.productName,
+            productSku: item.productSku,
+            description: item.description,
+            quantity: parseFloat(item.quantity),
+            unitPrice: parseFloat(item.unitPrice),
+            lineTotal: parseFloat(item.lineTotal)
+          })),
+          subtotal: parseFloat(sale.subtotal),
+          totalAmount: parseFloat(sale.totalAmount),
+          payments: sale.payments?.map((p: any) => ({
+            name: p.paymentMethodName,
+            amount: parseFloat(p.amount)
+          }))
+        }
+      }
+
+      // Usar el template configurado en el voucher, o fallback a ticket estándar
+      const templateId = sale.voucherConfiguration?.printTemplateId || 'ticket-venta-80mm'
+      const template = getTemplate(templateId)
+      const success = await printService.printTicket(template, ticketData)
+
+      if (!success) {
+        console.error('Error al reimprimir ticket')
+      }
+    } catch (error) {
+      console.error('Error al reimprimir ticket:', error)
+    }
   }
 
   return (
@@ -349,18 +404,30 @@ export default function SalesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
-                       (sale.voucherType || sale.voucherTypeRelation) &&
-                       sale.voucherConfiguration?.afipConnection && (
+                      <div className="flex items-center justify-center gap-2">
+                        {/* Botón de reimprimir - siempre visible */}
                         <button
-                          onClick={() => handleRetryCae(sale.id)}
-                          disabled={retryCaeMutation.isPending}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
-                          title="Reintentar CAE"
+                          onClick={() => handlePrintSale(sale.id)}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800"
+                          title="Reimprimir ticket"
                         >
-                          <RefreshCw className="w-4 h-4" />
+                          <Printer className="w-4 h-4" />
                         </button>
-                      )}
+
+                        {/* Botón de reintentar CAE - solo si aplica */}
+                        {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
+                         (sale.voucherType || sale.voucherTypeRelation) &&
+                         sale.voucherConfiguration?.afipConnection && (
+                          <button
+                            onClick={() => handleRetryCae(sale.id)}
+                            disabled={retryCaeMutation.isPending}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            title="Reintentar CAE"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

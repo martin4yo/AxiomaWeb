@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 // Create axios instance
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 60000, // 60 segundos - necesario para operaciones con AFIP
   headers: {
     'Content-Type': 'application/json',
   },
