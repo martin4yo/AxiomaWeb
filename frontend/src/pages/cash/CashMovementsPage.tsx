@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, ArrowDown, ArrowUp, Filter, ArrowLeftRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, Filter, ArrowLeftRight } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { useAuthStore } from '../../stores/authStore'
 import { format } from 'date-fns'

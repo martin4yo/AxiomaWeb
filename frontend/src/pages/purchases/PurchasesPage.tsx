@@ -13,7 +13,7 @@ export default function PurchasesPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['purchases', currentTenant?.slug, page, search, paymentStatus, dateFrom, dateTo],
     queryFn: () =>
       purchasesApi.getAll(currentTenant!.slug, {

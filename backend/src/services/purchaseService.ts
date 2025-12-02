@@ -404,7 +404,7 @@ export class PurchaseService {
     for (const payment of purchase.payments) {
       try {
         // Obtener el método de pago con su cuenta de caja asociada
-        const paymentMethod = await tenantPrisma.paymentMethod.findUnique({
+        const paymentMethod = await globalPrisma.paymentMethod.findUnique({
           where: { id: payment.paymentMethodId },
           select: { cashAccountId: true },
         });
@@ -648,7 +648,7 @@ export class PurchaseService {
     // Registrar egreso en caja
     try {
       // Obtener el método de pago con su cuenta de caja asociada
-      const paymentMethod = await tenantPrisma.paymentMethod.findUnique({
+      const paymentMethod = await globalPrisma.paymentMethod.findUnique({
         where: { id: paymentMethodId },
         select: { cashAccountId: true },
       });
