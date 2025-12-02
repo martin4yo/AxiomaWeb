@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { supplierAccountService } from '../services/supplierAccountService';
+import { supplierAccountService } from '../services/supplierAccountService.js';
 
 const router = Router();
 
