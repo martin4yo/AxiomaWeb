@@ -11,7 +11,8 @@ const warehouseSchema = z.object({
   code: z.string().min(1, 'El código es requerido'),
   name: z.string().min(1, 'El nombre es requerido'),
   address: z.string().optional(),
-  isDefault: z.boolean().optional()
+  isDefault: z.boolean().optional(),
+  allowNegativeStock: z.boolean().optional()
 })
 
 type WarehouseForm = z.infer<typeof warehouseSchema>
@@ -102,7 +103,7 @@ export default function WarehousesPage() {
   const handleCreate = () => {
     setSelectedWarehouse(null)
     setModalMode('create')
-    reset({ code: '', name: '', address: '', isDefault: false })
+    reset({ code: '', name: '', address: '', isDefault: false, allowNegativeStock: false })
     setShowModal(true)
   }
 
@@ -171,6 +172,9 @@ export default function WarehousesPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Por Defecto
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Stock Negativo
+                  </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Acciones
                   </th>
@@ -193,6 +197,15 @@ export default function WarehousesPage() {
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                           Por Defecto
                         </span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {warehouse.allowNegativeStock ? (
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          Permitido
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">No</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -267,15 +280,31 @@ export default function WarehousesPage() {
               />
             </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                {...register('isDefault')}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label className="ml-2 block text-sm text-gray-700">
-                Establecer como almacén por defecto
-              </label>
+            <div className="space-y-3">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('isDefault')}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label className="ml-2 block text-sm text-gray-700">
+                  Establecer como almacén por defecto
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('allowNegativeStock')}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label className="ml-2 block text-sm text-gray-700">
+                  Permitir stock negativo
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 ml-6">
+                Si está activado, permite realizar ventas aunque no haya stock disponible
+              </p>
             </div>
 
             <div className="flex gap-3 pt-4">

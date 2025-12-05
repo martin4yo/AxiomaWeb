@@ -252,6 +252,47 @@ class InventoryController {
       res.status(500).json({ error: 'Error al obtener kardex del producto' })
     }
   }
+
+  // Alertas de stock
+  async getStockAlerts(req: Request, res: Response) {
+    try {
+      const { alertType, warehouseId } = req.query
+      const alerts = await inventoryService.getStockAlerts(req.tenantDb, {
+        alertType: alertType as string,
+        warehouseId: warehouseId as string
+      })
+      res.json(alerts)
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener alertas de stock' })
+    }
+  }
+
+  async getStockStatusSummary(req: Request, res: Response) {
+    try {
+      const summary = await inventoryService.getStockStatusSummary(req.tenantDb)
+      res.json(summary)
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener resumen de estados de stock' })
+    }
+  }
+
+  async getProductsAtReorderPoint(req: Request, res: Response) {
+    try {
+      const products = await inventoryService.getProductsAtReorderPoint(req.tenantDb)
+      res.json(products)
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener productos en punto de pedido' })
+    }
+  }
+
+  async getProductsOverMaxStock(req: Request, res: Response) {
+    try {
+      const products = await inventoryService.getProductsOverMaxStock(req.tenantDb)
+      res.json(products)
+    } catch (error) {
+      res.status(500).json({ error: 'Error al obtener productos sobre stock máximo' })
+    }
+  }
 }
 
 export const inventoryController = new InventoryController()

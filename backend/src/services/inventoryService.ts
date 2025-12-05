@@ -197,6 +197,15 @@ class InventoryService {
 
   async createMovement(db: any, data: any, userId: string) {
     return await db.$transaction(async (tx: any) => {
+      // Obtener configuración del almacén
+      const warehouse = await tx.warehouse.findUnique({
+        where: { id: data.warehouseId }
+      })
+
+      if (!warehouse) {
+        throw new Error('Almacén no encontrado')
+      }
+
       // Crear el movimiento
       const movement = await tx.stockMovement.create({
         data: {
@@ -223,7 +232,8 @@ class InventoryService {
       if (warehouseStock) {
         const newQuantity = Number(warehouseStock.quantity) + quantityChange
 
-        if (newQuantity < 0) {
+        // Validar stock negativo solo si el almacén NO permite stock negativo
+        if (newQuantity < 0 && !warehouse.allowNegativeStock) {
           throw new Error('Stock insuficiente para realizar el movimiento')
         }
 
@@ -569,6 +579,182 @@ class InventoryService {
       movements: kardex,
       finalBalance: balance
     }
+  }
+
+  // ========== ALERTAS DE STOCK ==========
+
+  /**
+   * Obtiene productos con alertas de stock
+   * Estados posibles:
+   * - out_of_stock: stock = 0
+   * - critical: stock > 0 y stock <= minStock
+   * - low: stock <= reorderPoint (si está configurado)
+   * - over_max: stock > maxStock (si está configurado)
+   * - normal: ninguna de las anteriores
+   */
+  async getStockAlerts(db: any, filters?: { alertType?: string; warehouseId?: string }) {
+    const products = await db.product.findMany({
+      where: {
+        isActive: true,
+        trackStock: true
+      },
+      include: {
+        warehouseStocks: {
+          where: filters?.warehouseId ? { warehouseId: filters.warehouseId } : undefined
+        }
+      }
+    })
+
+    const alerts = products.map((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+
+      let alertType = 'normal'
+      let alertLevel = 0 // 0=normal, 1=low, 2=critical, 3=out_of_stock, 4=over_max
+
+      if (totalStock === 0) {
+        alertType = 'out_of_stock'
+        alertLevel = 3
+      } else if (totalStock <= Number(product.minStock)) {
+        alertType = 'critical'
+        alertLevel = 2
+      } else if (product.reorderPoint && totalStock <= Number(product.reorderPoint)) {
+        alertType = 'low'
+        alertLevel = 1
+      } else if (product.maxStock && totalStock > Number(product.maxStock)) {
+        alertType = 'over_max'
+        alertLevel = 4
+      }
+
+      return {
+        id: product.id,
+        sku: product.sku,
+        name: product.name,
+        currentStock: totalStock,
+        minStock: Number(product.minStock),
+        maxStock: product.maxStock ? Number(product.maxStock) : null,
+        reorderPoint: product.reorderPoint ? Number(product.reorderPoint) : null,
+        alertType,
+        alertLevel,
+        warehouseStocks: product.warehouseStocks
+      }
+    })
+
+    // Filtrar por tipo de alerta si se especifica
+    if (filters?.alertType) {
+      return alerts.filter((alert: any) => alert.alertType === filters.alertType)
+    }
+
+    // Retornar solo los que tienen alertas
+    return alerts.filter((alert: any) => alert.alertLevel > 0)
+  }
+
+  /**
+   * Obtiene resumen de estados de stock
+   */
+  async getStockStatusSummary(db: any) {
+    const products = await db.product.findMany({
+      where: {
+        isActive: true,
+        trackStock: true
+      },
+      include: {
+        warehouseStocks: true
+      }
+    })
+
+    const summary = {
+      total: products.length,
+      outOfStock: 0,
+      critical: 0,
+      low: 0,
+      normal: 0,
+      overMax: 0
+    }
+
+    products.forEach((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+
+      if (totalStock === 0) {
+        summary.outOfStock++
+      } else if (totalStock <= Number(product.minStock)) {
+        summary.critical++
+      } else if (product.reorderPoint && totalStock <= Number(product.reorderPoint)) {
+        summary.low++
+      } else if (product.maxStock && totalStock > Number(product.maxStock)) {
+        summary.overMax++
+      } else {
+        summary.normal++
+      }
+    })
+
+    return summary
+  }
+
+  /**
+   * Obtiene productos en punto de pedido
+   */
+  async getProductsAtReorderPoint(db: any) {
+    const products = await db.product.findMany({
+      where: {
+        isActive: true,
+        trackStock: true,
+        reorderPoint: { not: null }
+      },
+      include: {
+        warehouseStocks: true
+      }
+    })
+
+    return products.filter((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+      return totalStock <= Number(product.reorderPoint) && totalStock > 0
+    }).map((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+      return {
+        ...product,
+        currentStock: totalStock
+      }
+    })
+  }
+
+  /**
+   * Obtiene productos sobre stock máximo
+   */
+  async getProductsOverMaxStock(db: any) {
+    const products = await db.product.findMany({
+      where: {
+        isActive: true,
+        trackStock: true,
+        maxStock: { not: null }
+      },
+      include: {
+        warehouseStocks: true
+      }
+    })
+
+    return products.filter((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+      return totalStock > Number(product.maxStock)
+    }).map((product: any) => {
+      const totalStock = product.warehouseStocks.reduce((sum: number, stock: any) => {
+        return sum + Number(stock.quantity)
+      }, 0)
+      return {
+        ...product,
+        currentStock: totalStock,
+        excess: totalStock - Number(product.maxStock)
+      }
+    })
   }
 }
 

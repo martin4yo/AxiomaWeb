@@ -348,6 +348,8 @@ model Product {
   trackStock        Boolean  @default(true) @map("track_stock")
   currentStock      Decimal  @default(0) @map("current_stock") @db.Decimal(15, 4)
   minStock          Decimal  @default(0) @map("min_stock") @db.Decimal(15, 4)
+  maxStock          Decimal? @map("max_stock") @db.Decimal(15, 4)
+  reorderPoint      Decimal? @map("reorder_point") @db.Decimal(15, 4)
   weight            Decimal? @db.Decimal(10, 3)
   weightUnit        String?  @map("weight_unit")
   dimensions        String?
@@ -441,16 +443,17 @@ model DocumentItem {
 
 // 🏭 ALMACENES
 model Warehouse {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  code        String
-  name        String
-  description String?
-  address     String?
-  isActive    Boolean  @default(true) @map("is_active")
-  isDefault   Boolean  @default(false) @map("is_default")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                  String   @id @default(cuid())
+  tenantId            String   @map("tenant_id")
+  code                String
+  name                String
+  description         String?
+  address             String?
+  isActive            Boolean  @default(true) @map("is_active")
+  isDefault           Boolean  @default(false) @map("is_default")
+  allowNegativeStock  Boolean  @default(false) @map("allow_negative_stock")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)

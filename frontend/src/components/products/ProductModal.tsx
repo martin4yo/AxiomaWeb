@@ -24,6 +24,8 @@ const schema = z.object({
   trackStock: z.boolean().default(true),
   currentStock: z.number().min(0, 'El stock actual debe ser mayor o igual a 0').default(0),
   minStock: z.number().min(0, 'El stock mínimo debe ser mayor o igual a 0').default(0),
+  maxStock: z.number().min(0, 'El stock máximo debe ser mayor o igual a 0').optional().nullable(),
+  reorderPoint: z.number().min(0, 'El punto de pedido debe ser mayor o igual a 0').optional().nullable(),
   barcode: z.string().optional(),
   weight: z.number().optional(),
   weightUnit: z.string().default('kg'),
@@ -108,6 +110,8 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         trackStock: product.trackStock ?? true,
         currentStock: Number(product.currentStock) || 0,
         minStock: Number(product.minStock) || 0,
+        maxStock: product.maxStock ? Number(product.maxStock) : null,
+        reorderPoint: product.reorderPoint ? Number(product.reorderPoint) : null,
         barcode: product.barcode || '',
         weight: product.weight ? Number(product.weight) : undefined,
         weightUnit: product.weightUnit || 'kg',
@@ -337,24 +341,62 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
           </label>
 
           {trackStock && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Input
-                label="Stock Actual"
-                type="number"
-                step="0.01"
-                placeholder="0"
-                error={errors.currentStock?.message}
-                {...register('currentStock', { valueAsNumber: true })}
-              />
-              <Input
-                label="Stock Mínimo"
-                type="number"
-                step="0.01"
-                placeholder="0"
-                error={errors.minStock?.message}
-                {...register('minStock', { valueAsNumber: true })}
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Input
+                  label="Stock Actual"
+                  type="number"
+                  step="0.01"
+                  placeholder="0"
+                  error={errors.currentStock?.message}
+                  {...register('currentStock', { valueAsNumber: true })}
+                />
+                <Input
+                  label="Stock Mínimo (Crítico)"
+                  type="number"
+                  step="0.01"
+                  placeholder="0"
+                  error={errors.minStock?.message}
+                  {...register('minStock', { valueAsNumber: true })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Input
+                  label="Punto de Pedido"
+                  type="number"
+                  step="0.01"
+                  placeholder="Opcional"
+                  error={errors.reorderPoint?.message}
+                  {...register('reorderPoint', {
+                    valueAsNumber: true,
+                    setValueAs: (v) => v === '' || v === null ? null : Number(v)
+                  })}
+                  helpText="Aviso cuando stock llegue a este nivel"
+                />
+                <Input
+                  label="Stock Máximo"
+                  type="number"
+                  step="0.01"
+                  placeholder="Opcional"
+                  error={errors.maxStock?.message}
+                  {...register('maxStock', {
+                    valueAsNumber: true,
+                    setValueAs: (v) => v === '' || v === null ? null : Number(v)
+                  })}
+                  helpText="Alerta si stock supera este nivel"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>Indicadores de stock:</strong><br/>
+                  • <strong>Crítico:</strong> Stock ≤ Stock Mínimo<br/>
+                  • <strong>Bajo:</strong> Stock ≤ Punto de Pedido<br/>
+                  • <strong>Sobre stock:</strong> Stock &gt; Stock Máximo
+                </p>
+              </div>
+            </>
           )}
         </div>
       </div>

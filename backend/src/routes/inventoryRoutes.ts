@@ -73,4 +73,10 @@ router.get('/reports/valuation', inventoryController.getInventoryValuation)
 router.get('/reports/movements-summary', inventoryController.getMovementsSummary)
 router.get('/reports/kardex/:productId', inventoryController.getProductKardex)
 
+// Alertas de stock
+router.get('/alerts', inventoryController.getStockAlerts)
+router.get('/alerts/summary', inventoryController.getStockStatusSummary)
+router.get('/alerts/reorder-point', inventoryController.getProductsAtReorderPoint)
+router.get('/alerts/over-max', inventoryController.getProductsOverMaxStock)
+
 export default router

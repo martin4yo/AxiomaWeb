@@ -9,6 +9,7 @@ import EntitiesPage from '@/pages/entities/EntitiesPage'
 import ProductsPage from '@/pages/products/ProductsPage'
 import DocumentsPage from '@/pages/documents/DocumentsPage'
 import WarehousesPage from '@/pages/inventory/WarehousesPage'
+import StockAlertsPage from '@/pages/inventory/StockAlertsPage'
 import ProductCategoriesPage from '@/pages/product-categories/ProductCategoriesPage'
 import ProductBrandsPage from '@/pages/product-brands/ProductBrandsPage'
 import CustomersPage from '@/pages/customers/CustomersPage'
@@ -85,6 +86,7 @@ function App() {
         <Route path="customer-categories" element={<CustomerCategoriesPage />} />
         <Route path="documents" element={<DocumentsPage />} />
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
+        <Route path="inventory/alerts" element={<StockAlertsPage />} />
         <Route path="sales" element={<SalesPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
