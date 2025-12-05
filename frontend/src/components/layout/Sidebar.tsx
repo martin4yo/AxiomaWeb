@@ -23,6 +23,7 @@ import {
   Link as LinkIcon,
   FileText,
   Wallet,
+  Bell,
 } from 'lucide-react'
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ const navigation: NavigationItem[] = [
       { name: 'Categorías', href: '/product-categories', icon: Tag },
       { name: 'Marcas', href: '/product-brands', icon: Store },
       { name: 'Almacenes', href: '/inventory/warehouses', icon: Store },
+      { name: 'Alertas de Stock', href: '/inventory/alerts', icon: Bell },
     ]
   },
   {

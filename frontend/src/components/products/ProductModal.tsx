@@ -372,7 +372,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                     valueAsNumber: true,
                     setValueAs: (v) => v === '' || v === null ? null : Number(v)
                   })}
-                  helpText="Aviso cuando stock llegue a este nivel"
+                  helperText="Aviso cuando stock llegue a este nivel"
                 />
                 <Input
                   label="Stock Máximo"
@@ -384,7 +384,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                     valueAsNumber: true,
                     setValueAs: (v) => v === '' || v === null ? null : Number(v)
                   })}
-                  helpText="Alerta si stock supera este nivel"
+                  helperText="Alerta si stock supera este nivel"
                 />
               </div>
 
