@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
 import { RefreshCw, Printer, FileText } from 'lucide-react'
-import { useAuthStore } from '../../stores/authStore'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -18,7 +17,6 @@ const formatNumber = (value: string | number, decimals: number = 2): string => {
 
 export default function SalesPage() {
   const queryClient = useQueryClient()
-  const { currentTenant } = useAuthStore()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
