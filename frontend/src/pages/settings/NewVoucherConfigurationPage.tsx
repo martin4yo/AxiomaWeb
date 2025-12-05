@@ -7,8 +7,6 @@ import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
-import { getAvailableTemplates } from '../../services/printTemplates'
-
 const schema = z.object({
   voucherTypeId: z.string().min(1, 'Seleccione un tipo de comprobante'),
   branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
@@ -16,7 +14,8 @@ const schema = z.object({
   salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   nextVoucherNumber: z.number().int().min(1).default(1),
   isDefault: z.boolean().optional().default(false),
-  printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
+  printFormat: z.preprocess(val => val === '' ? 'NONE' : val, z.string().default('NONE')),
+  printTemplate: z.preprocess(val => val === '' ? 'LEGAL' : val, z.string().default('LEGAL'))
 })
 
 type FormData = z.infer<typeof schema>
@@ -34,7 +33,8 @@ export default function NewVoucherConfigurationPage() {
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      nextVoucherNumber: 1
+      nextVoucherNumber: 1,
+      printFormat: 'NONE'
     }
   })
 
@@ -225,21 +225,35 @@ export default function NewVoucherConfigurationPage() {
             {/* Template de Impresión */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Formato de Impresión
+                Tipo de Template
               </label>
               <select
-                {...register('printTemplateId')}
+                {...register('printTemplate')}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
-                <option value="">Seleccione un formato (opcional)</option>
-                {getAvailableTemplates().map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
+                <option value="LEGAL">Legal (con datos fiscales, CAE y QR de ARCA)</option>
+                <option value="SIMPLE">Simple (sin datos fiscales)</option>
               </select>
               <p className="mt-1 text-sm text-gray-500">
-                Define cómo se imprimirá este tipo de comprobante
+                Legal: incluye CUIT, CAE, QR de ARCA. Simple: solo datos comerciales básicos
+              </p>
+            </div>
+
+            {/* Formato de Impresión por Defecto */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Formato de Impresión por Defecto
+              </label>
+              <select
+                {...register('printFormat')}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="NONE">No imprimir automáticamente</option>
+                <option value="THERMAL">Impresora Térmica (Ticket 80mm)</option>
+                <option value="PDF">PDF A4</option>
+              </select>
+              <p className="mt-1 text-sm text-gray-500">
+                Este formato se usará por defecto al crear ventas, a menos que el cliente tenga una preferencia específica
               </p>
             </div>
 

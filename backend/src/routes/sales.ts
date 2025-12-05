@@ -1,7 +1,9 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import axios from 'axios'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { SalesService } from '../services/salesService.js'
+import { PDFService } from '../services/pdfService.js'
 
 const router = Router({ mergeParams: true })
 
@@ -173,6 +175,241 @@ router.post('/:id/retry-cae', authMiddleware, async (req, res, next) => {
       message: 'Solicitud de CAE procesada',
       sale: result
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// GET /api/:tenantSlug/sales/:id/pdf - Generar y descargar PDF A4
+// Query params: template=legal|quote|simple (default: de la configuración del comprobante)
+router.get('/:id/pdf', authMiddleware, async (req, res, next) => {
+  try {
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    // Obtener venta con todas las relaciones
+    const sale = await salesService.getSaleById(req.params.id)
+
+    // Determinar tipo de plantilla
+    // 1. Si viene en query, usar ese
+    // 2. Si no, usar el de la configuración del comprobante
+    // 3. Si no, usar 'legal' por defecto
+    let template = (req.query.template as string) ||
+                   sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
+                   'legal'
+
+    // Mapear 'simple' a 'quote' para PDFs
+    if (template === 'simple') {
+      template = 'quote'
+    }
+
+    if (template !== 'legal' && template !== 'quote') {
+      return res.status(400).json({
+        error: 'Invalid template. Use "legal", "quote" or "simple"'
+      })
+    }
+
+    // Generar PDF
+    const pdfService = new PDFService()
+    const pdfBuffer = await pdfService.generateInvoicePDF(sale, template)
+
+    // Configurar headers para descarga
+    const docType = template === 'legal' ? 'Factura' : 'Presupuesto'
+    const filename = `${docType}-${sale.fullVoucherNumber || sale.saleNumber}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+
+    res.send(pdfBuffer)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// GET /api/:tenantSlug/sales/:id/pdf/preview - Ver PDF en navegador (inline)
+// Query params: template=legal|quote (default: legal)
+router.get('/:id/pdf/preview', authMiddleware, async (req, res, next) => {
+  try {
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    // Obtener venta con todas las relaciones
+    const sale = await salesService.getSaleById(req.params.id)
+
+    // Determinar tipo de plantilla
+    // 1. Si viene en query, usar ese
+    // 2. Si no, usar el de la configuración del comprobante
+    // 3. Si no, usar 'legal' por defecto
+    let template = (req.query.template as string) ||
+                   sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
+                   'legal'
+
+    // Mapear 'simple' a 'quote' para PDFs
+    if (template === 'simple') {
+      template = 'quote'
+    }
+
+    if (template !== 'legal' && template !== 'quote') {
+      return res.status(400).json({
+        error: 'Invalid template. Use "legal" or "quote"'
+      })
+    }
+
+    // Generar PDF
+    const pdfService = new PDFService()
+    const pdfBuffer = await pdfService.generateInvoicePDF(sale, template)
+
+    // Configurar headers para visualización inline
+    const docType = template === 'legal' ? 'Factura' : 'Presupuesto'
+    const filename = `${docType}-${sale.fullVoucherNumber || sale.saleNumber}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+
+    res.send(pdfBuffer)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// POST /api/:tenantSlug/sales/:id/print/thermal - Imprimir en impresora térmica
+// Body: { template?: 'legal' | 'simple' } (default: de la configuración del comprobante)
+router.post('/:id/print/thermal', authMiddleware, async (req, res, next) => {
+  try {
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    // Obtener venta con todas las relaciones
+    const sale = await salesService.getSaleById(req.params.id)
+
+    // Determinar tipo de plantilla
+    // 1. Si viene en body, usar ese
+    // 2. Si no, usar el de la configuración del comprobante
+    // 3. Si no, usar 'legal' por defecto
+    let template = req.body.template ||
+                   sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
+                   'legal'
+
+    // Mapear 'quote' a 'simple' para tickets térmicos
+    if (template === 'quote') {
+      template = 'simple'
+    }
+
+    if (template !== 'legal' && template !== 'simple') {
+      return res.status(400).json({
+        error: 'Invalid template. Use "legal" or "simple"'
+      })
+    }
+
+    // Preparar datos para el Print Manager
+    const voucherTypeName = sale.voucherConfiguration?.voucherType?.name || 'FACTURA'
+    const voucherLetter = sale.voucherConfiguration?.voucherType?.letter || ''
+
+    // Extraer el nombre base sin la letra (ej: "Factura B" -> "Factura")
+    const voucherBaseName = voucherLetter
+      ? voucherTypeName.replace(new RegExp(`\\s*${voucherLetter}\\s*$`), '').trim()
+      : voucherTypeName
+
+    const printData = {
+      business: {
+        name: sale.tenant.businessName || sale.tenant.name,
+        cuit: sale.tenant.cuit,
+        address: sale.tenant.address,
+        phone: sale.tenant.phone,
+        email: sale.tenant.email
+      },
+      sale: {
+        // Info del comprobante
+        number: sale.fullVoucherNumber || sale.saleNumber,
+        date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
+        voucherName: voucherBaseName,
+        voucherLetter: voucherLetter,
+        afipCode: sale.voucherConfiguration?.voucherType?.afipCode || null,
+        discriminatesVat: sale.voucherConfiguration?.voucherType?.discriminatesVat || false,
+        salesPointNumber: sale.voucherConfiguration?.salesPoint?.number || 1,
+
+        // Cliente
+        customer: sale.customerName || sale.customer?.name || 'Consumidor Final',
+        customerCuit: sale.customer?.cuit || sale.customer?.taxId || null,
+        customerVatCondition: sale.customer?.ivaCondition || 'CF',
+        customerAddress: sale.customer?.addressLine1 || null,
+
+        // Items
+        items: sale.items.map(item => ({
+          name: item.description || item.productName,
+          productName: item.productName,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          total: Number(item.lineTotal),
+          taxAmount: Number(item.taxAmount)
+        })),
+
+        // Totales
+        subtotal: Number(sale.subtotal),
+        discountAmount: Number(sale.discountAmount),
+        taxAmount: Number(sale.taxAmount),
+        totalAmount: Number(sale.totalAmount),
+
+        // Pagos
+        payments: sale.payments.map(p => ({
+          name: p.paymentMethodName,
+          amount: Number(p.amount),
+          reference: p.reference || null
+        })),
+
+        // CAE
+        caeNumber: sale.cae || sale.afipCae || null,
+        caeExpiration: sale.caeExpiration || sale.afipCaeExpiry
+          ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+          : null,
+
+        // Notas
+        notes: sale.notes || null
+      },
+      template
+    }
+
+    // Enviar a Print Manager
+    const PRINT_MANAGER_URL = process.env.PRINT_MANAGER_URL || 'http://localhost:9100'
+
+    try {
+      const response = await axios.post(`${PRINT_MANAGER_URL}/print`, {
+        data: printData
+      }, {
+        timeout: 10000 // 10 segundos de timeout
+      })
+
+      res.json({
+        success: true,
+        message: 'Ticket enviado a impresora térmica',
+        printManager: response.data
+      })
+    } catch (printError: any) {
+      // Si el Print Manager no está disponible o falla
+      if (printError.code === 'ECONNREFUSED') {
+        return res.status(503).json({
+          success: false,
+          error: 'Print Manager no disponible. Asegúrate de que el servicio esté corriendo.',
+          details: `No se pudo conectar a ${PRINT_MANAGER_URL}`
+        })
+      }
+
+      // Otros errores del Print Manager
+      return res.status(500).json({
+        success: false,
+        error: 'Error al imprimir ticket',
+        details: printError.response?.data?.error || printError.message
+      })
+    }
   } catch (error) {
     next(error)
   }

@@ -3,9 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw, Printer } from 'lucide-react'
-import { printService } from '../../services/printService'
-import { getTemplate, TicketData } from '../../services/printTemplates'
+import { RefreshCw, Printer, FileText } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 
 // Función para formatear números con separadores de miles y decimales
@@ -142,53 +140,45 @@ export default function SalesPage() {
   }
 
   // Reimprimir ticket de venta
+  const handlePrintPDF = async (saleId: string) => {
+    try {
+      // Usar salesApi para obtener el PDF con autenticación
+      const response = await salesApi.getPDF(saleId)
+
+      // Crear blob URL y abrirlo en nueva ventana
+      const blob = new Blob([response], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      window.open(url, '_blank')
+
+      // Limpiar blob URL después de un tiempo
+      setTimeout(() => window.URL.revokeObjectURL(url), 100)
+    } catch (error: any) {
+      console.error('Error al generar PDF:', error)
+      alert(`Error al generar PDF: ${error.response?.data?.error || error.message}`)
+    }
+  }
+
   const handlePrintSale = async (saleId: string) => {
     try {
-      // Obtener detalles completos de la venta
-      const response = await salesApi.getSale(saleId)
-      const sale = response.sale
+      // Usar el nuevo endpoint de impresión térmica
+      const response = await salesApi.printThermal(saleId)
 
-      // Preparar datos del ticket
-      const ticketData: TicketData = {
-        business: {
-          name: currentTenant?.businessName || currentTenant?.name || 'MI NEGOCIO',
-          cuit: currentTenant?.cuit || '',
-          address: currentTenant?.address || '',
-          phone: currentTenant?.phone || '',
-          email: currentTenant?.email
-        },
-        sale: {
-          number: sale.saleNumber,
-          date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
-          time: new Date(sale.createdAt).toLocaleTimeString('es-AR'),
-          customer: sale.customerName || 'Consumidor Final',
-          items: sale.items.map((item: any) => ({
-            productName: item.productName,
-            productSku: item.productSku,
-            description: item.description,
-            quantity: parseFloat(item.quantity),
-            unitPrice: parseFloat(item.unitPrice),
-            lineTotal: parseFloat(item.lineTotal)
-          })),
-          subtotal: parseFloat(sale.subtotal),
-          totalAmount: parseFloat(sale.totalAmount),
-          payments: sale.payments?.map((p: any) => ({
-            name: p.paymentMethodName,
-            amount: parseFloat(p.amount)
-          }))
-        }
+      if (response.success) {
+        // Mostrar mensaje de éxito (opcional - podrías usar un toast aquí)
+        console.log('Ticket enviado a impresora térmica')
+      } else {
+        console.error('Error al imprimir:', response.error)
+        alert(`Error al imprimir: ${response.error}`)
       }
+    } catch (error: any) {
+      console.error('Error al imprimir ticket:', error)
 
-      // Usar el template configurado en el voucher, o fallback a ticket estándar
-      const templateId = sale.voucherConfiguration?.printTemplateId || 'ticket-venta-80mm'
-      const template = getTemplate(templateId)
-      const success = await printService.printTicket(template, ticketData)
-
-      if (!success) {
-        console.error('Error al reimprimir ticket')
+      // Mensaje específico según el error
+      if (error.response?.status === 503) {
+        alert('Print Manager no disponible. Asegúrate de que el servicio esté corriendo.')
+      } else {
+        alert(`Error al imprimir: ${error.response?.data?.error || error.message}`)
       }
-    } catch (error) {
-      console.error('Error al reimprimir ticket:', error)
     }
   }
 
@@ -405,13 +395,22 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {/* Botón de reimprimir - siempre visible */}
+                        {/* Botón de imprimir térmica */}
                         <button
                           onClick={() => handlePrintSale(sale.id)}
                           className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800"
-                          title="Reimprimir ticket"
+                          title="Imprimir en térmica"
                         >
                           <Printer className="w-4 h-4" />
+                        </button>
+
+                        {/* Botón de generar PDF */}
+                        <button
+                          onClick={() => handlePrintPDF(sale.id)}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                          title="Generar PDF A4"
+                        >
+                          <FileText className="w-4 h-4" />
                         </button>
 
                         {/* Botón de reintentar CAE - solo si aplica */}

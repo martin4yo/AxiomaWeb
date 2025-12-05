@@ -43,6 +43,7 @@ const schema = z.object({
   customerPaymentTerms: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
   customerCreditLimit: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
   isDefaultCustomer: z.boolean().default(false),
+  preferredPrintFormat: z.preprocess((val) => val === '' ? 'DEFAULT' : val, z.string().default('DEFAULT')),
   supplierPaymentTerms: z.preprocess((val) => val === '' || val === null ? undefined : val, z.number().optional()),
   supplierCategory: z.preprocess((val) => val === '' || val === null ? undefined : val, z.string().optional()),
   employeePosition: z.preprocess((val) => val === '' || val === null ? undefined : val, z.string().optional()),
@@ -108,6 +109,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
         isSupplier: entity?.isSupplier || false,
         isEmployee: entity?.isEmployee || false,
         isDefaultCustomer: false,
+        preferredPrintFormat: 'DEFAULT',
         deliveryAddresses: []
       })
       setDeliveryAddresses([])
@@ -427,6 +429,23 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
                   <label htmlFor="isDefaultCustomer" className="ml-2 block text-sm text-gray-900">
                     Cliente por defecto
                   </label>
+                </div>
+                <div>
+                  <label htmlFor="preferredPrintFormat" className="block text-sm font-medium text-gray-700">
+                    Preferencia de Impresión
+                  </label>
+                  <select
+                    id="preferredPrintFormat"
+                    {...register('preferredPrintFormat')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                  >
+                    <option value="DEFAULT">Usar formato del comprobante</option>
+                    <option value="THERMAL">Siempre imprimir en Térmica</option>
+                    <option value="PDF">Siempre generar PDF</option>
+                  </select>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Si se define, esta preferencia tiene prioridad sobre el formato del comprobante
+                  </p>
                 </div>
               </>
             )}

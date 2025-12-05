@@ -12,6 +12,7 @@ import { VoucherService } from './voucher.service.js'
 import { AfipWSFEService } from './afip-wsfe.service.js'
 import { prisma as globalPrisma } from '../server.js'
 import { cashMovementService } from './cashMovementService.js'
+import { printDecisionService } from './printDecisionService.js'
 
 interface CreateSaleItemInput {
   productId: string
@@ -643,13 +644,20 @@ export class SalesService {
     // 14. Retornar venta con todos sus datos
     const finalSale = await this.getSaleById(createdSale.sale.id)
 
+    // 15. Agregar metadata de impresión
+    const printMetadata = printDecisionService.getPrintMetadata(
+      finalSale.customer,
+      finalSale.voucherConfiguration
+    )
+
     return {
       ...finalSale,
       caeInfo: caeData ? {
         cae: caeData.cae,
         caeExpiration: caeData.caeExpiration
       } : null,
-      caeError: caeError
+      caeError: caeError,
+      printMetadata
     }
   }
 
@@ -755,7 +763,13 @@ export class SalesService {
         customer: true,
         warehouse: true,
         voucherTypeRelation: true,
-        voucherConfiguration: true,
+        voucherConfiguration: {
+          include: {
+            voucherType: true,
+            salesPoint: true
+          }
+        },
+        tenant: true,
         creator: {
           select: {
             id: true,

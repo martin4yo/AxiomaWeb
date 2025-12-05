@@ -1,0 +1,23 @@
+{
+  "name": "axioma-print-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "LIBVA_DRIVER_NAME=i965 electron .",
+    "dev": "DEV_MODE=true LIBVA_DRIVER_NAME=i965 electron .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "electron": "^39.2.5",
+    "express": "^5.2.1",
+    "pngjs": "^7.0.0",
+    "qrcode": "^1.5.4",
+    "serialport": "^13.0.0",
+    "usb": "^2.16.0"
+  }
+}

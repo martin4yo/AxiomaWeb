@@ -1,0 +1,3 @@
+# Gprinter GP-L18080 - Allow direct USB access for thermal printing
+# Unbind usblp driver and set permissions
+SUBSYSTEM=="usb", ATTRS{idVendor}=="8866", ATTRS{idProduct}=="0100", MODE="0666", GROUP="lp", RUN+="/bin/sh -c 'echo -n $kernel > /sys/bus/usb/drivers/usblp/unbind 2>/dev/null || true'"

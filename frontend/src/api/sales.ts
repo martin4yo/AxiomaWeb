@@ -68,5 +68,19 @@ export const salesApi = {
   retryCae: async (id: string) => {
     const response = await api.post(`/sales/${id}/retry-cae`)
     return response.data
+  },
+
+  // Imprimir en impresora térmica
+  printThermal: async (id: string) => {
+    const response = await api.post(`/sales/${id}/print/thermal`)
+    return response.data
+  },
+
+  // Obtener PDF de venta
+  getPDF: async (id: string) => {
+    const response = await api.get(`/sales/${id}/pdf/preview`, {
+      responseType: 'blob'
+    })
+    return response.data
   }
 }

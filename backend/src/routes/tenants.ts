@@ -35,6 +35,12 @@ const updateTenantSchema = z.object({
     timezone: z.string().optional(),
     dateFormat: z.string().optional(),
   }).optional(),
+  // Datos del negocio
+  businessName: z.string().optional(),
+  cuit: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
 })
 
 // Get current tenant info
@@ -80,6 +86,9 @@ router.get('/settings', authMiddleware, async (req, res, next) => {
 // Update tenant settings (admin only)
 router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, next) => {
   try {
+    console.log('[Tenant Settings] Received update request:', req.body)
+    console.log('[Tenant Settings] Tenant ID:', req.tenant!.id)
+
     const updateData: any = {}
 
     if (req.body.settings) {
@@ -111,9 +120,17 @@ router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, n
       updateData.email = req.body.email
     }
 
+    console.log('[Tenant Settings] Update data:', updateData)
+
     const tenant = await prisma.tenant.update({
       where: { id: req.tenant!.id },
       data: updateData
+    })
+
+    console.log('[Tenant Settings] Tenant updated successfully:', {
+      id: tenant.id,
+      cuit: tenant.cuit,
+      businessName: tenant.businessName
     })
 
     res.json({
@@ -121,6 +138,7 @@ router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, n
       tenant
     })
   } catch (error) {
+    console.error('[Tenant Settings] Error updating tenant:', error)
     next(error)
   }
 })
