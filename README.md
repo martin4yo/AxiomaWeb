@@ -191,27 +191,97 @@ El sistema implementa multi-tenancy a nivel de fila usando `tenant_id` en todas 
 
 ## 🌟 Funcionalidades Principales
 
-### ✅ Implementado (MVP)
-- [ ] Sistema de autenticación multi-tenant
-- [ ] Dashboard con métricas básicas
-- [ ] Gestión de clientes y proveedores
-- [ ] Catálogo de productos
-- [ ] Documentos básicos (facturas, presupuestos)
-- [ ] UI responsive moderna
+### ✅ **IMPLEMENTADO Y OPERATIVO** (v1.0 - Diciembre 2024)
 
-### 🚧 En Desarrollo
-- [ ] Sistema de workflows configurables
-- [ ] Aplicación de documentos
-- [ ] Control de stock con lotes
-- [ ] Reportes dinámicos
-- [ ] Integración AFIP (Argentina)
+#### 🏢 Gestión Multi-Tenant
+- [x] Tenants con aislamiento completo de datos
+- [x] Usuarios, roles y permisos por tenant
+- [x] Configuración fiscal por tenant
 
-### 📋 Roadmap
-- [ ] Módulo de compras avanzado
-- [ ] Sistema de tesorería
-- [ ] Control de acceso granular
-- [ ] API webhooks
-- [ ] Mobile app (React Native)
+#### 📦 Productos e Inventario
+- [x] Catálogo de productos con SKU, precios, stock
+- [x] Categorías y marcas de productos
+- [x] Almacenes/Depósitos múltiples
+- [x] Stock por almacén con movimientos
+- [x] **Alertas de stock** (mínimo, máximo, punto de pedido)
+- [x] Ajustes de inventario
+- [x] Control de stock negativo configurable
+- [x] Dashboard de alertas en tiempo real
+
+#### 💰 Ventas
+- [x] Punto de venta (POS) completo
+- [x] Múltiples formas de pago por venta
+- [x] Descuentos por item y general
+- [x] Cliente final o registrado
+- [x] Estados de pago (pendiente/parcial/pagado)
+- [x] Historial con filtros avanzados
+
+#### 🛒 Compras
+- [x] Registro de compras con items
+- [x] Asignación a almacén
+- [x] Pagos de compras
+- [x] Estado de cuenta proveedores
+- [x] Fechas de vencimiento
+
+#### 🧾 Facturación Electrónica AFIP
+- [x] Integración completa WSAA + WSFEv1
+- [x] Certificados digitales (testing + producción)
+- [x] Puntos de venta configurables
+- [x] Facturas A, B, C
+- [x] Solicitud automática de CAE
+- [x] Reintento de CAE ante errores
+- [x] Código QR de validación ARCA
+- [x] Determinación automática de comprobante
+
+#### 🖨️ Impresión
+- [x] **Térmica 80mm** con comandos ESC/POS
+- [x] **PDF A4** formato legal
+- [x] Templates: Legal (con QR/CAE) y Simple
+- [x] **Print Manager para Windows** (versión simplificada)
+- [x] Configuración por cliente y comprobante
+- [x] Reimpresión de comprobantes
+
+#### 💵 Caja y Bancos
+- [x] Cuentas de caja/banco múltiples
+- [x] Movimientos automáticos desde ventas/compras
+- [x] Vinculación formas de pago → cuentas
+
+#### 🏢 Otros Módulos
+- [x] Sucursales con configuración AFIP
+- [x] Entidades unificadas (clientes/proveedores)
+- [x] Tipos de documento personalizables
+- [x] Dashboard con métricas básicas
+
+---
+
+### 🚧 **EN DESARROLLO** - Q1 2025 (Enero-Marzo)
+
+- [ ] **Cuenta Corriente de Clientes** (3-4 días)
+- [ ] **Notas de Crédito/Débito AFIP** (4-5 días) - CRÍTICO
+- [ ] **Presupuestos y Cotizaciones** (3 días)
+
+---
+
+### 📋 **ROADMAP COMPLETO** - 2025
+
+Ver **[ROADMAP.md](./ROADMAP.md)** para plan detallado
+
+#### Q2 2025 (Abril-Junio)
+- [ ] Listas de Precios Múltiples
+- [ ] Remitos y Guías de Entrega
+- [ ] Gestión de Cheques
+- [ ] Lotes y Trazabilidad (FIFO)
+
+#### Q3 2025 (Julio-Septiembre)
+- [ ] Producción Básica (BOM)
+- [ ] CRM Básico
+- [ ] Integraciones E-commerce
+
+#### Q4 2025 (Octubre-Diciembre)
+- [ ] Contabilidad
+- [ ] Reportes Avanzados
+- [ ] WhatsApp Business API
+- [ ] Auditoría y Seguridad 2FA
 
 ## 🤝 Contribuir
 
@@ -255,6 +325,19 @@ Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
 
 ## 📚 Documentación
 
+### 📋 Documentos del Proyecto
+
+- **[SESION_2024-12-06.md](./SESION_2024-12-06.md)** - Resumen de implementaciones recientes
+  - Sistema de alertas de stock
+  - Print Manager simplificado para Windows
+  - Análisis de módulos implementados vs faltantes
+
+- **[ROADMAP.md](./ROADMAP.md)** - Plan de desarrollo completo 2025
+  - Prioridades por trimestre
+  - Estimaciones de tiempo
+  - Tareas específicas por módulo
+  - Calendario de entregas
+
 ### Guías Completas
 
 - **[Integración AFIP](./docs/AFIP_INTEGRACION.md)** - Configuración completa de facturación electrónica
@@ -270,6 +353,13 @@ Ver la guía completa de deployment en [`DEPLOYMENT.md`](./DEPLOYMENT.md)
   - Personalización de formatos
   - Códigos QR y datos AFIP
   - Solución de problemas
+
+- **[Print Manager Windows](./print-manager/INSTALACION_WINDOWS.md)** - Instalación paso a paso para Windows
+  - Guía completa desde cero (20-30 minutos)
+  - Instalación de Node.js
+  - Configuración de impresoras
+  - Scripts de prueba
+  - Troubleshooting común
 
 - **[Decisiones de Arquitectura](./docs/DECISIONES_ARQUITECTURA.md)** - Diseño del sistema de impresión
   - Decisiones técnicas y trade-offs
