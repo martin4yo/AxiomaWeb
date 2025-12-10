@@ -8,6 +8,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { AlertDialog } from '../../components/ui/AlertDialog'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
+import { SaleSearchModal } from '../../components/sales/SaleSearchModal'
 import { printService } from '../../services/printService'
 import { getTemplate, TicketData } from '../../services/printTemplates'
 
@@ -114,6 +115,8 @@ export default function NewSalePage() {
   const [confirmDialog, setConfirmDialog] = useState<{ show: boolean; message: string; amount: number; paymentMethod: PaymentMethod | null }>({ show: false, message: '', amount: 0, paymentMethod: null })
   const [invalidItems, setInvalidItems] = useState<Set<string>>(new Set())
   const [alertDialog, setAlertDialog] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' | 'info' | 'success' }>({ show: false, title: '', message: '', type: 'info' })
+  const [originSale, setOriginSale] = useState<any>(null)
+  const [showSaleSearchModal, setShowSaleSearchModal] = useState(false)
 
   // AFIP Progress Modal
   const [afipProgressModal, setAfipProgressModal] = useState<{
@@ -927,6 +930,16 @@ export default function NewSalePage() {
       return
     }
 
+    // Validar que se haya seleccionado venta original para NC/ND
+    if ((documentClass === 'credit_note' || documentClass === 'debit_note') && !originSale) {
+      showAlert(
+        'Venta original requerida',
+        `Debe seleccionar la venta original para emitir una ${documentClass === 'credit_note' ? 'nota de crédito' : 'nota de débito'}`,
+        'error'
+      )
+      return
+    }
+
     // Prepare data
     const saleData = {
       customerId: selectedCustomer?.id,
@@ -947,7 +960,8 @@ export default function NewSalePage() {
       })) as APISalePayment[],
       notes: notes || undefined,
       shouldInvoice: voucherInfo?.requiresCae || false,
-      documentClass
+      documentClass,
+      originSaleId: originSale?.id
     }
 
     createSaleMutation.mutate(saleData)
@@ -957,6 +971,16 @@ export default function NewSalePage() {
   const handleQuickPayment = (paymentMethod: PaymentMethod) => {
     if (!validateCart()) {
       showAlert('Error en productos', 'Hay productos con cantidad o precio igual a 0. Por favor corríjalos o elimínelos del carrito.', 'error')
+      return
+    }
+
+    // Validar que se haya seleccionado venta original para NC/ND
+    if ((documentClass === 'credit_note' || documentClass === 'debit_note') && !originSale) {
+      showAlert(
+        'Venta original requerida',
+        `Debe seleccionar la venta original para emitir una ${documentClass === 'credit_note' ? 'nota de crédito' : 'nota de débito'}`,
+        'error'
+      )
       return
     }
 
@@ -1002,7 +1026,8 @@ export default function NewSalePage() {
         }] as APISalePayment[],
         notes: notes || undefined,
         shouldInvoice: voucherInfo?.requiresCae || false,
-        documentClass
+        documentClass,
+        originSaleId: originSale?.id
       }
 
       createSaleMutation.mutate(saleData)
@@ -1165,7 +1190,13 @@ export default function NewSalePage() {
               </label>
               <select
                 value={documentClass}
-                onChange={(e) => setDocumentClass(e.target.value as any)}
+                onChange={(e) => {
+                  setDocumentClass(e.target.value as any)
+                  // Limpiar venta original si se cambia a factura/presupuesto
+                  if (e.target.value === 'invoice' || e.target.value === 'quote') {
+                    setOriginSale(null)
+                  }
+                }}
                 className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               >
                 <option value="invoice">Factura</option>
@@ -1174,6 +1205,45 @@ export default function NewSalePage() {
                 <option value="quote">Presupuesto</option>
               </select>
             </div>
+
+            {/* Selector de Venta Original para NC/ND */}
+            {(documentClass === 'credit_note' || documentClass === 'debit_note') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Venta Original {documentClass === 'credit_note' ? '(a acreditar)' : '(a debitar)'}
+                  <span className="text-red-500 ml-1">*</span>
+                </label>
+                {originSale ? (
+                  <div className="flex gap-2">
+                    <div className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
+                      <div className="text-sm font-semibold text-gray-900">
+                        {originSale.fullVoucherNumber || originSale.saleNumber}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {originSale.customerName} - ${originSale.totalAmount.toFixed(2)}
+                      </div>
+                      <div className="text-xs text-green-600">
+                        Disponible: ${originSale.availableForCredit.toFixed(2)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setOriginSale(null)}
+                      className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-md"
+                      title="Limpiar selección"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowSaleSearchModal(true)}
+                    className="w-full px-3 py-2 border border-blue-300 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                  >
+                    Buscar venta original...
+                  </button>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1732,6 +1802,25 @@ export default function NewSalePage() {
           setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null, saleResult: undefined })
           inputRef.current?.focus()
         }}
+      />
+
+      {/* Sale Search Modal for Credit/Debit Notes */}
+      <SaleSearchModal
+        isOpen={showSaleSearchModal}
+        onClose={() => setShowSaleSearchModal(false)}
+        onSelect={(sale) => {
+          setOriginSale(sale)
+          setShowSaleSearchModal(false)
+          // Si la venta original tiene un cliente, seleccionarlo automáticamente
+          if (sale.customer) {
+            setSelectedCustomer({
+              id: sale.customer.id,
+              name: sale.customer.name,
+              ivaCondition: sale.customer.ivaCondition
+            })
+          }
+        }}
+        customerId={selectedCustomer?.id}
       />
     </>
   )

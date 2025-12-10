@@ -42,6 +42,7 @@ interface CreateSaleInput {
   discountPercent?: number
   documentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
   forceWithoutCAE?: boolean  // Permitir guardar sin CAE cuando hay desincronización
+  originSaleId?: string  // ID de la venta original (para NC/ND)
 }
 
 export class SalesService {
@@ -74,7 +75,8 @@ export class SalesService {
       notes,
       discountPercent = 0,
       documentClass = 'invoice',
-      forceWithoutCAE = false
+      forceWithoutCAE = false,
+      originSaleId
     } = data
 
     let shouldInvoice = data.shouldInvoice || false
@@ -90,6 +92,55 @@ export class SalesService {
 
     if (!warehouse) {
       throw new AppError('Almacén no encontrado o inactivo', 404)
+    }
+
+    // 1.5. Validar y procesar notas de crédito/débito
+    let originSale: any = null
+    if (documentClass === 'credit_note' || documentClass === 'debit_note') {
+      if (!originSaleId) {
+        throw new AppError(
+          `Debe seleccionar la venta original para emitir una ${documentClass === 'credit_note' ? 'nota de crédito' : 'nota de débito'}`,
+          400
+        )
+      }
+
+      // Obtener venta original con NC/ND asociadas
+      originSale = await this.prisma.sale.findFirst({
+        where: {
+          id: originSaleId,
+          tenantId: this.tenantId
+        },
+        include: {
+          items: true,
+          creditDebitNotes: {
+            where: {
+              status: { not: 'cancelled' }
+            }
+          }
+        }
+      })
+
+      if (!originSale) {
+        throw new AppError('Venta original no encontrada', 404)
+      }
+
+      if (originSale.status === 'cancelled') {
+        throw new AppError('No se puede emitir NC/ND sobre una venta cancelada', 400)
+      }
+
+      // Calcular total de NC/ND ya emitidas
+      const totalCreditNotes = originSale.creditDebitNotes
+        .filter((note: any) => note.documentClass === 'credit_note')
+        .reduce((sum: Decimal, note: any) => sum.add(note.totalAmount), new Decimal(0))
+
+      const totalDebitNotes = originSale.creditDebitNotes
+        .filter((note: any) => note.documentClass === 'debit_note')
+        .reduce((sum: Decimal, note: any) => sum.add(note.totalAmount), new Decimal(0))
+
+      // Calcular monto disponible
+      const availableForCredit = originSale.totalAmount.add(totalDebitNotes).sub(totalCreditNotes)
+
+      console.log(`[Sales:${requestId}] Venta original: ${originSale.saleNumber}, Monto: ${originSale.totalAmount}, Disponible para NC: ${availableForCredit}`)
     }
 
     // 2. Obtener configuración del tenant (condición IVA)
@@ -270,6 +321,33 @@ export class SalesService {
     // 8. Calcular totales de la venta
     const totals = calculateSaleTotals(itemCalculations)
 
+    // 8.5. Validar montos para NC/ND
+    if (originSale && (documentClass === 'credit_note' || documentClass === 'debit_note')) {
+      // Calcular total de NC/ND ya emitidas
+      const totalCreditNotes = originSale.creditDebitNotes
+        .filter((note: any) => note.documentClass === 'credit_note')
+        .reduce((sum: Decimal, note: any) => sum.add(note.totalAmount), new Decimal(0))
+
+      const totalDebitNotes = originSale.creditDebitNotes
+        .filter((note: any) => note.documentClass === 'debit_note')
+        .reduce((sum: Decimal, note: any) => sum.add(note.totalAmount), new Decimal(0))
+
+      if (documentClass === 'credit_note') {
+        const availableForCredit = originSale.totalAmount.add(totalDebitNotes).sub(totalCreditNotes)
+
+        if (totals.totalAmount.greaterThan(availableForCredit)) {
+          throw new AppError(
+            `El monto de la nota de crédito ($${totals.totalAmount}) no puede superar el monto disponible ($${availableForCredit})`,
+            400
+          )
+        }
+      }
+      // Para notas de débito no hay límite superior, pero validamos que sea positivo
+      if (documentClass === 'debit_note' && totals.totalAmount.lessThanOrEqualTo(0)) {
+        throw new AppError('El monto de la nota de débito debe ser positivo', 400)
+      }
+    }
+
     // 9. Validar que suma de pagos = total
     if (!validatePayments(totals.totalAmount, paymentsInput.map(p => ({ amount: new Decimal(p.amount) })))) {
       throw new AppError(
@@ -410,6 +488,8 @@ export class SalesService {
           voucherType: finalVoucherType,
           voucherConfigurationId: voucherInfo?.configuration?.id || null,
           warehouseId,
+          documentClass: documentClass.toUpperCase() as any,
+          originSaleId: originSaleId || null,
           notes: notes || null,
           status: 'completed',
           createdBy: this.userId,
@@ -447,10 +527,20 @@ export class SalesService {
           }
         })
 
-        // Descontar stock si aplica
+        // Actualizar stock según el tipo de documento
         if (item.product.trackStock && item.warehouseStock) {
-          const newQuantity = item.warehouseStock.quantity.sub(new Decimal(item.input.quantity))
-          const newAvailable = item.warehouseStock.availableQty.sub(new Decimal(item.input.quantity))
+          // Para NC: agregar stock (reversión)
+          // Para factura/ND: descontar stock
+          const isCredit = documentClass === 'credit_note'
+          const quantityDelta = new Decimal(item.input.quantity)
+
+          const newQuantity = isCredit
+            ? item.warehouseStock.quantity.add(quantityDelta)
+            : item.warehouseStock.quantity.sub(quantityDelta)
+
+          const newAvailable = isCredit
+            ? item.warehouseStock.availableQty.add(quantityDelta)
+            : item.warehouseStock.availableQty.sub(quantityDelta)
 
           await tx.warehouseStock.update({
             where: {
@@ -469,14 +559,16 @@ export class SalesService {
               tenantId: this.tenantId,
               warehouseId,
               productId: item.product.id,
-              movementType: 'OUT',
+              movementType: isCredit ? 'IN' : 'OUT',
               quantity: new Decimal(item.input.quantity),
               unitCost: item.product.costPrice,
               totalCost: new Decimal(item.input.quantity).mul(item.product.costPrice),
-              documentType: 'SALE',
+              documentType: isCredit ? 'CREDIT_NOTE' : 'SALE',
               documentId: newSale.id,
               referenceNumber: newSale.saleNumber,
-              notes: `Venta ${newSale.saleNumber}`,
+              notes: isCredit
+                ? `Nota de Crédito ${newSale.saleNumber} - Reversión de stock`
+                : `Venta ${newSale.saleNumber}`,
               userId: this.userId
             }
           })
@@ -513,10 +605,52 @@ export class SalesService {
         createdPayments.push(salePayment)
       }
 
+      // Actualizar saldos de venta original si es NC/ND
+      if (originSale && (documentClass === 'credit_note' || documentClass === 'debit_note')) {
+        // Obtener todas las NC/ND de esta venta (incluyendo la que acabamos de crear)
+        const allCreditDebitNotes = await tx.sale.findMany({
+          where: {
+            originSaleId: originSale.id,
+            status: { not: 'cancelled' }
+          }
+        })
+
+        // Calcular totales
+        const totalCreditNotes = allCreditDebitNotes
+          .filter(note => note.documentClass === 'CREDIT_NOTE')
+          .reduce((sum, note) => sum.add(note.totalAmount), new Decimal(0))
+
+        const totalDebitNotes = allCreditDebitNotes
+          .filter(note => note.documentClass === 'DEBIT_NOTE')
+          .reduce((sum, note) => sum.add(note.totalAmount), new Decimal(0))
+
+        // Calcular nuevo total y balance
+        // Total ajustado = Total original + ND - NC
+        const adjustedTotal = originSale.totalAmount.add(totalDebitNotes).sub(totalCreditNotes)
+        const newBalance = adjustedTotal.sub(originSale.paidAmount)
+
+        // Actualizar venta original
+        await tx.sale.update({
+          where: { id: originSale.id },
+          data: {
+            balanceAmount: newBalance,
+            paymentStatus: newBalance.lessThanOrEqualTo(0)
+              ? 'paid'
+              : newBalance.lessThan(adjustedTotal)
+              ? 'partial'
+              : 'pending'
+          }
+        })
+
+        console.log(`[Sales:${requestId}] Venta original ${originSale.saleNumber} actualizada: Balance ${newBalance}`)
+      }
+
       return { sale: newSale, payments: createdPayments }
     })
 
-    // Registrar ingresos en caja (fuera de la transacción)
+    // Registrar movimientos de caja (fuera de la transacción)
+    // Si es NC -> registrar SALIDA (expense) - devolución de dinero
+    // Si es factura/ND -> registrar ENTRADA (income) - cobro
     for (const payment of createdSale.payments) {
       try {
         // Obtener el método de pago con su cuenta de caja asociada
@@ -525,19 +659,39 @@ export class SalesService {
           select: { cashAccountId: true },
         })
 
-        await cashMovementService.registerIncome({
-          tenantId: this.tenantId,
-          cashAccountId: paymentMethod?.cashAccountId || undefined,
-          amount: payment.amount.toNumber(),
-          category: 'sale',
-          description: `Cobro de venta ${createdSale.sale.saleNumber} - ${customer?.name || 'Cliente Final'}`,
-          reference: createdSale.sale.fullVoucherNumber || createdSale.sale.saleNumber,
-          saleId: createdSale.sale.id,
-          salePaymentId: payment.id,
-          paymentMethodId: payment.paymentMethodId,
-          movementDate: payment.collectionDate || new Date(),
-          userId: this.userId,
-        })
+        const isCredit = documentClass === 'credit_note'
+
+        if (isCredit) {
+          // Para NC: registrar SALIDA de dinero (devolución al cliente)
+          await cashMovementService.registerExpense({
+            tenantId: this.tenantId,
+            cashAccountId: paymentMethod?.cashAccountId || undefined,
+            amount: payment.amount.toNumber(),
+            category: 'credit_note',
+            description: `Devolución por NC ${createdSale.sale.saleNumber} - ${customer?.name || 'Cliente Final'}`,
+            reference: createdSale.sale.fullVoucherNumber || createdSale.sale.saleNumber,
+            saleId: createdSale.sale.id,
+            salePaymentId: payment.id,
+            paymentMethodId: payment.paymentMethodId,
+            movementDate: payment.collectionDate || new Date(),
+            userId: this.userId,
+          })
+        } else {
+          // Para facturas/ND: registrar ENTRADA de dinero (cobro)
+          await cashMovementService.registerIncome({
+            tenantId: this.tenantId,
+            cashAccountId: paymentMethod?.cashAccountId || undefined,
+            amount: payment.amount.toNumber(),
+            category: 'sale',
+            description: `Cobro de venta ${createdSale.sale.saleNumber} - ${customer?.name || 'Cliente Final'}`,
+            reference: createdSale.sale.fullVoucherNumber || createdSale.sale.saleNumber,
+            saleId: createdSale.sale.id,
+            salePaymentId: payment.id,
+            paymentMethodId: payment.paymentMethodId,
+            movementDate: payment.collectionDate || new Date(),
+            userId: this.userId,
+          })
+        }
       } catch (error) {
         console.error('Error registering cash movement for sale payment:', error)
         // No fallar la venta si falla el registro del movimiento
@@ -791,7 +945,32 @@ export class SalesService {
             paymentMethod: true
           }
         },
-        invoice: true
+        invoice: true,
+        originSale: {
+          select: {
+            id: true,
+            saleNumber: true,
+            fullVoucherNumber: true,
+            totalAmount: true,
+            customerName: true
+          }
+        },
+        creditDebitNotes: {
+          where: {
+            status: { not: 'cancelled' }
+          },
+          select: {
+            id: true,
+            saleNumber: true,
+            fullVoucherNumber: true,
+            documentClass: true,
+            totalAmount: true,
+            saleDate: true
+          },
+          orderBy: {
+            saleDate: 'desc'
+          }
+        }
       }
     })
 
@@ -930,7 +1109,29 @@ export class SalesService {
    * Cancela una venta y revierte el stock
    */
   async cancelSale(id: string) {
-    const sale = await this.getSaleById(id)
+    const sale = await this.prisma.sale.findFirst({
+      where: {
+        id,
+        tenantId: this.tenantId
+      },
+      include: {
+        creditDebitNotes: {
+          where: {
+            status: { not: 'cancelled' }
+          }
+        },
+        items: {
+          include: {
+            product: true
+          }
+        },
+        warehouse: true
+      }
+    })
+
+    if (!sale) {
+      throw new AppError('Venta no encontrada', 404)
+    }
 
     if (sale.status === 'cancelled') {
       throw new AppError('La venta ya está cancelada', 400)
@@ -938,6 +1139,14 @@ export class SalesService {
 
     if (sale.afipStatus === 'authorized') {
       throw new AppError('No se puede cancelar una venta con factura AFIP autorizada', 400)
+    }
+
+    // Validar que no tenga NC/ND asociadas
+    if (sale.creditDebitNotes && sale.creditDebitNotes.length > 0) {
+      throw new AppError(
+        'No se puede cancelar una venta que tiene notas de crédito o débito asociadas',
+        400
+      )
     }
 
     // Cancelar en transacción

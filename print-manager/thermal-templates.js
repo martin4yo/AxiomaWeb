@@ -274,12 +274,9 @@ async function renderLegalThermalTicket(sale, business) {
 
   // ========== ITEMS ==========
   if (sale.items && sale.items.length > 0) {
-    // Header de items
+    // Header de items (sin encabezado de columnas, más limpio)
     ticket += commands.bold.on
-    ticket += fitText('Producto', 22, 'left') + ' '
-    ticket += fitText('Cant', 4, 'right') + ' '
-    ticket += fitText('P.U.', 6, 'right') + ' '
-    ticket += fitText('Total', 7, 'right') + commands.newLine
+    ticket += 'PRODUCTOS' + commands.newLine
     ticket += commands.bold.off
     ticket += '----------------------------------------' + commands.newLine
 
@@ -289,19 +286,27 @@ async function renderLegalThermalTicket(sale, business) {
       const price = item.unitPrice || 0
       const total = item.total || (qty * price)
 
-      // Nombre del producto (puede ocupar varias líneas)
+      // Nombre del producto
       ticket += name + commands.newLine
 
-      // Cantidad x Precio = Total
-      const qtyStr = fitText(qty.toString(), 4, 'right')
-      const priceStr = fitText(`$${price.toFixed(2)}`, 6, 'right')
-      const totalStr = fitText(`$${total.toFixed(2)}`, 7, 'right')
+      // Formato para 48 caracteres (ancho típico de 80mm)
+      // Estructura: "   CANT x       PRECIO =             TOTAL"
+      const qtyStr = qty.toString()
+      const priceStr = `$${price.toFixed(2)}`
+      const totalStr = `$${total.toFixed(2)}`
 
-      ticket += `  ${qtyStr} x ${priceStr} = ${totalStr}` + commands.newLine
+      // Columnas con anchos fijos
+      const col1 = fitText(qtyStr, 7, 'right')      // Cantidad (7 chars)
+      const col2 = fitText(priceStr, 15, 'right')   // Precio (15 chars)
+      const col3 = fitText(totalStr, 15, 'right')   // Total (15 chars)
+
+      // Construir línea: 7 + 3 + 15 + 3 + 15 = 43 caracteres
+      ticket += col1 + ' x ' + col2 + ' = ' + col3 + commands.newLine
 
       // Mostrar IVA si discrimina
       if (sale.discriminatesVat && item.taxAmount && item.taxAmount > 0) {
-        ticket += `  IVA 21%: $${item.taxAmount.toFixed(2)}` + commands.newLine
+        const ivaLine = fitText(`IVA 21%: $${item.taxAmount.toFixed(2)}`, 48, 'right')
+        ticket += ivaLine + commands.newLine
       }
     })
 
@@ -489,14 +494,11 @@ async function renderSimpleThermalTicket(sale, business) {
 
   // ========== ITEMS ==========
   if (sale.items && sale.items.length > 0) {
-    // Header de items
+    // Header de items (sin encabezado de columnas, más limpio)
     ticket += commands.bold.on
-    ticket += fitText('Producto', 22, 'left') + ' '
-    ticket += fitText('Cant', 4, 'right') + ' '
-    ticket += fitText('P.U.', 6, 'right') + ' '
-    ticket += fitText('Total', 7, 'right') + commands.newLine
+    ticket += 'PRODUCTOS' + commands.newLine
     ticket += commands.bold.off
-    ticket += '---------------------------------------' + commands.newLine
+    ticket += '=======================================' + commands.newLine
 
     sale.items.forEach((item) => {
       const name = item.name || item.productName || 'Producto'
@@ -507,12 +509,19 @@ async function renderSimpleThermalTicket(sale, business) {
       // Nombre del producto
       ticket += name + commands.newLine
 
-      // Cantidad x Precio = Total
-      const qtyStr = fitText(qty.toString(), 4, 'right')
-      const priceStr = fitText(`$${price.toFixed(2)}`, 6, 'right')
-      const totalStr = fitText(`$${total.toFixed(2)}`, 7, 'right')
+      // Formato para 48 caracteres (ancho típico de 80mm)
+      // Estructura: "   CANT x       PRECIO =             TOTAL"
+      const qtyStr = qty.toString()
+      const priceStr = `$${price.toFixed(2)}`
+      const totalStr = `$${total.toFixed(2)}`
 
-      ticket += `  ${qtyStr} x ${priceStr} = ${totalStr}` + commands.newLine
+      // Columnas con anchos fijos
+      const col1 = fitText(qtyStr, 7, 'right')      // Cantidad (7 chars)
+      const col2 = fitText(priceStr, 15, 'right')   // Precio (15 chars)
+      const col3 = fitText(totalStr, 15, 'right')   // Total (15 chars)
+
+      // Construir línea: 7 + 3 + 15 + 3 + 15 = 43 caracteres
+      ticket += col1 + ' x ' + col2 + ' = ' + col3 + commands.newLine
     })
 
     ticket += '=======================================' + commands.newLine

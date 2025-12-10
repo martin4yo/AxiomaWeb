@@ -652,6 +652,9 @@ model Sale {
   // Almacén de donde se descontó el stock
   warehouseId String? @map("warehouse_id")
 
+  // Venta original (para notas de crédito y débito)
+  originSaleId String? @map("origin_sale_id")
+
   // Tipo de cliente
   customerType String @default("final") @map("customer_type") // "registered", "final"
 
@@ -677,6 +680,8 @@ model Sale {
   branch               Branch?               @relation("SaleBranch", fields: [branchId], references: [id])
   voucherTypeRelation  VoucherType?          @relation(fields: [voucherTypeId], references: [id])
   voucherConfiguration VoucherConfiguration? @relation(fields: [voucherConfigurationId], references: [id])
+  originSale           Sale?                 @relation("SaleCreditDebitNotes", fields: [originSaleId], references: [id], onDelete: Restrict)
+  creditDebitNotes     Sale[]                @relation("SaleCreditDebitNotes")
   items                SaleItem[]
   payments             SalePayment[]
   cashMovements        CashMovement[]        @relation("CashMovementSale")

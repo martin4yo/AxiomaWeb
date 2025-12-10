@@ -178,14 +178,21 @@ export class PrintService {
       }
 
       table td, table th {
-        padding: 2px;
+        padding: 2px 4px;
       }
 
       table th {
-        text-align: left;
         font-weight: bold;
         border-bottom: 1px solid #000;
       }
+
+      table th.left { text-align: left; }
+      table th.right { text-align: right; }
+      table th.center { text-align: center; }
+
+      table td.left { text-align: left; }
+      table td.right { text-align: right; }
+      table td.center { text-align: center; }
 
       .item-row td {
         vertical-align: top;
@@ -312,8 +319,8 @@ export class PrintService {
 
     let html = '<table>'
 
-    // Header
-    html += '<tr>'
+    // Header de tabla
+    html += '<thead><tr>'
     if (section.columns) {
       for (const col of section.columns) {
         const align = col.align || 'left'
@@ -326,7 +333,8 @@ export class PrintService {
       html += '<th class="right">P. Unit.</th>'
       html += '<th class="right">Total</th>'
     }
-    html += '</tr>'
+    html += '</tr></thead>'
+    html += '<tbody>'
 
     // Items
     for (const item of items) {
@@ -336,9 +344,17 @@ export class PrintService {
         for (const col of section.columns) {
           const align = col.align || 'left'
           const value = this.getNestedValue(item, col.field)
-          const formatted = col.decimals !== undefined
-            ? this.formatNumber(value, col.decimals)
-            : value
+
+          // Formatear valor
+          let formatted = value
+          if (col.decimals !== undefined) {
+            formatted = this.formatNumber(value, col.decimals)
+            // Si es columna de precio y está alineada a derecha, agregar $
+            if (align === 'right' && (col.header.includes('Unit') || col.header.includes('Total') || col.header.includes('Precio'))) {
+              formatted = `$${formatted}`
+            }
+          }
+
           html += `<td class="${align}">${formatted || ''}</td>`
         }
       } else {
@@ -357,7 +373,7 @@ export class PrintService {
       }
     }
 
-    html += '</table>'
+    html += '</tbody></table>'
     return html
   }
 

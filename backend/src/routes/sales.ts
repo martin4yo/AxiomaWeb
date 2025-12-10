@@ -33,7 +33,8 @@ const createSaleSchema = z.object({
   shouldInvoice: z.boolean().optional(),
   discountPercent: z.number().min(0).max(100).optional(),
   documentClass: z.enum(['invoice', 'credit_note', 'debit_note', 'quote']).optional(),
-  forceWithoutCAE: z.boolean().optional()
+  forceWithoutCAE: z.boolean().optional(),
+  originSaleId: z.string().optional()
 })
 
 // POST /api/:tenantSlug/sales - Crear venta
@@ -55,6 +56,87 @@ router.post('/', authMiddleware, async (req, res, next) => {
       message: 'Venta creada exitosamente',
       sale
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// GET /api/:tenantSlug/sales/search-for-credit-debit - Buscar ventas para NC/ND
+router.get('/search-for-credit-debit', authMiddleware, async (req, res, next) => {
+  try {
+    const { customerId, search, limit = '20' } = req.query
+
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    // Buscar ventas que puedan ser acreditadas/debitadas
+    const where: any = {
+      tenantId: req.tenant!.id,
+      status: 'completed',
+      documentClass: { in: ['INVOICE', null] }, // Solo facturas, no NC/ND
+    }
+
+    if (customerId) {
+      where.customerId = customerId as string
+    }
+
+    if (search) {
+      where.OR = [
+        { saleNumber: { contains: search as string, mode: 'insensitive' } },
+        { fullVoucherNumber: { contains: search as string, mode: 'insensitive' } },
+        { customerName: { contains: search as string, mode: 'insensitive' } }
+      ]
+    }
+
+    const sales = await req.tenantDb!.sale.findMany({
+      where,
+      take: parseInt(limit as string),
+      orderBy: { saleDate: 'desc' },
+      include: {
+        customer: true,
+        voucherConfiguration: {
+          include: {
+            voucherType: true
+          }
+        },
+        creditDebitNotes: {
+          where: {
+            status: { not: 'cancelled' }
+          },
+          select: {
+            id: true,
+            saleNumber: true,
+            documentClass: true,
+            totalAmount: true
+          }
+        }
+      }
+    })
+
+    // Calcular monto disponible para cada venta
+    const salesWithAvailable = sales.map(sale => {
+      const totalCreditNotes = sale.creditDebitNotes
+        .filter(note => note.documentClass === 'CREDIT_NOTE')
+        .reduce((sum, note) => sum.add(note.totalAmount), new (require('@prisma/client/runtime/library').Decimal)(0))
+
+      const totalDebitNotes = sale.creditDebitNotes
+        .filter(note => note.documentClass === 'DEBIT_NOTE')
+        .reduce((sum, note) => sum.add(note.totalAmount), new (require('@prisma/client/runtime/library').Decimal)(0))
+
+      const availableForCredit = sale.totalAmount.add(totalDebitNotes).sub(totalCreditNotes)
+
+      return {
+        ...sale,
+        availableForCredit: availableForCredit.toNumber(),
+        totalCreditNotes: totalCreditNotes.toNumber(),
+        totalDebitNotes: totalDebitNotes.toNumber()
+      }
+    })
+
+    res.json({ sales: salesWithAvailable })
   } catch (error) {
     next(error)
   }
