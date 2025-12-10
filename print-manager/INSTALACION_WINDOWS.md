@@ -49,9 +49,9 @@ Esta guía te llevará desde **cero** hasta tener el sistema de impresión funci
 ### 1.3. Verificar Instalación
 
 1. Presionar `Windows + R`
-2. Escribir: `powershell`
+2. Escribir: `cmd`
 3. Presionar `Enter`
-4. En la ventana de PowerShell, escribir:
+4. En la ventana de símbolo del sistema (Command Prompt), escribir:
 
 ```bash
 node --version
@@ -68,8 +68,10 @@ npm --version
 ✅ **Si ves los números de versión, Node.js está correctamente instalado.**
 
 ❌ **Si dice "no se reconoce":**
-- Cerrar PowerShell y abrirlo de nuevo
+- Cerrar cmd y abrirlo de nuevo
 - Si persiste, reiniciar la PC
+
+**💡 Nota:** Usamos `cmd` (Command Prompt) en lugar de PowerShell para evitar problemas con políticas de ejecución de scripts.
 
 ---
 
@@ -79,7 +81,7 @@ npm --version
 
 **Si tienes Git instalado:**
 
-1. Abrir PowerShell
+1. Abrir Command Prompt (presionar `Windows + R`, escribir `cmd`, Enter)
 2. Navegar a donde quieres guardar el proyecto:
 
 ```bash
@@ -112,14 +114,14 @@ cd AxiomaWeb\print-manager
 
 ### 2.1. Navegar a la Carpeta
 
-1. Abrir PowerShell
+1. Abrir Command Prompt (`Windows + R`, escribir `cmd`, Enter)
 2. Navegar a la carpeta print-manager:
 
 ```bash
 cd C:\AxiomaWeb\print-manager
 ```
 
-**💡 Tip:** Puedes arrastrar la carpeta a PowerShell para pegar la ruta automáticamente.
+**💡 Tip:** Puedes arrastrar la carpeta a la ventana de cmd para pegar la ruta automáticamente.
 
 ---
 
@@ -221,13 +223,39 @@ added 150 packages in 3m
 npm install --global windows-build-tools
 ```
 
+**Error común 4:** "la ejecución de scripts está deshabilitada" (PowerShell)
+**Causa:** Política de ejecución de PowerShell bloqueando npm
+
+**Soluciones:**
+
+**Opción A - Usar Command Prompt (Recomendado):**
+```bash
+# Presionar Windows + R, escribir: cmd
+cd C:\AxiomaWeb\print-manager
+npm install
+```
+
+**Opción B - Cambiar política (Permanente):**
+```powershell
+# PowerShell como Administrador
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+# Responder: S (Sí)
+# Luego cerrar y abrir PowerShell normal
+```
+
+**Opción C - Bypass temporal (Solo esta sesión):**
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
+npm install
+```
+
 ---
 
 ## 🚀 PASO 5: Iniciar el Print Manager
 
 ### 5.1. Ejecutar
 
-En PowerShell (dentro de `print-manager`):
+En Command Prompt (dentro de `print-manager`):
 
 ```bash
 node server-simple.js
@@ -279,7 +307,7 @@ node server-simple.js
 
 ### 6.1. Ejecutar Test Automático
 
-**Abrir una NUEVA ventana de PowerShell** (dejar la anterior corriendo):
+**Abrir una NUEVA ventana de Command Prompt** (dejar la anterior corriendo):
 
 ```bash
 cd C:\AxiomaWeb\print-manager
@@ -432,7 +460,7 @@ dir  # Verificar que existan los archivos
 
 **Solución:**
 1. Verificar instalación: Repetir PASO 1
-2. Reiniciar PowerShell
+2. Reiniciar Command Prompt
 3. Si persiste, reiniciar PC
 
 ### ❌ "EADDRINUSE: address already in use :::9100"
@@ -441,7 +469,7 @@ dir  # Verificar que existan los archivos
 
 **Solución:**
 ```bash
-# Opción 1: Cerrar la otra instancia (buscar ventana de PowerShell)
+# Opción 1: Cerrar la otra instancia (buscar ventana de cmd con node server-simple.js)
 
 # Opción 2: Matar proceso en puerto 9100
 netstat -ano | findstr :9100
