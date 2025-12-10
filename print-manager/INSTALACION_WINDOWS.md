@@ -22,9 +22,45 @@ Esta guía te llevará desde **cero** hasta tener el sistema de impresión funci
 
 ---
 
-## 📦 PASO 1: Instalar Node.js
+## 📦 PASO 1: Instalar Git
 
-### 1.1. Descargar Node.js
+### 1.1. Descargar Git
+
+1. Abrir navegador web
+2. Ir a: **https://git-scm.com/download/win**
+3. Se descargará automáticamente el instalador (aprox. 50 MB)
+
+### 1.2. Instalar Git
+
+1. **Doble clic** en el archivo descargado (ej: `Git-2.43.0-64-bit.exe`)
+2. Si aparece advertencia de seguridad, hacer clic en **"Sí"**
+3. En el instalador:
+   - Click **"Next"** en todas las pantallas
+   - **IMPORTANTE:** En "Adjusting your PATH environment", seleccionar **"Git from the command line and also from 3rd-party software"**
+   - Continuar con **"Next"** hasta **"Install"**
+4. Esperar 1-2 minutos mientras se instala
+5. Click **"Finish"**
+
+### 1.3. Verificar Instalación de Git
+
+1. Presionar `Windows + R`
+2. Escribir: `cmd`
+3. Presionar `Enter`
+4. Escribir:
+
+```bash
+git --version
+```
+
+**Resultado esperado:** `git version 2.43.0` (o similar)
+
+✅ **Si ves la versión, Git está correctamente instalado.**
+
+---
+
+## 📦 PASO 2: Instalar Node.js
+
+### 2.1. Descargar Node.js
 
 1. Abrir navegador web
 2. Ir a: **https://nodejs.org/**
@@ -33,7 +69,7 @@ Esta guía te llevará desde **cero** hasta tener el sistema de impresión funci
 
 **💡 Tip:** La versión LTS (Long Term Support) es la recomendada para producción.
 
-### 1.2. Instalar Node.js
+### 2.2. Instalar Node.js
 
 1. **Doble clic** en el archivo descargado (ej: `node-v20.11.0-x64.msi`)
 2. Si aparece advertencia de seguridad, hacer clic en **"Sí"**
@@ -46,12 +82,10 @@ Esta guía te llevará desde **cero** hasta tener el sistema de impresión funci
 4. Esperar 1-2 minutos mientras se instala
 5. Click **"Finish"**
 
-### 1.3. Verificar Instalación
+### 2.3. Verificar Instalación
 
-1. Presionar `Windows + R`
-2. Escribir: `cmd`
-3. Presionar `Enter`
-4. En la ventana de símbolo del sistema (Command Prompt), escribir:
+1. **Cerrar y volver a abrir** Command Prompt (para que cargue las nuevas variables de entorno)
+2. Escribir:
 
 ```bash
 node --version
@@ -75,7 +109,7 @@ npm --version
 
 ---
 
-## 📥 PASO 2: Descargar el Código del Proyecto
+## 📥 PASO 3: Descargar el Código del Proyecto
 
 ### Opción A: Con Git (Recomendado)
 
@@ -112,7 +146,7 @@ cd AxiomaWeb\print-manager
 6. Elegir ubicación (ej: `C:\AxiomaWeb`)
 7. Click **"Extraer"**
 
-### 2.1. Navegar a la Carpeta
+### 3.1. Navegar a la Carpeta
 
 1. Abrir Command Prompt (`Windows + R`, escribir `cmd`, Enter)
 2. Navegar a la carpeta print-manager:
@@ -125,9 +159,9 @@ cd C:\AxiomaWeb\print-manager
 
 ---
 
-## 🖨️ PASO 3: Configurar la Impresora
+## 🖨️ PASO 4: Configurar la Impresora
 
-### 3.1. Instalar Driver de la Impresora
+### 4.1. Instalar Driver de la Impresora
 
 1. **Conectar** la impresora al puerto USB de la PC
 2. **Encender** la impresora
@@ -140,7 +174,7 @@ cd C:\AxiomaWeb\print-manager
      - **Star Micronics:** https://www.starmicronics.com/support/
      - **Bixolon:** https://www.bixolon.com/html/en/download/download_01.xhtml
 
-### 3.2. Verificar Impresora Instalada
+### 4.2. Verificar Impresora Instalada
 
 1. Presionar `Windows + I` (Configuración)
 2. Ir a **"Dispositivos"** o **"Bluetooth y dispositivos"**
@@ -158,9 +192,9 @@ cd C:\AxiomaWeb\print-manager
 
 ---
 
-## ⚙️ PASO 4: Instalar Print Manager (Versión Simple)
+## ⚙️ PASO 5: Instalar Print Manager (Versión Simple)
 
-### 4.1. Preparar Archivos
+### 5.1. Preparar Archivos
 
 En la carpeta `print-manager`, deberías tener estos archivos:
 
@@ -172,12 +206,12 @@ print-manager/
 └── INSTALACION_WINDOWS.md   ← Este documento
 ```
 
-### 4.2. Renombrar Archivos
+### 5.2. Renombrar Archivos
 
 Necesitas usar los archivos simplificados:
 
 ```bash
-# En PowerShell, dentro de la carpeta print-manager:
+# En Command Prompt, dentro de la carpeta print-manager:
 
 # Backup del package.json original (opcional)
 copy package.json package.json.original
@@ -186,7 +220,9 @@ copy package.json package.json.original
 copy package-simple.json package.json
 ```
 
-### 4.3. Instalar Dependencias
+### 5.3. Instalar Dependencias
+
+**IMPORTANTE:** Asegúrate de haber instalado Git (PASO 1) antes de continuar.
 
 ```bash
 npm install
@@ -210,20 +246,27 @@ added 150 packages in 3m
 
 ❌ **Si hay errores:**
 
-**Error común 1:** "Permission denied" o "EPERM"
-**Solución:** Ejecutar PowerShell como Administrador
+**Error común 1:** "syscall spawn git" o "enoent git"
+**Causa:** Git no está instalado
+**Solución:** Instalar Git (ver PASO 1) y reiniciar Command Prompt
 
-**Error común 2:** "ENOTFOUND" o "Network error"
+**Error común 2:** "Permission denied" o "EPERM"
+**Solución:**
+- Cerrar todos los editores de código y terminales
+- Ejecutar Command Prompt como Administrador (click derecho > Ejecutar como administrador)
+- Repetir npm install
+
+**Error común 3:** "ENOTFOUND" o "Network error"
 **Solución:** Verificar conexión a Internet
 
-**Error común 3:** "node-gyp error"
+**Error común 4:** "node-gyp error"
 **Solución:** Instalar windows-build-tools:
 ```bash
-# PowerShell como Administrador
+# Command Prompt como Administrador
 npm install --global windows-build-tools
 ```
 
-**Error común 4:** "la ejecución de scripts está deshabilitada" (PowerShell)
+**Error común 5:** "la ejecución de scripts está deshabilitada" (PowerShell)
 **Causa:** Política de ejecución de PowerShell bloqueando npm
 
 **Soluciones:**
@@ -251,9 +294,9 @@ npm install
 
 ---
 
-## 🚀 PASO 5: Iniciar el Print Manager
+## 🚀 PASO 6: Iniciar el Print Manager
 
-### 5.1. Ejecutar
+### 6.1. Ejecutar
 
 En Command Prompt (dentro de `print-manager`):
 
@@ -261,7 +304,7 @@ En Command Prompt (dentro de `print-manager`):
 node server-simple.js
 ```
 
-### 5.2. Verificar que Funciona
+### 6.2. Verificar que Funciona
 
 **Deberías ver:**
 
@@ -278,7 +321,7 @@ node server-simple.js
 
 ✅ **¡Perfecto! El Print Manager está corriendo.**
 
-### 5.3. Verificar Impresoras Detectadas
+### 6.3. Verificar Impresoras Detectadas
 
 1. Abrir navegador
 2. Ir a: **http://localhost:9100/printers**
@@ -303,9 +346,9 @@ node server-simple.js
 
 ---
 
-## 🧪 PASO 6: Probar Impresión
+## 🧪 PASO 7: Probar Impresión
 
-### 6.1. Ejecutar Test Automático
+### 7.1. Ejecutar Test Automático
 
 **Abrir una NUEVA ventana de Command Prompt** (dejar la anterior corriendo):
 
@@ -314,7 +357,7 @@ cd C:\AxiomaWeb\print-manager
 node test-simple.js
 ```
 
-### 6.2. Resultado Esperado
+### 7.2. Resultado Esperado
 
 **En PowerShell verás:**
 
@@ -351,9 +394,9 @@ node test-simple.js
 
 ---
 
-## 🔄 PASO 7: Configurar Backend de AxiomaWeb
+## 🔄 PASO 8: Configurar Backend de AxiomaWeb
 
-### 7.1. Verificar Configuración
+### 8.1. Verificar Configuración
 
 En el backend de AxiomaWeb, verificar que `printDecisionService.ts` apunte a:
 
@@ -363,7 +406,7 @@ const PRINT_MANAGER_URL = 'http://localhost:9100'
 
 ✅ **Ya está configurado por defecto.**
 
-### 7.2. Probar desde AxiomaWeb
+### 8.2. Probar desde AxiomaWeb
 
 1. Iniciar backend de AxiomaWeb:
 ```bash
@@ -387,7 +430,7 @@ npm start
 
 ---
 
-## 🎯 PASO 8: Configurar Inicio Automático (Opcional)
+## 🎯 PASO 9: Configurar Inicio Automático (Opcional)
 
 ### Opción A: Script de Inicio Rápido
 
@@ -459,7 +502,7 @@ dir  # Verificar que existan los archivos
 **Causa:** Node.js no está instalado o no está en PATH
 
 **Solución:**
-1. Verificar instalación: Repetir PASO 1
+1. Verificar instalación: Repetir PASO 2
 2. Reiniciar Command Prompt
 3. Si persiste, reiniciar PC
 
@@ -533,18 +576,19 @@ Los mensajes aparecen en la terminal donde ejecutaste `node server-simple.js`
 
 Marca cada ítem cuando lo completes:
 
-- [ ] Node.js instalado (`node --version` funciona)
-- [ ] Código descargado en `C:\AxiomaWeb`
-- [ ] Impresora conectada y aparece en Windows
-- [ ] Navegado a carpeta `print-manager`
-- [ ] Archivos `package-simple.json` copiados
-- [ ] Ejecutado `npm install` sin errores
-- [ ] Print Manager corriendo (`node server-simple.js`)
-- [ ] Impresoras detectadas (http://localhost:9100/printers)
-- [ ] Test de impresión exitoso (`node test-simple.js`)
-- [ ] Ticket impreso correctamente
-- [ ] Backend de AxiomaWeb apuntando a puerto 9100
-- [ ] Prueba desde AxiomaWeb funcionando
+- [ ] ✅ **PASO 1:** Git instalado (`git --version` funciona)
+- [ ] ✅ **PASO 2:** Node.js instalado (`node --version` funciona)
+- [ ] ✅ **PASO 3:** Código descargado en `C:\AxiomaWeb`
+- [ ] ✅ **PASO 4:** Impresora conectada y aparece en Windows
+- [ ] ✅ **PASO 5:** Archivos `package-simple.json` copiados
+- [ ] ✅ **PASO 5:** Ejecutado `npm install` sin errores
+- [ ] ✅ **PASO 6:** Print Manager corriendo (`node server-simple.js`)
+- [ ] ✅ **PASO 6:** Impresoras detectadas (http://localhost:9100/printers)
+- [ ] ✅ **PASO 7:** Test de impresión exitoso (`node test-simple.js`)
+- [ ] ✅ **PASO 7:** Ticket impreso correctamente
+- [ ] ✅ **PASO 8:** Backend de AxiomaWeb apuntando a puerto 9100
+- [ ] ✅ **PASO 8:** Prueba desde AxiomaWeb funcionando
+- [ ] ⭐ **PASO 9:** (Opcional) Inicio automático configurado
 
 ---
 
