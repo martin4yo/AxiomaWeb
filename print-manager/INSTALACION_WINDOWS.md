@@ -109,50 +109,71 @@ npm --version
 
 ---
 
-## 📥 PASO 3: Descargar el Código del Proyecto
+## 📥 PASO 3: Descargar el Print Manager
 
-### Opción A: Con Git (Recomendado)
+**💡 IMPORTANTE:** No necesitas descargar todo AxiomaWeb. Solo necesitas la carpeta `print-manager`.
 
-**Si tienes Git instalado:**
+### 📖 Ver guía completa de descarga: [COMO-DESCARGAR.md](./COMO-DESCARGAR.md)
 
-1. Abrir Command Prompt (presionar `Windows + R`, escribir `cmd`, Enter)
-2. Navegar a donde quieres guardar el proyecto:
+---
+
+### Opción A: DownGit (Más fácil - Recomendado) ⭐
+
+1. Ir a: **https://minhaskamal.github.io/DownGit/#/home**
+2. Pegar esta URL:
+   ```
+   https://github.com/martin4yo/AxiomaWeb/tree/master/print-manager
+   ```
+3. Click **"Download"**
+4. Extraer el ZIP en `C:\print-manager`
+
+### Opción B: Con Git (Si tienes Git instalado)
+
+**Solo si quieres clonar todo el repositorio AxiomaWeb:**
+
+1. Abrir Command Prompt (`Windows + R`, escribir `cmd`, Enter)
+2. Navegar a donde quieres guardar:
 
 ```bash
-cd C:\Users\TuUsuario\
+cd C:\
 ```
 
-3. Clonar el repositorio:
+3. Clonar el repositorio completo:
 
 ```bash
 git clone https://github.com/martin4yo/AxiomaWeb.git
-```
-
-4. Entrar a la carpeta:
-
-```bash
 cd AxiomaWeb\print-manager
 ```
 
-### Opción B: Descargar ZIP (Más Simple)
+**⚠️ Nota:** Esto descarga ~100 MB (todo el proyecto). Solo usar si necesitas el proyecto completo.
 
-**Si NO tienes Git:**
+### Opción C: Descargar archivos manualmente
 
-1. Ir a: **https://github.com/martin4yo/AxiomaWeb**
-2. Click en botón verde **"< > Code"**
-3. Click en **"Download ZIP"**
-4. Descargar el archivo (aproximadamente 20 MB)
-5. Click derecho en el archivo ZIP → **"Extraer todo..."**
-6. Elegir ubicación (ej: `C:\AxiomaWeb`)
-7. Click **"Extraer"**
+1. Ir a: **https://github.com/martin4yo/AxiomaWeb/tree/master/print-manager**
+2. Descargar estos archivos uno por uno (click en el archivo → botón "Raw" o descarga):
+   - `package-windows.json`
+   - `server-windows.js`
+   - `test-windows.js`
+   - `INSTALACION_WINDOWS.md`
+3. Guardar todos en `C:\print-manager`
 
-### 3.1. Navegar a la Carpeta
+---
 
-1. Abrir Command Prompt (`Windows + R`, escribir `cmd`, Enter)
-2. Navegar a la carpeta print-manager:
+### 3.1. Verificar Carpeta
+
+Abre Command Prompt y navega a la carpeta:
 
 ```bash
-cd C:\AxiomaWeb\print-manager
+cd C:\print-manager
+dir
+```
+
+Deberías ver al menos:
+```
+package-windows.json
+server-windows.js
+test-windows.js
+INSTALACION_WINDOWS.md
 ```
 
 **💡 Tip:** Puedes arrastrar la carpeta a la ventana de cmd para pegar la ruta automáticamente.

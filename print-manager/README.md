@@ -1,6 +1,27 @@
 # 🖨️ Axioma Print Manager
 
-Sistema de impresión térmica basado en Electron para el ERP Axioma. Permite imprimir tickets de venta directamente en impresoras térmicas USB mediante comunicación directa con ESC/POS.
+Sistema de impresión térmica para el ERP Axioma. Permite imprimir tickets de venta directamente en impresoras térmicas.
+
+## 💡 ¿Necesitas solo el Print Manager?
+
+**Este componente puede descargarse y usarse de forma independiente** del proyecto AxiomaWeb completo.
+
+👉 **Ver:** [COMO-DESCARGAR.md](./COMO-DESCARGAR.md) para instrucciones de descarga standalone.
+
+## 📦 Versiones Disponibles
+
+### 🪟 **Windows (Recomendada para Windows 10/11)**
+- Sin dependencias nativas
+- Sin conflictos de instalación
+- Imprime mediante HTML
+- **Archivos:** `package-windows.json`, `server-windows.js`, `test-windows.js`
+- **Guía:** [INSTALACION_WINDOWS.md](./INSTALACION_WINDOWS.md)
+
+### 🐧 **Linux (Electron + USB directo)**
+- Acceso USB nativo con ESC/POS
+- Requiere configuración de permisos
+- **Archivos:** `package.json`, `main.js`, `printer.js`
+- **Guía:** [SETUP.md](./SETUP.md)
 
 ## 🚀 Características
 
