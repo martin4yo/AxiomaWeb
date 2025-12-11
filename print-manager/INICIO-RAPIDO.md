@@ -38,11 +38,18 @@ Tienes 3 opciones:
 copy package-thermal-windows.json package.json
 npm install
 
-# 2. Configurar nombre de tu impresora
+# 2. Generar certificados HTTPS (solo la primera vez)
+generate-cert.bat
+
+# 3. Configurar nombre de tu impresora
 set PRINTER_NAME=POS-80
 
-# 3. Iniciar servidor
+# 4. Iniciar servidor
 node server-thermal-windows.js
+
+# 5. Primera vez: Aceptar certificado en navegador
+# Abre: https://localhost:9100/health
+# Acepta la advertencia de seguridad (es normal para certificados autofirmados)
 ```
 
 **¿Cómo saber el nombre de mi impresora?**

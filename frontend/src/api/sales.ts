@@ -81,8 +81,8 @@ export const salesApi = {
     // 1. Obtener datos del backend
     const { data: printData } = await salesApi.getThermalPrintData(id)
 
-    // 2. Enviar directamente al Print Manager local
-    const PRINT_MANAGER_URL = 'http://localhost:9100'
+    // 2. Enviar directamente al Print Manager local (HTTPS)
+    const PRINT_MANAGER_URL = 'https://localhost:9100'
     const printResponse = await fetch(`${PRINT_MANAGER_URL}/print`, {
       method: 'POST',
       headers: {

@@ -15,6 +15,7 @@
  */
 
 const express = require('express')
+const https = require('https')
 const cors = require('cors')
 const fs = require('fs')
 const path = require('path')
@@ -23,6 +24,28 @@ const { renderLegalThermalTicket, renderSimpleThermalTicket } = require('./therm
 
 const app = express()
 const PORT = 9100
+
+// Configuración HTTPS
+let httpsOptions = null
+try {
+  const certPath = path.join(__dirname, 'localhost-cert.pem')
+  const keyPath = path.join(__dirname, 'localhost-key.pem')
+
+  if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+    httpsOptions = {
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath)
+    }
+    console.log('✅ Certificados SSL encontrados. Usando HTTPS.')
+  } else {
+    console.log('⚠️  Certificados SSL no encontrados.')
+    console.log('   Ejecuta generate-cert.bat para crear certificados HTTPS.')
+    console.log('   Continuando sin HTTPS (HTTP solamente)...')
+  }
+} catch (error) {
+  console.log('⚠️  Error cargando certificados SSL:', error.message)
+  console.log('   Continuando sin HTTPS (HTTP solamente)...')
+}
 
 // ⚙️ CONFIGURACIÓN: Nombre de la impresora térmica en Windows
 // Puedes ver el nombre en "Panel de Control > Dispositivos e impresoras"
@@ -360,21 +383,47 @@ app.post('/print', async (req, res) => {
   }
 })
 
-// Iniciar servidor
-app.listen(PORT, () => {
+// Iniciar servidor (HTTPS si hay certificados, HTTP si no)
+const startServer = () => {
   console.log('')
   console.log('🖨️  Print Manager Server - Versión Windows Térmica')
-  console.log('=' .repeat(50))
-  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`)
-  console.log(`🖨️  Impresora configurada: "${PRINTER_NAME}"`)
-  console.log('')
-  console.log('📝 Para cambiar la impresora, modifica PRINTER_NAME en el código')
-  console.log('   o usa: set PRINTER_NAME=NombreDeTuImpresora')
-  console.log('')
-  console.log('💡 Métodos de impresión (en orden de intento):')
-  console.log('   1. Escritura directa (ESC/POS a impresora)')
-  console.log('   2. Comando copy (Windows)')
-  console.log('   3. HTML fallback (Ctrl+P manual)')
-  console.log('=' .repeat(50))
-  console.log('')
-})
+  console.log('='.repeat(50))
+
+  if (httpsOptions) {
+    https.createServer(httpsOptions, app).listen(PORT, () => {
+      console.log(`✅ Servidor HTTPS corriendo en https://localhost:${PORT}`)
+      console.log(`🔒 Certificado SSL: ACTIVO`)
+      console.log(`🖨️  Impresora configurada: "${PRINTER_NAME}"`)
+      console.log('')
+      console.log('⚠️  IMPORTANTE: Primera vez')
+      console.log('   El navegador mostrará advertencia de seguridad.')
+      console.log('   Debes aceptar el certificado autofirmado para continuar.')
+      console.log('')
+      console.log('📝 Para cambiar impresora: set PRINTER_NAME=NombreDeTuImpresora')
+      console.log('')
+      console.log('💡 Métodos de impresión (en orden de intento):')
+      console.log('   1. Escritura directa (ESC/POS a impresora)')
+      console.log('   2. Comando copy (Windows)')
+      console.log('   3. HTML fallback (Ctrl+P manual)')
+      console.log('='.repeat(50))
+      console.log('')
+    })
+  } else {
+    app.listen(PORT, () => {
+      console.log(`✅ Servidor HTTP corriendo en http://localhost:${PORT}`)
+      console.log(`⚠️  SSL: NO ACTIVO (ejecuta generate-cert.bat)`)
+      console.log(`🖨️  Impresora configurada: "${PRINTER_NAME}"`)
+      console.log('')
+      console.log('📝 Para cambiar impresora: set PRINTER_NAME=NombreDeTuImpresora')
+      console.log('')
+      console.log('💡 Métodos de impresión (en orden de intento):')
+      console.log('   1. Escritura directa (ESC/POS a impresora)')
+      console.log('   2. Comando copy (Windows)')
+      console.log('   3. HTML fallback (Ctrl+P manual)')
+      console.log('='.repeat(50))
+      console.log('')
+    })
+  }
+}
+
+startServer()
