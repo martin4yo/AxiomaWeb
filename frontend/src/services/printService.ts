@@ -29,6 +29,52 @@ export class PrintService {
   }
 
   /**
+   * Envía un ticket al Print Manager local (Windows/Linux)
+   * El Print Manager debe estar corriendo en localhost:9100
+   */
+  async printToThermalPrinter(data: any, template: string = 'simple'): Promise<{ success: boolean; message?: string; error?: string }> {
+    try {
+      // Verificar disponibilidad primero
+      const available = await this.checkAvailability()
+      if (!available) {
+        return {
+          success: false,
+          error: 'Print Manager no disponible. Asegúrate de que esté corriendo en esta PC.'
+        }
+      }
+
+      // Enviar a imprimir
+      const response = await fetch(`${this.printServiceUrl}/print`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ data, template }),
+        signal: AbortSignal.timeout(10000)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return {
+          success: false,
+          error: errorData.error || `Error al imprimir: ${response.statusText}`
+        }
+      }
+
+      const result = await response.json()
+      return {
+        success: true,
+        message: result.message || 'Ticket enviado a impresora'
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Error de conexión con Print Manager'
+      }
+    }
+  }
+
+  /**
    * Imprime un ticket usando el template especificado
    */
   async printTicket(template: TicketTemplate, data: TicketData): Promise<boolean> {

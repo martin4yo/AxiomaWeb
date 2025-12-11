@@ -1,5 +1,6 @@
-import { CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react'
-import { useEffect } from 'react'
+import { CheckCircle, XCircle, Loader2, AlertTriangle, Printer } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { printService } from '../../services/printService'
 
 interface AFIPProgressStep {
   id: string
@@ -32,6 +33,9 @@ export function AFIPProgressModal({
   canClose,
   saleResult
 }: AFIPProgressModalProps) {
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [printMessage, setPrintMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
   // Listen for ENTER key to close modal
   useEffect(() => {
     if (!isOpen || !canClose || !onClose) return
@@ -46,6 +50,63 @@ export function AFIPProgressModal({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isOpen, canClose, onClose])
+
+  // Función para imprimir ticket térmico
+  const handlePrintThermal = async () => {
+    if (!saleResult?.sale) return
+
+    setIsPrinting(true)
+    setPrintMessage(null)
+
+    try {
+      // Preparar datos para el Print Manager
+      const printData = {
+        business: {
+          name: saleResult.sale.tenant?.businessName || saleResult.sale.tenant?.name || 'MI NEGOCIO',
+          cuit: saleResult.sale.tenant?.cuit,
+          address: saleResult.sale.tenant?.address,
+          phone: saleResult.sale.tenant?.phone,
+          email: saleResult.sale.tenant?.email
+        },
+        sale: {
+          number: saleResult.sale.fullVoucherNumber || saleResult.sale.saleNumber,
+          date: new Date(saleResult.sale.saleDate).toLocaleDateString('es-AR'),
+          voucherName: saleResult.sale.voucherType || 'TICKET',
+          voucherLetter: saleResult.sale.voucherLetter || '',
+          customer: saleResult.sale.customerName || 'Consumidor Final',
+          customerCuit: saleResult.sale.customerCuit || null,
+          items: (saleResult.sale.items || []).map((item: any) => ({
+            name: item.description || item.productName,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            total: Number(item.lineTotal)
+          })),
+          subtotal: Number(saleResult.sale.subtotal || 0),
+          discountAmount: Number(saleResult.sale.discountAmount || 0),
+          taxAmount: Number(saleResult.sale.taxAmount || 0),
+          totalAmount: Number(saleResult.sale.totalAmount || 0),
+          payments: saleResult.payments || [],
+          caeNumber: saleResult.caeInfo?.cae || null,
+          caeExpiration: saleResult.caeInfo?.caeExpiration
+            ? new Date(saleResult.caeInfo.caeExpiration).toLocaleDateString('es-AR')
+            : null,
+          notes: saleResult.sale.notes || null
+        }
+      }
+
+      const result = await printService.printToThermalPrinter(printData, 'simple')
+
+      if (result.success) {
+        setPrintMessage({ type: 'success', text: result.message || 'Ticket enviado a impresora' })
+      } else {
+        setPrintMessage({ type: 'error', text: result.error || 'Error al imprimir' })
+      }
+    } catch (error: any) {
+      setPrintMessage({ type: 'error', text: error.message || 'Error inesperado al imprimir' })
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   if (!isOpen) return null
 
@@ -251,14 +312,57 @@ export function AFIPProgressModal({
 
         {/* Footer */}
         {canClose && onClose && (
-          <div className="flex items-center justify-end p-6 border-t border-gray-200 bg-gray-50">
-            <button
-              onClick={onClose}
-              autoFocus
-              className="w-full px-4 py-3 text-lg font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-            >
-              {saleResult ? 'ACEPTAR [ENTER]' : 'Cerrar [ENTER]'}
-            </button>
+          <div className="p-6 border-t border-gray-200 bg-gray-50 space-y-3">
+            {/* Mensaje de impresión */}
+            {printMessage && (
+              <div className={`p-3 rounded-md flex items-center space-x-2 ${
+                printMessage.type === 'success'
+                  ? 'bg-green-50 border border-green-200 text-green-700'
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {printMessage.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <XCircle className="w-5 h-5 flex-shrink-0" />
+                )}
+                <span className="text-sm font-medium">{printMessage.text}</span>
+              </div>
+            )}
+
+            {/* Botones */}
+            <div className="flex items-center gap-3">
+              {/* Botón Imprimir Ticket Térmico (solo si hay saleResult) */}
+              {saleResult && (
+                <button
+                  onClick={handlePrintThermal}
+                  disabled={isPrinting}
+                  className="flex-1 px-4 py-3 text-lg font-semibold text-white bg-purple-600 rounded-md hover:bg-purple-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {isPrinting ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Imprimiendo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Printer className="w-5 h-5" />
+                      <span>IMPRIMIR TICKET</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Botón Aceptar/Cerrar */}
+              <button
+                onClick={onClose}
+                autoFocus
+                className={`px-4 py-3 text-lg font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors ${
+                  saleResult ? 'flex-1' : 'w-full'
+                }`}
+              >
+                {saleResult ? 'ACEPTAR [ENTER]' : 'Cerrar [ENTER]'}
+              </button>
+            </div>
           </div>
         )}
       </div>
