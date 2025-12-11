@@ -35,7 +35,19 @@ Que al presionar el botón "IMPRIMIR TICKET" en la aplicación web, el ticket sa
 
 3. **Anota el nombre exacto** (sensible a mayúsculas)
 
-## 🔧 Paso 2: Configurar el Print Manager
+## 🔧 Paso 2: Instalar Dependencias
+
+**Solo la primera vez**, instala las dependencias necesarias:
+
+```cmd
+cd print-manager
+copy package-thermal-windows.json package.json
+npm install
+```
+
+Esto instalará: express, cors, qrcode, pngjs, axios
+
+## 🔧 Paso 3: Configurar el Print Manager
 
 ### Opción A: Variable de entorno (recomendado)
 
@@ -64,7 +76,7 @@ const PRINTER_NAME = process.env.PRINTER_NAME || 'TM-T20'
 
 Guarda el archivo.
 
-## ▶️ Paso 3: Iniciar el Print Manager
+## ▶️ Paso 4: Iniciar el Print Manager
 
 ```cmd
 cd print-manager
@@ -89,7 +101,7 @@ Deberías ver:
 ==================================================
 ```
 
-## 🧪 Paso 4: Probar desde el navegador
+## 🧪 Paso 5: Probar desde el navegador
 
 ### Método 1: Endpoint de test
 

@@ -1,0 +1,27 @@
+{
+  "name": "axioma-print-manager-thermal-windows",
+  "version": "2.1.0",
+  "description": "Print Manager para impresión directa en impresoras térmicas Windows con ESC/POS",
+  "main": "server-thermal-windows.js",
+  "scripts": {
+    "start": "node server-thermal-windows.js",
+    "test": "node test-thermal-windows.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "qrcode": "^1.5.3",
+    "pngjs": "^7.0.0",
+    "axios": "^1.6.0"
+  },
+  "keywords": [
+    "thermal-printer",
+    "pos",
+    "receipt",
+    "ticket",
+    "escpos",
+    "windows"
+  ],
+  "author": "Axioma",
+  "license": "MIT"
+}

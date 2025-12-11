@@ -34,10 +34,14 @@ Tienes 3 opciones:
 **Imprime automáticamente** en impresora térmica sin Ctrl+P.
 
 ```cmd
-# 1. Configurar nombre de tu impresora
+# 1. Instalar dependencias (solo la primera vez)
+copy package-thermal-windows.json package.json
+npm install
+
+# 2. Configurar nombre de tu impresora
 set PRINTER_NAME=POS-80
 
-# 2. Iniciar servidor
+# 3. Iniciar servidor
 node server-thermal-windows.js
 ```
 
@@ -61,6 +65,11 @@ node server-thermal-windows.js
 **Abre HTML** y presionas Ctrl+P para imprimir.
 
 ```cmd
+# 1. Instalar dependencias (solo la primera vez)
+copy package-windows.json package.json
+npm install
+
+# 2. Iniciar servidor
 node server-windows.js
 ```
 
