@@ -10,15 +10,23 @@ Sistema de impresión térmica para el ERP Axioma. Permite imprimir tickets de v
 
 ## 📦 Versiones Disponibles
 
-### 🪟 **Windows (Recomendada para Windows 10/11)**
+### 🖨️ **Windows Térmica (NUEVA - Impresión Directa)**
+- **Imprime directamente** en impresoras térmicas ESC/POS
+- 3 métodos de impresión (directo, copy, HTML fallback)
+- Requiere impresora térmica instalada en Windows
+- **Archivos:** `server-thermal-windows.js`
+- **Guía:** [USAR-IMPRESION-DIRECTA-WINDOWS.md](./USAR-IMPRESION-DIRECTA-WINDOWS.md)
+
+### 🪟 **Windows Simple (HTML + Ctrl+P)**
 - Sin dependencias nativas
 - Sin conflictos de instalación
-- Imprime mediante HTML
+- Imprime mediante HTML (requiere Ctrl+P manual)
 - **Archivos:** `package-windows.json`, `server-windows.js`, `test-windows.js`
 - **Guía:** [INSTALACION_WINDOWS.md](./INSTALACION_WINDOWS.md)
 
 ### 🐧 **Linux (Electron + USB directo)**
 - Acceso USB nativo con ESC/POS
+- Impresión directa automática
 - Requiere configuración de permisos
 - **Archivos:** `package.json`, `main.js`, `printer.js`
 - **Guía:** [SETUP.md](./SETUP.md)
