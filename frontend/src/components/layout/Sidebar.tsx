@@ -49,14 +49,14 @@ const navigation: NavigationItem[] = [
       { name: 'Categorías', href: '/product-categories', icon: Tag },
       { name: 'Marcas', href: '/product-brands', icon: Store },
       { name: 'Almacenes', href: '/inventory/warehouses', icon: Store },
-      { name: 'Alertas de Stock', href: '/inventory/alerts', icon: Bell },
+      { name: 'Alertas', href: '/inventory/alerts', icon: Bell },
     ]
   },
   {
     name: 'Ventas',
     icon: ShoppingCart,
     children: [
-      { name: 'Listado de Ventas', href: '/sales', icon: ShoppingCart },
+      { name: 'Listado', href: '/sales', icon: ShoppingCart },
       { name: 'Clientes', href: '/customers', icon: Users },
       { name: 'Categorías', href: '/customer-categories', icon: LayoutGrid },
     ]
@@ -74,8 +74,8 @@ const navigation: NavigationItem[] = [
     name: 'Fondos',
     icon: Wallet,
     children: [
-      { name: 'Movimientos de Caja', href: '/cash/movements', icon: Banknote },
-      { name: 'Balance de Cuentas', href: '/cash/accounts', icon: CreditCard },
+      { name: 'Movimientos', href: '/cash/movements', icon: Banknote },
+      { name: 'Balance', href: '/cash/accounts', icon: CreditCard },
     ]
   },
   { name: 'Entidades', href: '/entities', icon: Users },
