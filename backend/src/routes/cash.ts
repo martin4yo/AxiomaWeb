@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { cashMovementService } from '../services/cashMovementService.js';
+import { cashAccountService } from '../services/cashAccountService.js';
 
 const router = Router();
 
@@ -135,6 +136,123 @@ router.post('/movements/expense', authMiddleware, async (req: Request, res: Resp
 
     res.status(201).json({ movement });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// CRUD de Cuentas de Caja
+// ============================================
+
+/**
+ * POST /api/:tenantSlug/cash/accounts
+ * Crear nueva cuenta de caja
+ */
+router.post('/accounts', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const userId = req.user!.id;
+    const { name, description, accountType, initialBalance, isDefault } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+
+    if (!accountType) {
+      return res.status(400).json({ error: 'El tipo de cuenta es requerido' });
+    }
+
+    const account = await cashAccountService.createAccount({
+      tenantId,
+      name: name.trim(),
+      description: description?.trim(),
+      accountType,
+      initialBalance: initialBalance || 0,
+      isDefault: isDefault || false,
+      userId,
+    });
+
+    res.status(201).json({ account });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * PUT /api/:tenantSlug/cash/accounts/:id
+ * Actualizar cuenta de caja
+ */
+router.put('/accounts/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { id } = req.params;
+    const { name, description, accountType, initialBalance, isDefault, isActive } = req.body;
+
+    const updateData: any = {};
+
+    if (name !== undefined) {
+      if (!name.trim()) {
+        return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+      }
+      updateData.name = name.trim();
+    }
+
+    if (description !== undefined) updateData.description = description?.trim();
+    if (accountType !== undefined) updateData.accountType = accountType;
+    if (initialBalance !== undefined) updateData.initialBalance = initialBalance;
+    if (isDefault !== undefined) updateData.isDefault = isDefault;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const account = await cashAccountService.updateAccount(tenantId, id, updateData);
+
+    res.json({ account });
+  } catch (error: any) {
+    if (error.message.includes('no encontrada')) {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/:tenantSlug/cash/accounts/:id
+ * Eliminar cuenta de caja (soft delete)
+ */
+router.delete('/accounts/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { id } = req.params;
+
+    await cashAccountService.deleteAccount(tenantId, id);
+
+    res.json({ message: 'Cuenta eliminada exitosamente' });
+  } catch (error: any) {
+    if (error.message.includes('no encontrada')) {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.includes('No se puede eliminar')) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/:tenantSlug/cash/accounts/:id
+ * Obtener una cuenta específica
+ */
+router.get('/accounts/:id', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.tenant!.id;
+    const { id } = req.params;
+
+    const account = await cashAccountService.getAccountById(tenantId, id);
+
+    res.json({ account });
+  } catch (error: any) {
+    if (error.message.includes('no encontrada')) {
+      return res.status(404).json({ error: error.message });
+    }
     res.status(500).json({ error: error.message });
   }
 });
