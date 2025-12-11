@@ -185,9 +185,13 @@ node server-thermal-windows.js
 O usa tu archivo `iniciar.bat` si lo creaste.
 
 **Para que se ejecute automáticamente al iniciar Windows:**
+
+Ver la guía completa: **[INICIO-AUTOMATICO.md](INICIO-AUTOMATICO.md)**
+
+Resumen rápido:
 1. Presiona `Win + R`
 2. Escribe `shell:startup` y presiona Enter
-3. Crea un acceso directo a tu `iniciar.bat`
+3. Crea un acceso directo a `iniciar-oculto.vbs` (sin ventana) o `iniciar-print-manager.bat` (con ventana)
 
 ---
 
@@ -311,6 +315,15 @@ Si tienes problemas:
 - [ ] Servidor iniciado (`node server-thermal-windows.js`)
 - [ ] Certificado aceptado en navegador (`https://localhost:9100/health` funciona)
 - [ ] Prueba de impresión exitosa
+- [ ] Inicio automático configurado (opcional pero recomendado)
+
+---
+
+## 📚 Documentación Adicional
+
+- **[INICIO-AUTOMATICO.md](INICIO-AUTOMATICO.md)** - Configurar inicio automático con Windows
+- **[INICIO-RAPIDO.md](INICIO-RAPIDO.md)** - Guía rápida de comandos
+- **[USAR-IMPRESION-DIRECTA-WINDOWS.md](USAR-IMPRESION-DIRECTA-WINDOWS.md)** - Guía detallada de impresión directa
 
 ---
 
