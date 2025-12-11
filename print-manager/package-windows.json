@@ -1,0 +1,26 @@
+{
+  "name": "axioma-print-manager-windows",
+  "version": "2.1.0",
+  "description": "Print Manager para impresoras térmicas en Windows - Sin dependencias nativas",
+  "main": "server-windows.js",
+  "scripts": {
+    "start": "node server-windows.js",
+    "test": "node test-windows.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "qrcode": "^1.5.3",
+    "axios": "^1.6.0",
+    "pdfkit": "^0.13.0"
+  },
+  "keywords": [
+    "thermal-printer",
+    "pos",
+    "receipt",
+    "ticket",
+    "windows"
+  ],
+  "author": "Axioma",
+  "license": "MIT"
+}

@@ -206,19 +206,36 @@ print-manager/
 └── INSTALACION_WINDOWS.md   ← Este documento
 ```
 
-### 5.2. Renombrar Archivos
+### 5.2. Elegir Versión de Instalación
 
-Necesitas usar los archivos simplificados:
+Hay 3 opciones disponibles:
+
+#### **Opción A: Versión Windows (RECOMENDADA) ⭐**
+
+Sin dependencias nativas, sin conflictos. Usa HTML para imprimir.
 
 ```bash
 # En Command Prompt, dentro de la carpeta print-manager:
+copy package-windows.json package.json
+```
 
-# Backup del package.json original (opcional)
-copy package.json package.json.original
+#### **Opción B: Versión Simple con --legacy-peer-deps**
 
-# Usar la versión simple
+Usa la librería `printer` pero puede tener conflictos.
+
+```bash
 copy package-simple.json package.json
 ```
+
+#### **Opción C: Versión Completa (Electron)**
+
+Requiere más dependencias y configuración.
+
+```bash
+# Usar el package.json original (no hacer nada)
+```
+
+**💡 Para la mayoría de usuarios, se recomienda la Opción A (package-windows.json)**
 
 ### 5.3. Instalar Dependencias
 
@@ -228,7 +245,20 @@ copy package-simple.json package.json
 npm install
 ```
 
-**Esto descargará:**
+**Si obtienes errores de dependencias (ERESOLVE):**
+
+```bash
+npm install --legacy-peer-deps
+```
+
+**Dependencias instaladas (Opción A - Windows):**
+- `express` - Servidor web
+- `cors` - Manejo de CORS
+- `qrcode` - Generación de códigos QR
+- `axios` - Cliente HTTP para pruebas
+- `pdfkit` - Generación de PDFs (opcional)
+
+**Dependencias instaladas (Opción B - Simple):**
 - `express` - Servidor web
 - `printer` - Comunicación con impresoras de Windows
 - `qrcode` - Generación de códigos QR
@@ -246,27 +276,49 @@ added 150 packages in 3m
 
 ❌ **Si hay errores:**
 
-**Error común 1:** "syscall spawn git" o "enoent git"
+**Error común 1:** "ERESOLVE unable to resolve dependency tree" o "peer grunt"
+**Causa:** Conflicto de dependencias en la librería `printer`
+**Solución:**
+
+**Opción 1 (Recomendada):** Usar versión Windows sin conflictos
+```bash
+# Limpiar instalación anterior
+rmdir /s /q node_modules
+del package-lock.json
+
+# Usar versión Windows
+copy package-windows.json package.json
+
+# Reinstalar
+npm install
+```
+
+**Opción 2:** Forzar instalación con --legacy-peer-deps
+```bash
+npm install --legacy-peer-deps
+```
+
+**Error común 2:** "syscall spawn git" o "enoent git"
 **Causa:** Git no está instalado
 **Solución:** Instalar Git (ver PASO 1) y reiniciar Command Prompt
 
-**Error común 2:** "Permission denied" o "EPERM"
+**Error común 3:** "Permission denied" o "EPERM"
 **Solución:**
 - Cerrar todos los editores de código y terminales
 - Ejecutar Command Prompt como Administrador (click derecho > Ejecutar como administrador)
 - Repetir npm install
 
-**Error común 3:** "ENOTFOUND" o "Network error"
+**Error común 4:** "ENOTFOUND" o "Network error"
 **Solución:** Verificar conexión a Internet
 
-**Error común 4:** "node-gyp error"
+**Error común 5:** "node-gyp error"
 **Solución:** Instalar windows-build-tools:
 ```bash
 # Command Prompt como Administrador
 npm install --global windows-build-tools
 ```
 
-**Error común 5:** "la ejecución de scripts está deshabilitada" (PowerShell)
+**Error común 6:** "la ejecución de scripts está deshabilitada" (PowerShell)
 **Causa:** Política de ejecución de PowerShell bloqueando npm
 
 **Soluciones:**
@@ -300,8 +352,19 @@ npm install
 
 En Command Prompt (dentro de `print-manager`):
 
+**Si elegiste Opción A (Windows):**
+```bash
+node server-windows.js
+```
+
+**Si elegiste Opción B (Simple):**
 ```bash
 node server-simple.js
+```
+
+**Si elegiste Opción C (Electron):**
+```bash
+npm start
 ```
 
 ### 6.2. Verificar que Funciona
@@ -352,6 +415,13 @@ node server-simple.js
 
 **Abrir una NUEVA ventana de Command Prompt** (dejar la anterior corriendo):
 
+**Si elegiste Opción A (Windows):**
+```bash
+cd C:\AxiomaWeb\print-manager
+node test-windows.js
+```
+
+**Si elegiste Opción B o C:**
 ```bash
 cd C:\AxiomaWeb\print-manager
 node test-simple.js
@@ -359,7 +429,47 @@ node test-simple.js
 
 ### 7.2. Resultado Esperado
 
-**En PowerShell verás:**
+**Para Opción A (Windows):**
+
+El sistema generará un archivo HTML con el ticket y lo abrirá automáticamente para imprimir.
+
+**En Command Prompt verás:**
+```
+🧪 Test de Impresión - Print Manager Windows
+
+1️⃣  Verificando estado del servidor...
+✅ Servidor respondiendo: { status: 'ok', version: '2.1.0', ... }
+
+2️⃣  Obteniendo lista de impresoras...
+✅ Impresoras disponibles: { printers: [...] }
+
+3️⃣  Enviando solicitud de impresión...
+
+✅ Respuesta del servidor:
+{
+  "success": true,
+  "printer": "Impresora predeterminada",
+  "file": "C:\\AxiomaWeb\\print-manager\\temp\\ticket-....html",
+  "autoprint": true
+}
+
+🎉 ¡Ticket generado correctamente!
+📄 Archivo: C:\AxiomaWeb\print-manager\temp\ticket-....html
+🖨️  El ticket se está enviando a la impresora automáticamente.
+```
+
+**Se abrirá automáticamente:**
+1. El navegador predeterminado con el ticket
+2. El diálogo de impresión (Ctrl+P)
+3. Selecciona tu impresora térmica
+4. Ajusta el tamaño de papel a 80mm si es necesario
+5. Click en "Imprimir"
+
+---
+
+**Para Opción B/C (Simple/Electron):**
+
+**En Command Prompt verás:**
 
 ```
 🧪 Test de Impresión - Print Manager Simple
