@@ -70,10 +70,33 @@ export const salesApi = {
     return response.data
   },
 
-  // Imprimir en impresora térmica
-  printThermal: async (id: string) => {
-    const response = await api.post(`/sales/${id}/print/thermal`)
+  // Obtener datos formateados para impresión térmica
+  getThermalPrintData: async (id: string) => {
+    const response = await api.get(`/sales/${id}/print/thermal-data`)
     return response.data
+  },
+
+  // Imprimir en impresora térmica (envía directamente al Print Manager local)
+  printThermal: async (id: string) => {
+    // 1. Obtener datos del backend
+    const { data: printData } = await salesApi.getThermalPrintData(id)
+
+    // 2. Enviar directamente al Print Manager local
+    const PRINT_MANAGER_URL = 'http://localhost:9100'
+    const printResponse = await fetch(`${PRINT_MANAGER_URL}/print`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ data: printData })
+    })
+
+    if (!printResponse.ok) {
+      const error = await printResponse.json().catch(() => ({ error: 'Error desconocido' }))
+      throw new Error(error.error || 'Error al imprimir')
+    }
+
+    return await printResponse.json()
   },
 
   // Obtener PDF de venta
