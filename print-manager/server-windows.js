@@ -116,22 +116,21 @@ app.post('/print', async (req, res) => {
       autoprint: true
     };
 
-    // Intentar imprimir automáticamente con PowerShell
-    const printCommand = printerName
-      ? `Start-Process "${htmlFile}" -Verb PrintTo -ArgumentList "${printerName}"`
-      : `Start-Process "${htmlFile}" -Verb Print`;
+    // Enviar respuesta inmediatamente
+    res.json(instructions);
 
-    exec(`powershell -Command "${printCommand}"`, (error) => {
+    // Intentar abrir el archivo (se abrirá el navegador)
+    console.log('📂 Abriendo archivo HTML...');
+
+    exec(`start "" "${htmlFile}"`, { timeout: 5000 }, (error, stdout, stderr) => {
       if (error) {
-        console.log('⚠️  No se pudo imprimir automáticamente. Abrir archivo manualmente.');
-        instructions.autoprint = false;
-        instructions.autoprintError = error.message;
+        console.log('⚠️  No se pudo abrir automáticamente. Abrir manualmente:');
+        console.log(`   ${htmlFile}`);
+        console.log(`   Error:`, error.message);
       } else {
-        console.log('✅ Ticket enviado a impresora');
+        console.log('✅ Archivo abierto. Usa Ctrl+P para imprimir.');
       }
     });
-
-    res.json(instructions);
 
   } catch (error) {
     console.error('❌ Error al generar ticket:', error);

@@ -71,7 +71,9 @@ async function testPrintManager() {
 
     // 3. Enviar ticket a imprimir
     console.log('3️⃣  Enviando solicitud de impresión...');
-    const printResponse = await axios.post(`${PRINT_MANAGER_URL}/print`, testData);
+    const printResponse = await axios.post(`${PRINT_MANAGER_URL}/print`, testData, {
+      timeout: 10000 // 10 segundos timeout
+    });
 
     console.log('\n✅ Respuesta del servidor:');
     console.log(JSON.stringify(printResponse.data, null, 2));
