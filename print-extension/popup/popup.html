@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axioma Print Manager</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 400px;
+      padding: 20px;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+    }
+
+    h1 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .status {
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .status.connected {
+      background: #d3f9d8;
+      color: #2f9e44;
+      border: 1px solid #8ce99a;
+    }
+
+    .status.disconnected {
+      background: #ffe0e0;
+      color: #c92a2a;
+      border: 1px solid #ffa8a8;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    select, input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #228be6;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #228be6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #1c7ed6;
+    }
+
+    button:disabled {
+      background: #adb5bd;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .message.success {
+      background: #d3f9d8;
+      color: #2f9e44;
+    }
+
+    .message.error {
+      background: #ffe0e0;
+      color: #c92a2a;
+    }
+
+    .install-link {
+      margin-top: 15px;
+      padding: 12px;
+      background: #fff3bf;
+      border: 1px solid #ffd43b;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #862e9c;
+    }
+
+    .install-link a {
+      color: #5f3dc4;
+      font-weight: 600;
+    }
+
+    .version {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #adb5bd;
+    }
+  </style>
+</head>
+<body>
+  <h1>🖨️ Axioma Print Manager</h1>
+
+  <div id="status" class="status disconnected">
+    Verificando conexión...
+  </div>
+
+  <div id="installMessage" class="install-link" style="display: none;">
+    ⚠️ El Print Manager no está instalado.
+    <br>
+    <a href="#" id="downloadLink">Descargar e instalar</a>
+  </div>
+
+  <div class="form-group">
+    <label for="printerSelect">Impresora térmica:</label>
+    <select id="printerSelect">
+      <option value="">Cargando...</option>
+    </select>
+  </div>
+
+  <button id="saveBtn">Guardar Configuración</button>
+
+  <div id="message" class="message"></div>
+
+  <div class="version">
+    Versión 1.0.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

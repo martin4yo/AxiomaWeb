@@ -1,0 +1,34 @@
+# Node modules
+node_modules/
+package-lock.json
+
+# Build output
+native-host/axioma-print-host.exe
+native-host/dist/
+*.exe
+
+# Inno Setup output
+Output/
+AxiomaPrintManagerHostSetup.exe
+
+# Temporary files
+*.tmp
+*.log
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Extension package
+*.zip
+*.crx
+*.pem

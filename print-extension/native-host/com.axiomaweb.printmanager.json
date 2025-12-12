@@ -1,0 +1,9 @@
+{
+  "name": "com.axiomaweb.printmanager",
+  "description": "Axioma Print Manager - Native Messaging Host para impresión térmica directa",
+  "path": "axioma-print-host.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

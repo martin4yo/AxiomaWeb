@@ -1,0 +1,20 @@
+{
+  "name": "axioma-print-host",
+  "version": "1.0.0",
+  "description": "Native Messaging Host para Axioma Print Manager",
+  "main": "host.js",
+  "bin": "host.js",
+  "scripts": {
+    "build": "pkg . --targets node18-win-x64 --output axioma-print-host.exe"
+  },
+  "pkg": {
+    "assets": [
+      "thermal-templates.js"
+    ],
+    "outputPath": "dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
