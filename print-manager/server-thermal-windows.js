@@ -175,10 +175,10 @@ async function printViaHTML(data) {
 
     // Guardar HTML
     const timestamp = Date.now()
-    const htmlFile = path.join(__dirname, `tickets/ticket-${timestamp}.html`)
+    const htmlFile = path.join(appDir, `tickets/ticket-${timestamp}.html`)
 
     // Crear directorio si no existe
-    const ticketsDir = path.join(__dirname, 'tickets')
+    const ticketsDir = path.join(appDir, 'tickets')
     if (!fs.existsSync(ticketsDir)) {
       fs.mkdirSync(ticketsDir, { recursive: true })
     }
