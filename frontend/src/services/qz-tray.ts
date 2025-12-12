@@ -11,13 +11,16 @@ import qz from 'qz-tray';
 
 // Certificado digital (generado con QZ Tray)
 // TODO: Reemplazar con certificado real en producción
+// Generar con: cd qz-tray && ./generar-certificados.sh (o .bat en Windows)
 const CERTIFICATE = `-----BEGIN CERTIFICATE-----
 REPLACE_WITH_YOUR_CERTIFICATE
 -----END CERTIFICATE-----`;
 
-const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-REPLACE_WITH_YOUR_PRIVATE_KEY
------END PRIVATE KEY-----`;
+// Nota: PRIVATE_KEY se usaría para firma con jsrsasign en producción
+// Por ahora, los certificados self-signed no requieren firma compleja
+// const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+// REPLACE_WITH_YOUR_PRIVATE_KEY
+// -----END PRIVATE KEY-----`;
 
 interface PrinterConfig {
   printerName: string;
