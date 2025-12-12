@@ -143,7 +143,7 @@ async function printDirectToWindowsPrinter(escposData, printerName) {
 async function printViaNetCommand(escposData, printerName) {
   return new Promise((resolve, reject) => {
     // Guardar datos en archivo temporal
-    const tempFile = path.join(__dirname, `temp-ticket-${Date.now()}.txt`)
+    const tempFile = path.join(appDir, `temp-ticket-${Date.now()}.txt`)
 
     fs.writeFileSync(tempFile, escposData, 'binary')
 
