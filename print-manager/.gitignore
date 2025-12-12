@@ -6,6 +6,7 @@ package-lock.json
 # Certificados SSL (autofirmados, no deben compartirse)
 *.pem
 localhost-*.pem
+certs/
 
 # Archivos temporales de impresión
 tickets/
@@ -13,6 +14,19 @@ temp-ticket-*.txt
 
 # Logs
 *.log
+logs/
+
+# Build y empaquetado
+build/
+dist/
+installer-output/
+*.exe
+
+# Herramientas portables (descargar manualmente)
+tools/
+
+# Configuración local
+config.txt
 
 # Sistema operativo
 .DS_Store

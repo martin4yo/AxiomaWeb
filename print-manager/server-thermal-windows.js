@@ -25,11 +25,22 @@ const { renderLegalThermalTicket, renderSimpleThermalTicket } = require('./therm
 const app = express()
 const PORT = 9100
 
+// Detectar si está ejecutándose como ejecutable empaquetado (pkg)
+const isPackaged = typeof process.pkg !== 'undefined'
+const appDir = isPackaged ? path.dirname(process.execPath) : __dirname
+
 // Configuración HTTPS
 let httpsOptions = null
 try {
-  const certPath = path.join(__dirname, 'localhost-cert.pem')
-  const keyPath = path.join(__dirname, 'localhost-key.pem')
+  // Buscar certificados en la carpeta certs/ (instalador) o en raíz (desarrollo)
+  let certPath = path.join(appDir, 'certs', 'localhost-cert.pem')
+  let keyPath = path.join(appDir, 'certs', 'localhost-key.pem')
+
+  // Si no existen en certs/, buscar en raíz (modo desarrollo)
+  if (!fs.existsSync(certPath)) {
+    certPath = path.join(appDir, 'localhost-cert.pem')
+    keyPath = path.join(appDir, 'localhost-key.pem')
+  }
 
   if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
     httpsOptions = {
@@ -39,7 +50,12 @@ try {
     console.log('✅ Certificados SSL encontrados. Usando HTTPS.')
   } else {
     console.log('⚠️  Certificados SSL no encontrados.')
-    console.log('   Ejecuta generate-cert.bat para crear certificados HTTPS.')
+    if (isPackaged) {
+      console.log('   Los certificados deberían estar en: ' + path.join(appDir, 'certs'))
+      console.log('   Ejecuta setup-certificates.bat para generarlos.')
+    } else {
+      console.log('   Ejecuta generate-cert.bat para crear certificados HTTPS.')
+    }
     console.log('   Continuando sin HTTPS (HTTP solamente)...')
   }
 } catch (error) {
