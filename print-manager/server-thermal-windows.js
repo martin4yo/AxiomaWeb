@@ -236,6 +236,16 @@ function generateHTML(business, sale, template) {
       body { width: 80mm; }
     }
   </style>
+  <script>
+    // Auto-imprimir cuando carga la página
+    window.onload = function() {
+      window.print();
+      // Cerrar la ventana después de imprimir (opcional)
+      setTimeout(function() {
+        window.close();
+      }, 500);
+    };
+  </script>
 </head>
 <body>
   <div class="center bold large">${business.name || 'MI NEGOCIO'}</div>
