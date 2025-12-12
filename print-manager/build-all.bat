@@ -107,25 +107,48 @@ if %TOOLS_NEEDED%==1 (
 )
 echo.
 
-REM Paso 5: Construir ejecutable con pkg
-echo [5/6] Construyendo ejecutable (esto puede tardar varios minutos)...
+REM Paso 5: Preparar package.json para build
+echo [5/7] Preparando package.json para build...
+
+REM Respaldar package.json y node_modules originales
+if exist "package.json.backup" del /f /q "package.json.backup"
+if exist "package.json" ren "package.json" "package.json.backup"
+
+REM Copiar package-installer.json
+copy /y "package-installer.json" "package.json" >nul
+echo ✅ package-installer.json → package.json
+echo.
+
+REM Paso 6: Instalar dependencias para build
+echo [6/7] Instalando dependencias para build...
+echo    (express, cors, qrcode, pngjs, axios)
+call npm install --production
+if %ERRORLEVEL% NEQ 0 (
+    echo ❌ Error instalando dependencias
+    REM Restaurar
+    if exist "package.json" del /f /q "package.json"
+    if exist "package.json.backup" ren "package.json.backup" "package.json"
+    pause
+    exit /b 1
+)
+echo.
+
+REM Paso 7: Construir ejecutable con pkg
+echo [7/7] Construyendo ejecutable (esto puede tardar varios minutos)...
 if exist "build\AxiomaPrintManager.exe" (
     echo    ⚠️  Ejecutable ya existe, eliminando versión anterior...
     del /f /q "build\AxiomaPrintManager.exe"
 )
 
-REM Usar package-installer.json para el build
-if exist "package.json.backup" del /f /q "package.json.backup"
-if exist "package.json" ren "package.json" "package.json.backup"
-copy /y "package-installer.json" "package.json" >nul
-
 call pkg . --targets node18-win-x64 --output build/AxiomaPrintManager.exe
+
+set PKG_EXIT_CODE=%ERRORLEVEL%
 
 REM Restaurar package.json original
 if exist "package.json" del /f /q "package.json"
 if exist "package.json.backup" ren "package.json.backup" "package.json"
 
-if %ERRORLEVEL% NEQ 0 (
+if %PKG_EXIT_CODE% NEQ 0 (
     echo ❌ Error construyendo ejecutable
     echo.
     pause
@@ -141,8 +164,8 @@ if not exist "build\AxiomaPrintManager.exe" (
 echo ✅ Ejecutable creado: build\AxiomaPrintManager.exe
 echo.
 
-REM Paso 6: Construir instalador con Inno Setup
-echo [6/6] Construyendo instalador con Inno Setup...
+REM Paso 8: Construir instalador con Inno Setup
+echo [8/8] Construyendo instalador con Inno Setup...
 
 set INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
 

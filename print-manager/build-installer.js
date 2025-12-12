@@ -63,8 +63,17 @@ function buildExecutable() {
 
     // Usar package-installer.json
     fs.copyFileSync(installerPkg, originalPkg);
+    console.log('📝 Usando package-installer.json');
+
+    // Instalar dependencias correctas para el build
+    console.log('📦 Instalando dependencias de producción...');
+    execSync('npm install --production', {
+      stdio: 'inherit',
+      cwd: __dirname
+    });
 
     // Ejecutar pkg
+    console.log('🔨 Ejecutando pkg...');
     execSync('pkg . --targets node18-win-x64 --output build/AxiomaPrintManager.exe', {
       stdio: 'inherit',
       cwd: __dirname
