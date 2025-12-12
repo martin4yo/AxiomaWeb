@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Promotional Tiles - Axioma Print Manager</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        .instructions {
+            background: #fff3bf;
+            border: 1px solid #ffd43b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions code {
+            background: #ffe066;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        .tile-container {
+            margin-bottom: 40px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .tile-container h2 {
+            margin-top: 0;
+            color: #228be6;
+        }
+
+        .tile-info {
+            background: #e7f5ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 15px 0;
+            background: white;
+        }
+
+        button {
+            background: #228be6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #1c7ed6;
+        }
+
+        .preview {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 Generador de Promotional Tiles</h1>
+
+    <div class="instructions">
+        <strong>📋 Instrucciones:</strong><br>
+        1. Haz click en "Generar" para crear cada imagen<br>
+        2. Click derecho en el canvas → "Guardar imagen como..."<br>
+        3. Guarda con el nombre especificado (ej: <code>promo-440x280.png</code>)<br>
+        4. Sube las imágenes al Chrome Web Store Developer Dashboard
+    </div>
+
+    <!-- Small Promotional Tile -->
+    <div class="tile-container">
+        <h2>📦 Small Promotional Tile</h2>
+        <div class="tile-info">
+            <strong>Tamaño:</strong> 440x280 px<br>
+            <strong>Uso:</strong> REQUERIDO - Aparece en búsquedas y listados<br>
+            <strong>Guardar como:</strong> promo-440x280.png
+        </div>
+        <button onclick="generarSmallTile()">Generar Small Tile</button>
+        <div class="preview">
+            <canvas id="smallTile" width="440" height="280"></canvas>
+        </div>
+    </div>
+
+    <!-- Large Promotional Tile -->
+    <div class="tile-container">
+        <h2>📦 Large Promotional Tile</h2>
+        <div class="tile-info">
+            <strong>Tamaño:</strong> 920x680 px<br>
+            <strong>Uso:</strong> Opcional - Para destacar en resultados<br>
+            <strong>Guardar como:</strong> promo-920x680.png
+        </div>
+        <button onclick="generarLargeTile()">Generar Large Tile</button>
+        <div class="preview">
+            <canvas id="largeTile" width="920" height="680"></canvas>
+        </div>
+    </div>
+
+    <!-- Marquee Promotional Tile -->
+    <div class="tile-container">
+        <h2>📦 Marquee Promotional Tile</h2>
+        <div class="tile-info">
+            <strong>Tamaño:</strong> 1400x560 px<br>
+            <strong>Uso:</strong> Opcional - Banner destacado<br>
+            <strong>Guardar como:</strong> promo-1400x560.png
+        </div>
+        <button onclick="generarMarqueeTile()">Generar Marquee Tile</button>
+        <div class="preview">
+            <canvas id="marqueeTile" width="1400" height="560"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Colores
+        const AZUL = '#228be6';
+        const AZUL_CLARO = '#e7f5ff';
+        const GRIS_OSCURO = '#495057';
+        const BLANCO = '#ffffff';
+
+        function drawPromoBase(ctx, width, height) {
+            // Fondo degradado
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, AZUL);
+            gradient.addColorStop(1, '#1864ab');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Patrón de puntos sutiles (opcional)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+            for (let i = 0; i < width; i += 40) {
+                for (let j = 0; j < height; j += 40) {
+                    ctx.beginPath();
+                    ctx.arc(i, j, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawPrinterIcon(ctx, x, y, size) {
+            // Cuerpo de impresora
+            ctx.fillStyle = BLANCO;
+            ctx.fillRect(x, y, size, size * 0.7);
+
+            // Ticket saliendo
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            const ticketWidth = size * 0.7;
+            const ticketHeight = size * 0.8;
+            const ticketX = x + (size - ticketWidth) / 2;
+            const ticketY = y + size * 0.6;
+            ctx.fillRect(ticketX, ticketY, ticketWidth, ticketHeight);
+
+            // Líneas del ticket
+            ctx.strokeStyle = AZUL;
+            ctx.lineWidth = size / 30;
+            for (let i = 1; i <= 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(ticketX + ticketWidth * 0.15, ticketY + (ticketHeight / 4) * i);
+                ctx.lineTo(ticketX + ticketWidth * 0.85, ticketY + (ticketHeight / 4) * i);
+                ctx.stroke();
+            }
+        }
+
+        function generarSmallTile() {
+            const canvas = document.getElementById('smallTile');
+            const ctx = canvas.getContext('2d');
+
+            // Fondo
+            drawPromoBase(ctx, 440, 280);
+
+            // Icono de impresora
+            drawPrinterIcon(ctx, 50, 60, 120);
+
+            // Texto
+            ctx.fillStyle = BLANCO;
+            ctx.font = 'bold 48px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Axioma', 200, 100);
+
+            ctx.font = 'bold 36px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Print Manager', 200, 145);
+
+            ctx.font = '20px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText('Impresión térmica automática', 200, 185);
+
+            // Features
+            ctx.font = '16px system-ui, -apple-system, sans-serif';
+            const features = [
+                '✓ Impresión directa sin confirmaciones',
+                '✓ Compatible con impresoras POS/ESC-POS',
+                '✓ Configuración simple y rápida'
+            ];
+
+            features.forEach((feature, i) => {
+                ctx.fillText(feature, 50, 220 + i * 25);
+            });
+        }
+
+        function generarLargeTile() {
+            const canvas = document.getElementById('largeTile');
+            const ctx = canvas.getContext('2d');
+
+            // Fondo
+            drawPromoBase(ctx, 920, 680);
+
+            // Icono grande
+            drawPrinterIcon(ctx, 100, 150, 250);
+
+            // Título
+            ctx.fillStyle = BLANCO;
+            ctx.font = 'bold 80px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Axioma', 450, 200);
+
+            ctx.font = 'bold 60px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Print Manager', 450, 270);
+
+            // Subtítulo
+            ctx.font = '32px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText('Impresión térmica automática', 450, 320);
+            ctx.fillText('para Chrome y Edge', 450, 360);
+
+            // Features en dos columnas
+            ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+            const features = [
+                '✓ Impresión directa',
+                '✓ Sin configuración compleja',
+                '✓ Compatible POS-80/TM-T20',
+                '✓ Actualizaciones automáticas',
+                '✓ Seguro y confiable',
+                '✓ Soporte para tickets fiscales'
+            ];
+
+            features.forEach((feature, i) => {
+                const col = i % 2;
+                const row = Math.floor(i / 2);
+                ctx.fillText(feature, 100 + col * 400, 480 + row * 50);
+            });
+
+            // Call to action
+            ctx.fillStyle = BLANCO;
+            ctx.fillRect(100, 600, 300, 60);
+            ctx.fillStyle = AZUL;
+            ctx.font = 'bold 28px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Instalar Ahora', 160, 640);
+        }
+
+        function generarMarqueeTile() {
+            const canvas = document.getElementById('marqueeTile');
+            const ctx = canvas.getContext('2d');
+
+            // Fondo
+            drawPromoBase(ctx, 1400, 560);
+
+            // Icono
+            drawPrinterIcon(ctx, 100, 120, 280);
+
+            // Título grande
+            ctx.fillStyle = BLANCO;
+            ctx.font = 'bold 100px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Axioma Print Manager', 500, 180);
+
+            // Subtítulo
+            ctx.font = '40px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+            ctx.fillText('Imprime tickets térmicos automáticamente desde tu navegador', 500, 240);
+
+            // Separador
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(500, 270);
+            ctx.lineTo(1300, 270);
+            ctx.stroke();
+
+            // Features horizontales
+            ctx.font = 'bold 26px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = BLANCO;
+            const features = [
+                '⚡ Rápido',
+                '🔒 Seguro',
+                '🎯 Simple',
+                '✓ Compatible'
+            ];
+
+            features.forEach((feature, i) => {
+                ctx.fillText(feature, 500 + i * 200, 330);
+            });
+
+            // Descripción final
+            ctx.font = '24px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.fillText('Compatible con impresoras térmicas POS-80, TM-T20, y todas las ESC/POS', 500, 400);
+
+            // Badge de instalación
+            ctx.fillStyle = BLANCO;
+            ctx.fillRect(500, 450, 280, 70);
+            ctx.fillStyle = AZUL;
+            ctx.font = 'bold 32px system-ui, -apple-system, sans-serif';
+            ctx.fillText('Agregar a Chrome', 530, 495);
+        }
+
+        // Generar todos al cargar
+        window.addEventListener('load', () => {
+            generarSmallTile();
+            generarLargeTile();
+            generarMarqueeTile();
+        });
+    </script>
+</body>
+</html>
