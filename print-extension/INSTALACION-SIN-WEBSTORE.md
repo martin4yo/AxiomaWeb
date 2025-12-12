@@ -21,16 +21,34 @@ Esta guía es útil si:
 
 ### Paso 1.1: Crear el Paquete CRX
 
-**En la PC de desarrollo:**
+⚠️ **Chrome removió el comando `--pack-extension`** en versiones recientes. Usa uno de estos métodos:
 
-```bash
+#### Método A: PowerShell Automático (Recomendado)
+
+```powershell
 cd print-extension
-crear-crx.bat
+powershell -ExecutionPolicy Bypass -File crear-crx-auto.ps1
 ```
+
+**Requisitos**: Node.js instalado
 
 Esto genera:
 - `dist/axioma-print-manager.crx` - Extensión para distribuir
 - `dist/axioma-print-manager.pem` - Clave privada (GUARDAR SEGURO)
+
+#### Método B: Manual desde Chrome (Más Simple)
+
+Ver guía completa en: **[CREAR-CRX-MANUAL.md](./CREAR-CRX-MANUAL.md)**
+
+**Pasos rápidos:**
+```
+1. chrome://extensions/
+2. Activar "Modo de desarrollador"
+3. Click "Empaquetar extensión"
+4. Directorio: D:\Desarrollos\React\AxiomaWeb\print-extension
+5. Clave: (vacío la primera vez)
+6. Se generan los archivos en la carpeta padre
+```
 
 **⚠️ IMPORTANTE**: Guarda el archivo `.pem` en un lugar seguro. Lo necesitarás para crear actualizaciones futuras.
 

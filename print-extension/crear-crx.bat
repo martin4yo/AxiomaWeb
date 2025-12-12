@@ -4,11 +4,12 @@ echo Crear Paquete CRX para Distribucion
 echo ==========================================
 echo.
 
-echo Este script creara un archivo .crx que puedes distribuir
-echo a tus usuarios para instalacion sin Chrome Web Store.
+echo NOTA: Chrome removio el comando --pack-extension en versiones recientes.
+echo Este script intentara empaquetar, pero probablemente falle.
 echo.
-echo IMPORTANTE: La primera vez se generara una clave privada.
-echo Guardala en un lugar SEGURO para futuras actualizaciones.
+echo Si falla, usa una de estas alternativas:
+echo   1. crear-crx-auto.ps1  ^(PowerShell automatico^)
+echo   2. CREAR-CRX-MANUAL.md ^(manual desde Chrome^)
 echo.
 pause
 
@@ -23,6 +24,8 @@ if not exist %CHROME_PATH% (
 
 if not exist %CHROME_PATH% (
     echo ERROR: No se encontro Chrome instalado
+    echo.
+    echo Usar metodo manual: ver CREAR-CRX-MANUAL.md
     pause
     exit /b 1
 )
@@ -48,20 +51,20 @@ echo [2/2] Empaquetando extension...
 REM Si existe clave privada previa, usarla
 if exist "dist\axioma-print-manager.pem" (
     echo Usando clave privada existente...
-    %CHROME_PATH% --pack-extension="%CD%" --pack-extension-key="%CD%\dist\axioma-print-manager.pem"
+    %CHROME_PATH% --pack-extension="%CD%" --pack-extension-key="%CD%\dist\axioma-print-manager.pem" 2>nul
 ) else (
     echo Generando nueva clave privada...
-    %CHROME_PATH% --pack-extension="%CD%"
+    %CHROME_PATH% --pack-extension="%CD%" 2>nul
 
     REM Mover la clave a la carpeta dist
-    if exist "axioma-print-manager.pem" (
-        move "axioma-print-manager.pem" "dist\axioma-print-manager.pem"
+    if exist "print-extension.pem" (
+        move "print-extension.pem" "dist\axioma-print-manager.pem" >nul
     )
 )
 
 REM Mover el .crx a dist
-if exist "axioma-print-manager.crx" (
-    move "axioma-print-manager.crx" "dist\axioma-print-manager.crx"
+if exist "print-extension.crx" (
+    move "print-extension.crx" "dist\axioma-print-manager.crx" >nul
 )
 
 echo.
@@ -81,6 +84,22 @@ if exist "dist\axioma-print-manager.crx" (
     echo   2. Confirma la instalacion
 ) else (
     echo ERROR: Fallo la creacion del paquete
+    echo.
+    echo Chrome ya no soporta --pack-extension.
+    echo.
+    echo USA UNA DE ESTAS ALTERNATIVAS:
+    echo.
+    echo   1. METODO AUTOMATICO ^(recomendado^):
+    echo      powershell -ExecutionPolicy Bypass -File crear-crx-auto.ps1
+    echo.
+    echo   2. METODO MANUAL ^(mas simple^):
+    echo      Ver instrucciones en CREAR-CRX-MANUAL.md
+    echo.
+    echo   3. MODO DESARROLLADOR ^(para testing^):
+    echo      - chrome://extensions/
+    echo      - Activar "Modo de desarrollador"
+    echo      - Cargar extension sin empaquetar
+    echo.
 )
 echo ==========================================
 pause
