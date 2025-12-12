@@ -22,6 +22,7 @@
     "date-fns": "^2.30.0",
     "lucide-react": "^0.554.0",
     "qrcode": "^1.5.4",
+    "qz-tray": "^2.2.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.48.2",

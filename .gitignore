@@ -66,3 +66,7 @@ prisma/*.db-journal
 
 # Directorios temporales del proyecto
 master/
+
+# QZ Tray - Certificados privados
+qz-tray/certs/*.pem
+qz-tray/certs/*.csr
