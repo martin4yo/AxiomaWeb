@@ -15,7 +15,9 @@ const voucherConfigSchema = z.object({
   salesPointId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   nextVoucherNumber: z.number().int().min(1).default(1),
   isDefault: z.boolean().optional().default(false),
-  printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
+  printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
+  printFormat: z.enum(['THERMAL', 'PDF', 'NONE']).nullable().optional(),
+  printTemplate: z.enum(['LEGAL', 'SIMPLE']).nullable().optional()
 })
 
 // Get all voucher configurations
