@@ -26,12 +26,20 @@ Extensión para Chrome/Edge que permite imprimir automáticamente en impresoras 
 
 ## 🚀 Instalación
 
+### Opción A: Chrome Web Store (Recomendado)
 Ver [INSTALACION.md](./INSTALACION.md) para instrucciones completas.
 
 **Resumen rápido**:
 1. Instalar Native Host: `AxiomaPrintManagerHostSetup.exe`
 2. Instalar extensión desde Chrome Web Store
 3. Configurar impresora en el popup de la extensión
+
+### Opción B: Sin Chrome Web Store
+Ver [INSTALACION-SIN-WEBSTORE.md](./INSTALACION-SIN-WEBSTORE.md) si querés:
+- Usar la extensión sin publicar ($0)
+- Distribución interna (empresa)
+- Testing y desarrollo
+- Instalación vía archivo .CRX o modo desarrollador
 
 ## 🔧 Desarrollo
 
