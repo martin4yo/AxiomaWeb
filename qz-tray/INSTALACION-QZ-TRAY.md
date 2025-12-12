@@ -70,7 +70,7 @@ sudo systemctl start qz-tray
    - Debería aparecer un diamante azul 💎
 
 2. **Abrir interfaz web**:
-   - Ir a: https://localhost:8182/
+   - Ir a: http://localhost:8182/
    - Debería mostrar "QZ Tray v2.2.x"
 
 3. **Probar conexión**:
@@ -278,7 +278,7 @@ await qzTrayService.printThermal(
 # Linux: ps aux | grep qz-tray
 
 # 2. Verificar puerto 8182
-# Ir a https://localhost:8182/
+# Ir a http://localhost:8182/
 # Debería mostrar interfaz de QZ Tray
 
 # 3. Reiniciar QZ Tray

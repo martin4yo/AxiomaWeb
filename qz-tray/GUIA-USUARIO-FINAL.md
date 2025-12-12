@@ -91,25 +91,13 @@ Si NO lo ves:
 1. Abrir tu navegador (Chrome, Firefox, Edge, cualquiera)
 2. En la barra de direcciones, escribir:
    ```
-   https://localhost:8182/
+   http://localhost:8182/
    ```
+   ⚠️ **IMPORTANTE**: Es `http://` (sin la 's'), NO `https://`
+
 3. Presionar **Enter**
 
-### 3.2 Aceptar certificado (solo primera vez)
-
-Aparecerá advertencia de seguridad:
-
-**En Chrome/Edge:**
-- Mensaje: "Su conexión no es privada"
-- Click en **"Opciones avanzadas"** o **"Advanced"**
-- Click en **"Continuar a localhost (sitio no seguro)"**
-
-**En Firefox:**
-- Mensaje: "Advertencia: Riesgo potencial de seguridad a continuación"
-- Click en **"Avanzado"**
-- Click en **"Aceptar el riesgo y continuar"**
-
-### 3.3 Confirmar que funciona
+### 3.2 Confirmar que funciona
 
 Deberías ver una página que dice:
 
@@ -274,7 +262,7 @@ Una vez configurado, el uso diario es **automático**:
 
 **B. Verificar acceso a localhost:8182**
 1. Abrir navegador
-2. Ir a: `https://localhost:8182/`
+2. Ir a: `http://localhost:8182/`
 3. Debería ver página de QZ Tray
 4. Si NO carga:
    - Cerrar QZ Tray (click derecho en 💎 → Exit)
@@ -419,7 +407,7 @@ Al finalizar la instalación, verificar:
 
 - [ ] QZ Tray instalado
 - [ ] Icono 💎 visible en bandeja del sistema
-- [ ] https://localhost:8182/ funciona
+- [ ] http://localhost:8182/ funciona
 - [ ] Impresora aparece en Windows
 - [ ] Impresión de prueba de Windows OK
 - [ ] AxiomaWeb conecta a QZ Tray (🟢)

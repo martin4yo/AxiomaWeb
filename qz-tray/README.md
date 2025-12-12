@@ -94,7 +94,7 @@ await qzTrayService.printThermal(business, sale, 'simple');
 ```bash
 # Verificar que QZ Tray está ejecutándose
 # Windows: Buscar icono en bandeja del sistema
-# Abrir: https://localhost:8182/
+# Abrir: http://localhost:8182/
 ```
 
 **❌ "Certificate error"**

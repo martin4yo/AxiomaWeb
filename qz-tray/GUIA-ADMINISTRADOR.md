@@ -36,7 +36,7 @@ Guía técnica para implementar QZ Tray en múltiples puestos de trabajo.
    - Finish
 
 4. **Verificar:**
-   - Abrir https://localhost:8182/
+   - Abrir http://localhost:8182/
    - Debe mostrar "QZ Tray v2.2.x"
 
 5. **Configurar impresora en AxiomaWeb:**
@@ -164,7 +164,7 @@ Write-Host "================================================" -ForegroundColor G
 Write-Host ""
 Write-Host "Proximos pasos:" -ForegroundColor Cyan
 Write-Host "  1. Verificar icono de diamante azul en bandeja del sistema" -ForegroundColor White
-Write-Host "  2. Abrir: https://localhost:8182/ para confirmar" -ForegroundColor White
+Write-Host "  2. Abrir: http://localhost:8182/ para confirmar" -ForegroundColor White
 Write-Host "  3. Ingresar a AxiomaWeb y configurar impresora" -ForegroundColor White
 Write-Host ""
 
@@ -172,10 +172,10 @@ Write-Host ""
 Write-Host "Verificando servicio QZ Tray..." -ForegroundColor Cyan
 Start-Sleep -Seconds 5
 try {
-    $response = Invoke-WebRequest -Uri "https://localhost:8182/" `
-        -SkipCertificateCheck `
+    $response = Invoke-WebRequest -Uri "http://localhost:8182/" `
         -ErrorAction SilentlyContinue `
-        -TimeoutSec 5
+        -TimeoutSec 5 `
+        -UseBasicParsing
     if ($response.StatusCode -eq 200) {
         Write-Host "  QZ Tray responde correctamente en puerto 8182" -ForegroundColor Green
     }
