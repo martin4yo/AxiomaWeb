@@ -30,7 +30,6 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 [Files]
 Source: "axioma-print-host.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "thermal-templates.js"; DestDir: "{app}"; Flags: ignoreversion
-Source: "com.axiomaweb.printmanager.json"; DestDir: "{app}"; Flags: ignoreversion
 
 [Registry]
 ; Registrar Native Messaging Host para Chrome
@@ -39,33 +38,56 @@ Root: HKLM; Subkey: "Software\Google\Chrome\NativeMessagingHosts\com.axiomaweb.p
 ; Registrar Native Messaging Host para Edge
 Root: HKLM; Subkey: "Software\Microsoft\Edge\NativeMessagingHosts\com.axiomaweb.printmanager"; ValueType: string; ValueName: ""; ValueData: "{app}\com.axiomaweb.printmanager.json"; Flags: uninsdeletekey
 
-[Run]
-Filename: "{app}\update-manifest.bat"; Description: "Actualizar configuración"; Flags: runhidden waituntilterminated
-
 [UninstallDelete]
 Type: filesandordirs; Name: "{%APPDATA}\axioma-print-manager"
 
 [Code]
+function EscapeJsonPath(Path: String): String;
+var
+  i: Integer;
+begin
+  Result := '';
+  for i := 1 to Length(Path) do
+  begin
+    if Path[i] = '\' then
+      Result := Result + '\\'
+    else
+      Result := Result + Path[i];
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   ManifestFile: String;
-  ManifestContent: String;
   ExePath: String;
+  JsonExePath: String;
+  ManifestLines: TStringList;
 begin
   if CurStep = ssPostInstall then
   begin
-    // Actualizar el manifest JSON con la ruta correcta
+    // Crear el manifest JSON con la ruta correcta
     ManifestFile := ExpandConstant('{app}\com.axiomaweb.printmanager.json');
     ExePath := ExpandConstant('{app}\axioma-print-host.exe');
 
-    // Leer el contenido actual
-    if LoadStringFromFile(ManifestFile, ManifestContent) then
-    begin
-      // Reemplazar la ruta del path con la ruta real
-      StringChangeEx(ManifestContent, '"path": "axioma-print-host.exe"', '"path": "' + ExePath + '"', True);
+    // Escapar backslashes para JSON
+    JsonExePath := EscapeJsonPath(ExePath);
 
-      // Guardar el archivo actualizado
-      SaveStringToFile(ManifestFile, ManifestContent, False);
+    // Crear el archivo JSON
+    ManifestLines := TStringList.Create;
+    try
+      ManifestLines.Add('{');
+      ManifestLines.Add('  "name": "com.axiomaweb.printmanager",');
+      ManifestLines.Add('  "description": "Axioma Print Manager - Native Messaging Host para impresion termica directa",');
+      ManifestLines.Add('  "path": "' + JsonExePath + '",');
+      ManifestLines.Add('  "type": "stdio",');
+      ManifestLines.Add('  "allowed_origins": [');
+      ManifestLines.Add('    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"');
+      ManifestLines.Add('  ]');
+      ManifestLines.Add('}');
+
+      ManifestLines.SaveToFile(ManifestFile);
+    finally
+      ManifestLines.Free;
     end;
   end;
 end;
