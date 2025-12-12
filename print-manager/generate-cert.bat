@@ -7,14 +7,16 @@ echo   Generador de Certificado SSL para Print Manager
 echo ================================================
 echo.
 
-REM Verificar si OpenSSL está disponible
+REM Verificar si OpenSSL esta disponible
 where openssl >nul 2>nul
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: OpenSSL no esta instalado
     echo.
     echo Opciones para instalar OpenSSL:
-    echo 1. Instalar Git for Windows (incluye OpenSSL): https://git-scm.com/
-    echo 2. Agregar Git\usr\bin al PATH: C:\Program Files\Git\usr\bin
+    echo 1. Instalar Git for Windows ^(incluye OpenSSL^)
+    echo    Descargar desde: https://git-scm.com/
+    echo 2. Agregar Git\usr\bin al PATH
+    echo    Ejemplo: C:\Program Files\Git\usr\bin
     echo.
     pause
     exit /b 1
