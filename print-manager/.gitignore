@@ -28,6 +28,9 @@ tools/
 # Configuración local
 config.txt
 
+# Backup temporal de package.json
+package.json.backup
+
 # Sistema operativo
 .DS_Store
 Thumbs.db

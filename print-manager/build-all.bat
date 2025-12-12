@@ -114,7 +114,17 @@ if exist "build\AxiomaPrintManager.exe" (
     del /f /q "build\AxiomaPrintManager.exe"
 )
 
+REM Usar package-installer.json para el build
+if exist "package.json.backup" del /f /q "package.json.backup"
+if exist "package.json" ren "package.json" "package.json.backup"
+copy /y "package-installer.json" "package.json" >nul
+
 call pkg . --targets node18-win-x64 --output build/AxiomaPrintManager.exe
+
+REM Restaurar package.json original
+if exist "package.json" del /f /q "package.json"
+if exist "package.json.backup" ren "package.json.backup" "package.json"
+
 if %ERRORLEVEL% NEQ 0 (
     echo ❌ Error construyendo ejecutable
     echo.

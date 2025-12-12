@@ -50,13 +50,40 @@ function buildExecutable() {
   console.log('📦 Empaquetando aplicación con pkg...');
   console.log('   Esto puede tomar varios minutos...');
 
+  // Usar package-installer.json temporalmente
+  const originalPkg = path.join(__dirname, 'package.json');
+  const installerPkg = path.join(__dirname, 'package-installer.json');
+  const backupPkg = path.join(__dirname, 'package.json.backup');
+
   try {
+    // Respaldar package.json original si existe
+    if (fs.existsSync(originalPkg)) {
+      fs.copyFileSync(originalPkg, backupPkg);
+    }
+
+    // Usar package-installer.json
+    fs.copyFileSync(installerPkg, originalPkg);
+
+    // Ejecutar pkg
     execSync('pkg . --targets node18-win-x64 --output build/AxiomaPrintManager.exe', {
       stdio: 'inherit',
       cwd: __dirname
     });
+
+    // Restaurar package.json original
+    if (fs.existsSync(backupPkg)) {
+      fs.copyFileSync(backupPkg, originalPkg);
+      fs.unlinkSync(backupPkg);
+    }
+
     console.log('✅ Ejecutable creado: build/AxiomaPrintManager.exe');
   } catch (error) {
+    // Restaurar package.json en caso de error
+    if (fs.existsSync(backupPkg)) {
+      fs.copyFileSync(backupPkg, originalPkg);
+      fs.unlinkSync(backupPkg);
+    }
+
     console.error('❌ Error empaquetando:', error.message);
     console.error('');
     console.error('Asegúrate de tener pkg instalado:');
