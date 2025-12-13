@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test QZ Tray Connection</title>
+</head>
+<body>
+    <h1>Test QZ Tray Connection</h1>
+    <div id="status">Verificando...</div>
+    <button id="connect">Conectar</button>
+    <div id="result"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.5/qz-tray.min.js"></script>
+    <script>
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+        const connectBtn = document.getElementById('connect');
+
+        // Verificar si QZ Tray está disponible
+        console.log('qz object:', qz);
+        console.log('qz.websocket:', qz.websocket);
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                statusDiv.textContent = 'Conectando...';
+
+                // Configurar certificados
+                qz.security.setCertificatePromise(function(resolve) {
+                    resolve('-----BEGIN CERTIFICATE-----\n' +
+'MIIDlzCCAn8CFBhtuBBgopAogeDBUpGi7KbAEFPaMA0GCSqGSIb3DQEBCwUAMIGH\n' +
+'MQswCQYDVQQGEwJBUjEVMBMGA1UECAwMQnVlbm9zIEFpcmVzMRUwEwYDVQQHDAxC\n' +
+'dWVub3MgQWlyZXMxEjAQBgNVBAoMCUF4aW9tYVdlYjESMBAGA1UEAwwJbG9jYWxo\n' +
+'b3N0MSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBheGlvbWF3ZWIuY29tMB4XDTI1MTIx\n' +
+'MjE2MDIyOVoXDTI2MTIxMjE2MDIyOVowgYcxCzAJBgNVBAYTAkFSMRUwEwYDVQQI\n' +
+'DAxCdWVub3MgQWlyZXMxFTATBgNVBAcMDEJ1ZW5vcyBBaXJlczESMBAGA1UECgwJ\n' +
+'QXhpb21hV2ViMRIwEAYDVQQDDAlsb2NhbGhvc3QxIjAgBgkqhkiG9w0BCQEWE2Fk\n' +
+'bWluQGF4aW9tYXdlYi5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB\n' +
+'AQDHUdSdIxld95sdpYWDk4Owl7nRnUGcGG3LYjgjz+EXcBFkMnXSBH3i1sZ+cMnO\n' +
+'UTB9bHvNthtQ3I3VZglZn27VvAMvGPtOGVxW7tW2rWueWc9NQOvm3HJMW/c/6GeP\n' +
+'zojWGs59vowK3/TVlcIYdk6mPhJXBOgHg234oM8rjQsgdxBg7e6PzOafBMxCV0y4\n' +
+'0APPiJaE78iOIthLXcZ94ppMz2FbZkUEHQCXjzDXAYf97kf4xyvx1EFSF/9RKbE7\n' +
+'CxxSSc7EfongQgN6qeLp4xjC68Jhrv/V2Sw+9uoptRRg9ubXoU33fqEHaxAhF8iw\n' +
+'w1NWphf6LlXVMkVp0HUnPlVvAgMBAAEwDQYJKoZIhvcNAQELBQADggEBABT2opbU\n' +
+'AvPcSbs7MBipxwK3sh539A5yLBAmorcswLZfy9IF/7gz2YT5R1gx9laEcI1rTVey\n' +
+'8yWeq/jsKQ7/vXZZDJ/kCQYE4gzmDHaJWuM7kO6N5ohOdhlFih+elZlIY3qu56Eh\n' +
+'o1RN/5IspgoxXrTaCb097r6fo4Zz1cFPLDdq4mJYv/bDzSw0hwaVQhbU90hpwJad\n' +
+'YNx2i3C7BqW/AttYiWjIfnuPNIgI/fxhoUOJIKVJXh31kJxLtrbaY6Wi3wbXWcqe\n' +
+'EueDS2POuRVtNcBlybJeMbycFOntNNVCeypRDyBfOdQtC1J17nbzNaWiz8ju6x7c\n' +
+'lyImJCbNWzCGP5c=\n' +
+'-----END CERTIFICATE-----');
+                });
+
+                qz.security.setSignaturePromise(function(toSign) {
+                    return function(resolve) {
+                        resolve(toSign); // Firma simplificada
+                    };
+                });
+
+                // Conectar (CORRECTO: websocket singular, no websockets)
+                await qz.websocket.connect();
+
+                const version = await qz.api.getVersion();
+                const printers = await qz.printers.find();
+
+                statusDiv.textContent = `✅ Conectado! Versión: ${version}`;
+                resultDiv.innerHTML = `<h3>Impresoras disponibles:</h3><ul>${printers.map(p => `<li>${p}</li>`).join('')}</ul>`;
+
+            } catch (error) {
+                statusDiv.textContent = '❌ Error: ' + error.message;
+                resultDiv.textContent = 'Error completo: ' + JSON.stringify(error, null, 2);
+                console.error('Error completo:', error);
+            }
+        });
+
+        // Auto verificar si ya está conectado
+        if (qz.websocket.isActive()) {
+            statusDiv.textContent = '✅ Ya está conectado';
+        }
+    </script>
+</body>
+</html>

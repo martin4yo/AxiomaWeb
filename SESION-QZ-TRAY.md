@@ -289,15 +289,29 @@ AxiomaWeb/
 
 ## 🐛 Errores Conocidos y Soluciones
 
-### Error: "Cannot read properties of undefined (reading 'connect')"
+### Error 1: "Cannot read properties of undefined (reading 'connect')" ✅ RESUELTO
 
-**Causa:** El módulo qz-tray no se carga correctamente.
+**Causa:** El módulo qz-tray no se carga correctamente + typo `websockets` vs `websocket`.
 
-**Estado:** 🔧 Debugging en progreso
+**Estado:** ✅ RESUELTO
 
-**Solución en progreso:**
-1. Dynamic import con debugging extendido
-2. Esperando output de `Object.keys(qzModule)` para ver estructura real
+**Solución:** Dynamic import + cambiar `websockets` → `websocket`
+
+### Error 2: "Cannot verify Trust Invalid Signature" ✅ RESUELTO
+
+**Causa:** Firma de mensajes retornaba texto plano en lugar de firma RSA real.
+
+**Estado:** ✅ RESUELTO
+
+**Solución:** Implementar firma RSA-SHA256 con jsrsasign
+
+### Error 3: Popup "Allow/Block" persiste en cada recarga ⚠️ CONFIGURACIÓN REQUERIDA
+
+**Causa:** QZ Tray no tiene el sitio en su lista de "Saved Sites".
+
+**Estado:** ⚠️ Requiere acción del usuario
+
+**Solución:** Agregar manualmente el sitio a QZ Tray Site Manager (ver `SOLUCIONAR-POPUP-ALLOW-BLOCK.md`)
 
 ---
 
@@ -336,6 +350,31 @@ AxiomaWeb/
 
 ---
 
-**Última actualización:** 2025-12-12 22:15
-**Último commit:** 106a866 - fix: Corregir typo websockets → websocket (CRÍTICO)
-**Estado:** ✅ PROBLEMA RESUELTO - Listo para probar en producción
+**Última actualización:** 2025-12-13 (Sesión continuada)
+**Último commit:** bcf66d2 - feat: Implementar firma RSA-SHA256 real con jsrsasign
+**Estado:** ✅ CÓDIGO COMPLETO - Requiere configuración manual en QZ Tray (ver SOLUCIONAR-POPUP-ALLOW-BLOCK.md)
+
+---
+
+## 🆕 Actualización 2025-12-13
+
+### Problema del Popup Persistente
+
+El código funciona correctamente:
+- ✅ Firma RSA-SHA256 implementada
+- ✅ Conexión a QZ Tray exitosa
+- ✅ Consola muestra "🔐 Mensaje firmado correctamente"
+
+**Pero el popup sigue apareciendo** porque QZ Tray necesita que el sitio se agregue manualmente a su lista de "Saved Sites".
+
+### Solución
+
+**Ver archivo:** `qz-tray/SOLUCIONAR-POPUP-ALLOW-BLOCK.md`
+
+**Resumen:**
+1. Click derecho en ícono QZ Tray → Advanced → Site Manager
+2. Add → Agregar URL del sitio + certificado
+3. Save
+4. Listo - popup no aparecerá más
+
+**Esto NO es un bug del código**, es una configuración normal de QZ Tray que debe hacerse una vez por PC.
