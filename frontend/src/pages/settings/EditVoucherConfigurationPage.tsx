@@ -7,7 +7,8 @@ import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { getPrinters, isServiceRunning } from '../../services/print-service'
 const schema = z.object({
   voucherTypeId: z.string().min(1, 'Seleccione un tipo de comprobante'),
   branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
@@ -16,7 +17,8 @@ const schema = z.object({
   nextVoucherNumber: z.number().int().min(1).default(1),
   isDefault: z.boolean().optional().default(false),
   printFormat: z.preprocess(val => val === '' ? 'NONE' : val, z.string().default('NONE')),
-  printTemplate: z.preprocess(val => val === '' ? 'LEGAL' : val, z.string().default('LEGAL'))
+  printTemplate: z.preprocess(val => val === '' ? 'LEGAL' : val, z.string().default('LEGAL')),
+  thermalPrinterName: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
 })
 
 type FormData = z.infer<typeof schema>
@@ -26,6 +28,8 @@ export default function EditVoucherConfigurationPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
+  const [printers, setPrinters] = useState<string[]>([])
+  const [loadingPrinters, setLoadingPrinters] = useState(false)
 
   const {
     register,
@@ -90,6 +94,25 @@ export default function EditVoucherConfigurationPage() {
     enabled: !!currentTenant
   })
 
+  // Load printers from local service
+  useEffect(() => {
+    const loadPrinters = async () => {
+      setLoadingPrinters(true)
+      try {
+        const available = await isServiceRunning()
+        if (available) {
+          const printerList = await getPrinters()
+          setPrinters(printerList.map((p: any) => p.name))
+        }
+      } catch (error) {
+        console.error('Error loading printers:', error)
+      } finally {
+        setLoadingPrinters(false)
+      }
+    }
+    loadPrinters()
+  }, [])
+
   // Populate form with existing data
   useEffect(() => {
     if (configuration && salesPoints.length > 0) {
@@ -102,7 +125,8 @@ export default function EditVoucherConfigurationPage() {
         nextVoucherNumber: config.nextVoucherNumber,
         isDefault: config.isDefault || false,
         printFormat: config.printFormat || 'NONE',
-        printTemplate: config.printTemplate || 'LEGAL'
+        printTemplate: config.printTemplate || 'LEGAL',
+        thermalPrinterName: config.thermalPrinterName || ''
       }
       reset(formData)
     }
@@ -299,6 +323,38 @@ export default function EditVoucherConfigurationPage() {
                 Este formato se usará por defecto al crear ventas, a menos que el cliente tenga una preferencia específica
               </p>
             </div>
+
+            {/* Impresora Térmica - Solo si printFormat es THERMAL */}
+            {watch('printFormat') === 'THERMAL' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Impresora Térmica
+                </label>
+                <select
+                  {...register('thermalPrinterName')}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={loadingPrinters}
+                >
+                  <option value="">Seleccione una impresora</option>
+                  {printers.map((printer) => (
+                    <option key={printer} value={printer}>
+                      {printer}
+                    </option>
+                  ))}
+                </select>
+                {loadingPrinters && (
+                  <p className="mt-1 text-sm text-blue-600">Cargando impresoras...</p>
+                )}
+                {!loadingPrinters && printers.length === 0 && (
+                  <p className="mt-1 text-sm text-amber-600">
+                    ⚠️ Servicio de impresión no disponible (localhost:5555)
+                  </p>
+                )}
+                <p className="mt-1 text-sm text-gray-500">
+                  Impresora que se utilizará para imprimir tickets. Requiere servicio de impresión corriendo en localhost:5555
+                </p>
+              </div>
+            )}
 
             {/* Configuración por defecto */}
             <div className="flex items-center">
