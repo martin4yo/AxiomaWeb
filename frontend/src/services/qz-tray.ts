@@ -7,7 +7,8 @@
  * Documentación: https://qz.io/wiki/
  */
 
-import * as qz from 'qz-tray';
+// Dynamic import para mejor compatibilidad con build tools
+let qz: any = null;
 
 // Certificado digital (generado con QZ Tray)
 // Generado: 2025-12-12, válido por 365 días
@@ -79,10 +80,35 @@ class QZTrayService {
   private config: PrinterConfig | null = null;
 
   /**
+   * Cargar módulo QZ Tray dinámicamente
+   */
+  private async loadQZ(): Promise<void> {
+    if (!qz) {
+      console.log('📦 Cargando módulo qz-tray...');
+      const qzModule = await import('qz-tray');
+      // El módulo puede exportar default o named exports
+      qz = qzModule.default || qzModule;
+      console.log('✅ Módulo qz-tray cargado:', qz);
+    }
+  }
+
+  /**
    * Inicializar QZ Tray
    */
   async initialize(): Promise<void> {
     try {
+      // Cargar módulo dinámicamente
+      await this.loadQZ();
+
+      // Debug: Verificar que qz esté correctamente cargado
+      console.log('🔍 Debug - qz object:', qz);
+      console.log('🔍 Debug - qz.websockets:', qz?.websockets);
+      console.log('🔍 Debug - qz.websockets.connect:', qz?.websockets?.connect);
+
+      if (!qz || !qz.websockets || !qz.websockets.connect) {
+        throw new Error('QZ Tray library not loaded correctly.');
+      }
+
       // Cargar configuración guardada
       this.loadConfig();
 
@@ -90,6 +116,7 @@ class QZTrayService {
       await this.setupSigning();
 
       // Conectar a QZ Tray
+      console.log('🔌 Intentando conectar a QZ Tray...');
       await qz.websockets.connect();
       this.isConnected = true;
 
@@ -134,6 +161,7 @@ class QZTrayService {
    */
   async isActive(): Promise<boolean> {
     try {
+      await this.loadQZ();
       return qz.websockets.isActive();
     } catch {
       return false;
