@@ -1,5 +1,117 @@
 import { api } from '../services/api'
 
+// Función auxiliar para generar HTML de impresión térmica
+const generateThermalHTML = (printData: any): string => {
+  const { business, sale } = printData
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Ticket de Venta</title>
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        @page {
+          size: 80mm auto;
+          margin: 0;
+        }
+
+        body {
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #000;
+          background: #fff;
+          width: 80mm;
+          margin: 0 auto;
+          padding: 5mm;
+        }
+
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .large { font-size: 16px; }
+        .divider { border-top: 1px dashed #000; margin: 5px 0; }
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 5px 0;
+        }
+
+        table td {
+          padding: 2px 0;
+        }
+
+        .item-desc {
+          margin-bottom: 2px;
+        }
+
+        .item-detail {
+          margin-bottom: 5px;
+        }
+
+        @media print {
+          body { width: 80mm; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="center">
+        <div class="bold large">${business.name || ''}</div>
+        ${business.cuit ? `<div>CUIT: ${business.cuit}</div>` : ''}
+        ${business.address ? `<div>${business.address}</div>` : ''}
+        ${business.phone ? `<div>Tel: ${business.phone}</div>` : ''}
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div>Comprobante: ${sale.number || ''}</div>
+        <div>Fecha: ${sale.date || ''}</div>
+      </div>
+
+      <div class="divider"></div>
+
+      ${sale.items.map((item: any) => `
+        <div class="item-desc">${item.description || 'Sin descripción'}</div>
+        <div class="item-detail">
+          ${Number(item.quantity) || 0} x $${(Number(item.price) || 0).toFixed(2)} = $${(Number(item.total) || 0).toFixed(2)}
+        </div>
+      `).join('')}
+
+      <div class="divider"></div>
+
+      <div class="bold large center">
+        TOTAL: $${(Number(sale.total) || 0).toFixed(2)}
+      </div>
+
+      ${sale.payments && sale.payments.length > 0 ? `
+        <div class="divider"></div>
+        <div class="bold">FORMAS DE PAGO:</div>
+        ${sale.payments.map((p: any) => `
+          <div>${p.method || 'Sin especificar'}: $${(Number(p.amount) || 0).toFixed(2)}</div>
+        `).join('')}
+      ` : ''}
+
+      ${sale.cae ? `
+        <div class="divider"></div>
+        <div>CAE: ${sale.cae.number}</div>
+        <div>Vto. CAE: ${sale.cae.expirationDate}</div>
+      ` : ''}
+
+      <div class="divider"></div>
+      <div class="center">¡Gracias por su compra!</div>
+    </body>
+    </html>
+  `
+}
+
 export interface SaleItem {
   productId: string
   quantity: number
@@ -119,7 +231,7 @@ export const salesApi = {
   printThermalHTML: async (printData: any) => {
     return new Promise<void>((resolve, reject) => {
       try {
-        const html = salesApi.generateThermalHTML(printData)
+        const html = generateThermalHTML(printData)
 
         // Crear iframe oculto
         const iframe = document.createElement('iframe')
@@ -168,117 +280,6 @@ export const salesApi = {
     })
   },
 
-  // Generar HTML para impresión térmica
-  generateThermalHTML: (printData: any): string => {
-    const { business, sale } = printData
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>Ticket de Venta</title>
-        <style>
-          * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-          }
-
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
-
-          body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 12px;
-            line-height: 1.4;
-            color: #000;
-            background: #fff;
-            width: 80mm;
-            margin: 0 auto;
-            padding: 5mm;
-          }
-
-          .center { text-align: center; }
-          .bold { font-weight: bold; }
-          .large { font-size: 16px; }
-          .divider { border-top: 1px dashed #000; margin: 5px 0; }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 5px 0;
-          }
-
-          table td {
-            padding: 2px 0;
-          }
-
-          .item-desc {
-            margin-bottom: 2px;
-          }
-
-          .item-detail {
-            margin-bottom: 5px;
-          }
-
-          @media print {
-            body { width: 80mm; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="center">
-          <div class="bold large">${business.name || ''}</div>
-          ${business.cuit ? `<div>CUIT: ${business.cuit}</div>` : ''}
-          ${business.address ? `<div>${business.address}</div>` : ''}
-          ${business.phone ? `<div>Tel: ${business.phone}</div>` : ''}
-        </div>
-
-        <div class="divider"></div>
-
-        <div>
-          <div>Comprobante: ${sale.number || ''}</div>
-          <div>Fecha: ${sale.date || ''}</div>
-        </div>
-
-        <div class="divider"></div>
-
-        ${sale.items.map((item: any) => `
-          <div class="item-desc">${item.description || 'Sin descripción'}</div>
-          <div class="item-detail">
-            ${Number(item.quantity) || 0} x $${(Number(item.price) || 0).toFixed(2)} = $${(Number(item.total) || 0).toFixed(2)}
-          </div>
-        `).join('')}
-
-        <div class="divider"></div>
-
-        <div class="bold large center">
-          TOTAL: $${(Number(sale.total) || 0).toFixed(2)}
-        </div>
-
-        ${sale.payments && sale.payments.length > 0 ? `
-          <div class="divider"></div>
-          <div class="bold">FORMAS DE PAGO:</div>
-          ${sale.payments.map((p: any) => `
-            <div>${p.method || 'Sin especificar'}: $${(Number(p.amount) || 0).toFixed(2)}</div>
-          `).join('')}
-        ` : ''}
-
-        ${sale.cae ? `
-          <div class="divider"></div>
-          <div>CAE: ${sale.cae.number}</div>
-          <div>Vto. CAE: ${sale.cae.expirationDate}</div>
-        ` : ''}
-
-        <div class="divider"></div>
-        <div class="center">¡Gracias por su compra!</div>
-      </body>
-      </html>
-    `
-  },
 
   // Obtener PDF de venta
   getPDF: async (id: string) => {
