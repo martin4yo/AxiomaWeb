@@ -155,6 +155,13 @@ router.post('/', authMiddleware, async (req, res, next) => {
       }
     })
 
+    console.log('💾 Configuración creada:', JSON.stringify({
+      id: configuration.id,
+      printFormat: configuration.printFormat,
+      printTemplate: configuration.printTemplate,
+      thermalPrinterName: configuration.thermalPrinterName
+    }, null, 2))
+
     res.status(201).json({
       message: 'Configuración creada exitosamente',
       configuration
@@ -244,6 +251,13 @@ router.put('/:id', authMiddleware, async (req, res, next) => {
         salesPoint: true
       }
     })
+
+    console.log('💾 Configuración después de guardar:', JSON.stringify({
+      id: configuration.id,
+      printFormat: configuration.printFormat,
+      printTemplate: configuration.printTemplate,
+      thermalPrinterName: configuration.thermalPrinterName
+    }, null, 2))
 
     res.json({
       message: 'Configuración actualizada exitosamente',
