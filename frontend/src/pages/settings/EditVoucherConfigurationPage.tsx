@@ -102,7 +102,7 @@ export default function EditVoucherConfigurationPage() {
         const available = await isServiceRunning()
         if (available) {
           const printerList = await getPrinters()
-          setPrinters(printerList.map((p: any) => p.name))
+          setPrinters(printerList) // printerList ya es string[]
         }
       } catch (error) {
         console.error('Error loading printers:', error)

@@ -12,11 +12,6 @@ export interface PrintServiceStatus {
   error?: string;
 }
 
-export interface Printer {
-  name: string;
-  status?: string;
-}
-
 export interface PrintResponse {
   success: boolean;
   message?: string;
@@ -39,8 +34,9 @@ export async function isServiceRunning(): Promise<boolean> {
 
 /**
  * Obtener lista de impresoras disponibles
+ * Retorna un array de strings con los nombres de las impresoras
  */
-export async function getPrinters(): Promise<Printer[]> {
+export async function getPrinters(): Promise<string[]> {
   try {
     const res = await fetch(`${PRINT_URL}/printers`);
 
@@ -49,6 +45,7 @@ export async function getPrinters(): Promise<Printer[]> {
     }
 
     const data = await res.json();
+    // El servicio retorna { success, printers: string[], defaultPrinter }
     return data.printers || [];
   } catch (error) {
     console.error('Error obteniendo impresoras:', error);
