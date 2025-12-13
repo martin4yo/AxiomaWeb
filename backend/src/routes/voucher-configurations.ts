@@ -17,7 +17,8 @@ const voucherConfigSchema = z.object({
   isDefault: z.boolean().optional().default(false),
   printTemplateId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
   printFormat: z.enum(['THERMAL', 'PDF', 'NONE']).nullable().optional(),
-  printTemplate: z.enum(['LEGAL', 'SIMPLE']).nullable().optional()
+  printTemplate: z.enum(['LEGAL', 'SIMPLE']).nullable().optional(),
+  thermalPrinterName: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional())
 })
 
 // Get all voucher configurations
