@@ -441,24 +441,28 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
         customerVatCondition: sale.customer?.ivaCondition || 'CF',
         customerAddress: sale.customer?.addressLine1 || null,
 
-        // Items
+        // Items - usar nombres compatibles con qz-tray y thermal-templates
         items: sale.items.map(item => ({
+          description: item.description || item.productName,
           name: item.description || item.productName,
           productName: item.productName,
           quantity: Number(item.quantity),
+          price: Number(item.unitPrice),
           unitPrice: Number(item.unitPrice),
           total: Number(item.lineTotal),
           taxAmount: Number(item.taxAmount)
         })),
 
-        // Totales
+        // Totales - incluir ambos nombres para compatibilidad
         subtotal: Number(sale.subtotal),
         discountAmount: Number(sale.discountAmount),
         taxAmount: Number(sale.taxAmount),
+        total: Number(sale.totalAmount),
         totalAmount: Number(sale.totalAmount),
 
-        // Pagos
+        // Pagos - usar nombres compatibles con qz-tray
         payments: sale.payments.map(p => ({
+          method: p.paymentMethodName,
           name: p.paymentMethodName,
           amount: Number(p.amount),
           reference: p.reference || null
@@ -476,6 +480,14 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
       template,
       printerName: sale.voucherConfiguration?.thermalPrinterName || null
     }
+
+    console.log('[ThermalData] printData.sale preparado:', JSON.stringify({
+      itemsCount: printData.sale.items.length,
+      firstItem: printData.sale.items[0],
+      total: printData.sale.total,
+      totalAmount: printData.sale.totalAmount,
+      payments: printData.sale.payments
+    }, null, 2))
 
     // Devolver los datos sin intentar imprimir
     res.json({ data: printData })
@@ -549,24 +561,28 @@ router.post('/:id/print/thermal', authMiddleware, async (req, res, next) => {
         customerVatCondition: sale.customer?.ivaCondition || 'CF',
         customerAddress: sale.customer?.addressLine1 || null,
 
-        // Items
+        // Items - usar nombres compatibles con qz-tray y thermal-templates
         items: sale.items.map(item => ({
+          description: item.description || item.productName,
           name: item.description || item.productName,
           productName: item.productName,
           quantity: Number(item.quantity),
+          price: Number(item.unitPrice),
           unitPrice: Number(item.unitPrice),
           total: Number(item.lineTotal),
           taxAmount: Number(item.taxAmount)
         })),
 
-        // Totales
+        // Totales - incluir ambos nombres para compatibilidad
         subtotal: Number(sale.subtotal),
         discountAmount: Number(sale.discountAmount),
         taxAmount: Number(sale.taxAmount),
+        total: Number(sale.totalAmount),
         totalAmount: Number(sale.totalAmount),
 
-        // Pagos
+        // Pagos - usar nombres compatibles con qz-tray
         payments: sale.payments.map(p => ({
+          method: p.paymentMethodName,
           name: p.paymentMethodName,
           amount: Number(p.amount),
           reference: p.reference || null
