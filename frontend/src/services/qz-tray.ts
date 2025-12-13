@@ -385,10 +385,14 @@ class QZTrayService {
     // Items
     sale.items.forEach((item) => {
       // Descripción
-      commands.push({ type: 'raw', data: `${item.description}\n` });
+      commands.push({ type: 'raw', data: `${item.description || 'Sin descripción'}\n` });
 
-      // Cantidad x Precio = Total
-      const line = `${item.quantity} x $${item.price.toFixed(2)} = $${item.total.toFixed(2)}`;
+      // Cantidad x Precio = Total (validar valores)
+      const quantity = Number(item.quantity) || 0;
+      const price = Number(item.price) || 0;
+      const total = Number(item.total) || 0;
+
+      const line = `${quantity} x $${price.toFixed(2)} = $${total.toFixed(2)}`;
       commands.push({ type: 'raw', data: `${line}\n` });
     });
 
@@ -396,17 +400,19 @@ class QZTrayService {
     commands.push({ type: 'raw', data: `${'-'.repeat(40)}\n` });
 
     // Total
+    const saleTotal = Number(sale.total) || 0;
     commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(1)}` }); // Negrita
-    commands.push({ type: 'raw', data: `TOTAL: $${sale.total.toFixed(2)}\n` });
+    commands.push({ type: 'raw', data: `TOTAL: $${saleTotal.toFixed(2)}\n` });
     commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(0)}` }); // Desactivar negrita
 
     // Pagos
     if (sale.payments && sale.payments.length > 0) {
       commands.push({ type: 'raw', data: `\nFormas de pago:\n` });
       sale.payments.forEach((payment) => {
+        const paymentAmount = Number(payment.amount) || 0;
         commands.push({
           type: 'raw',
-          data: `  ${payment.method}: $${payment.amount.toFixed(2)}\n`
+          data: `  ${payment.method || 'Sin especificar'}: $${paymentAmount.toFixed(2)}\n`
         });
       });
     }
