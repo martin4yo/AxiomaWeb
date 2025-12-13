@@ -373,6 +373,25 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
     // Obtener venta con todas las relaciones
     const sale = await salesService.getSaleById(req.params.id)
 
+    // DEBUG: Log de datos crudos de la venta
+    console.log('[ThermalData] Sale ID:', sale.id)
+    console.log('[ThermalData] Items crudos:', JSON.stringify(sale.items.map(i => ({
+      productName: i.productName,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      lineTotal: i.lineTotal
+    })), null, 2))
+    console.log('[ThermalData] Totales crudos:', {
+      subtotal: sale.subtotal,
+      discountAmount: sale.discountAmount,
+      taxAmount: sale.taxAmount,
+      totalAmount: sale.totalAmount
+    })
+    console.log('[ThermalData] Payments crudos:', JSON.stringify(sale.payments.map(p => ({
+      paymentMethodName: p.paymentMethodName,
+      amount: p.amount
+    })), null, 2))
+
     // Determinar tipo de plantilla
     let template = req.query.template as string ||
                    sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
