@@ -100,9 +100,13 @@ export default function EditVoucherConfigurationPage() {
       setLoadingPrinters(true)
       try {
         const available = await isServiceRunning()
+        console.log('[EditVoucherConfig] Servicio de impresión disponible:', available)
         if (available) {
           const printerList = await getPrinters()
+          console.log('[EditVoucherConfig] Lista de impresoras recuperadas:', printerList)
           setPrinters(printerList) // printerList ya es string[]
+        } else {
+          console.log('[EditVoucherConfig] Servicio no disponible, no se pueden cargar impresoras')
         }
       } catch (error) {
         console.error('Error loading printers:', error)
@@ -117,6 +121,15 @@ export default function EditVoucherConfigurationPage() {
   useEffect(() => {
     if (configuration && salesPoints.length > 0) {
       const config = configuration.configuration || configuration
+      console.log('[EditVoucherConfig] Configuración recibida del backend:', {
+        id: config.id,
+        printFormat: config.printFormat,
+        printTemplate: config.printTemplate,
+        thermalPrinterName: config.thermalPrinterName
+      })
+      console.log('[EditVoucherConfig] Lista de impresoras disponibles:', printers)
+      console.log('[EditVoucherConfig] ¿thermalPrinterName está en la lista?:', printers.includes(config.thermalPrinterName))
+
       const formData = {
         voucherTypeId: config.voucherTypeId,
         branchId: config.branchId || '',
@@ -128,9 +141,10 @@ export default function EditVoucherConfigurationPage() {
         printTemplate: config.printTemplate || 'LEGAL',
         thermalPrinterName: config.thermalPrinterName || ''
       }
+      console.log('[EditVoucherConfig] FormData a aplicar:', formData)
       reset(formData)
     }
-  }, [configuration, salesPoints, reset])
+  }, [configuration, salesPoints, reset, printers])
 
   const updateMutation = useMutation({
     mutationFn: (data: FormData) => voucherConfigurationsApi.update(currentTenant!.slug, id!, data),

@@ -1,23 +1,27 @@
 {
   "name": "axioma-print-manager",
   "version": "1.0.0",
-  "description": "",
-  "main": "main.js",
+  "description": "Print Manager para Axioma Web - Impresión térmica automática",
+  "main": "server-thermal-windows.js",
   "scripts": {
-    "start": "LIBVA_DRIVER_NAME=i965 electron .",
-    "dev": "DEV_MODE=true LIBVA_DRIVER_NAME=i965 electron .",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "pkg . --targets node18-win-x64 --output build/AxiomaPrintManager.exe",
+    "build-installer": "node build-installer.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "bin": "server-thermal-windows.js",
+  "pkg": {
+    "assets": [
+      "thermal-templates.js",
+      "node_modules/**/*"
+    ],
+    "outputPath": "build"
+  },
   "dependencies": {
+    "express": "^4.18.2",
     "cors": "^2.8.5",
-    "electron": "^39.2.5",
-    "express": "^5.2.1",
-    "pngjs": "^7.0.0",
-    "qrcode": "^1.5.4",
-    "serialport": "^13.0.0",
-    "usb": "^2.16.0"
+    "qrcode": "^1.5.3",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   }
 }
