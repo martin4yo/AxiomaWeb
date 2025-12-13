@@ -86,9 +86,16 @@ class QZTrayService {
     if (!qz) {
       console.log('📦 Cargando módulo qz-tray...');
       const qzModule = await import('qz-tray');
+
+      // Debug: Ver estructura completa
+      console.log('🔍 qzModule completo:', qzModule);
+      console.log('🔍 qzModule.default:', qzModule.default);
+      console.log('🔍 Object.keys(qzModule):', Object.keys(qzModule));
+
       // El módulo puede exportar default o named exports
       qz = qzModule.default || qzModule;
       console.log('✅ Módulo qz-tray cargado:', qz);
+      console.log('🔍 qz.websockets después de asignar:', qz?.websockets);
     }
   }
 
