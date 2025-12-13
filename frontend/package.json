@@ -20,6 +20,7 @@
     "axios": "^1.6.2",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "jsrsasign": "^11.1.0",
     "lucide-react": "^0.554.0",
     "qrcode": "^1.5.4",
     "qz-tray": "^2.2.5",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.7",
+    "@types/jsrsasign": "^10.5.15",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",

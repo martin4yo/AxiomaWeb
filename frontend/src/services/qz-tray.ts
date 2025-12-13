@@ -7,6 +7,8 @@
  * Documentación: https://qz.io/wiki/
  */
 
+import * as jsrsasign from 'jsrsasign';
+
 // Dynamic import para mejor compatibilidad con build tools
 let qz: any = null;
 
@@ -36,11 +38,35 @@ EueDS2POuRVtNcBlybJeMbycFOntNNVCeypRDyBfOdQtC1J17nbzNaWiz8ju6x7c
 lyImJCbNWzCGP5c=
 -----END CERTIFICATE-----`;
 
-// Nota: PRIVATE_KEY se usaría para firma con jsrsasign en producción
-// Por ahora, los certificados self-signed no requieren firma compleja
-// const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-// REPLACE_WITH_YOUR_PRIVATE_KEY
-// -----END PRIVATE KEY-----`;
+// Clave privada para firmar mensajes
+const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDHUdSdIxld95sd
+pYWDk4Owl7nRnUGcGG3LYjgjz+EXcBFkMnXSBH3i1sZ+cMnOUTB9bHvNthtQ3I3V
+ZglZn27VvAMvGPtOGVxW7tW2rWueWc9NQOvm3HJMW/c/6GePzojWGs59vowK3/TV
+lcIYdk6mPhJXBOgHg234oM8rjQsgdxBg7e6PzOafBMxCV0y40APPiJaE78iOIthL
+XcZ94ppMz2FbZkUEHQCXjzDXAYf97kf4xyvx1EFSF/9RKbE7CxxSSc7EfongQgN6
+qeLp4xjC68Jhrv/V2Sw+9uoptRRg9ubXoU33fqEHaxAhF8iww1NWphf6LlXVMkVp
+0HUnPlVvAgMBAAECggEACRsR7YPW+tX+/iG7scEheQXVdWALyUfMbEg2bFxo2htC
+kCNGAqw13BEXzFr2vTg0UOaN2V4CbXVF/YPF1ZRVCeqm8pXflTfPYiFTHh9aFUfh
+EpRusoNLrXVeHEtPv+AdnDppSJFV8IE+vCs1TMzK1wlq6RLOTtmQQpWGIWU2Jut0
+130gu2CC49Ch4FXGQNE3mLZNx6gtGGY3utjbz8YsCO8E009ue6mu7oV2R8RoW/5S
+VpLrKy+GN2GOnSGerDmju8qD6e1L7nwAFygTcS6HuoXIT3Q+lHaaVSxwgSet+8x9
+xcZCYgXo4/BPd9JgySpghFi88kDr9Yhr7oS8FSh6sQKBgQDNzewnywin0/topVR5
+pL7ERSaK7vlplei6lOM52expHPcWMDXRSJt9SPl2+dWgm/3Zjo6l8E6rXrjLEdfU
+ssdwbucevU4sI8bnmipltQIhMj1FQwyFl9uHUILJVJ6kl6FqYOLWT8qEKGUGpN5s
+AhCkojLBWu9wtwL5T850gdh2vQKBgQD37wMgKbn2Qe22TH7tMS8jrBSJR9CvS2Ve
+xqyZPbMsTdoyAJYMhUgslou9LdQqYjkU5puPO0N03ltxPROhjCu71zj8mickzyBs
+1g1gBw0Ca3GJ1u9B63amfVnSCDQYRkz473kyB8kRmPp1jSrGO9oKpUth/q4ITowz
+ZV2cnXvFmwKBgGhxR5aOQC9DsgPSW4N8Kt/aJAw/6M0/qaL+qi4SvRo++9oDz1wN
+V/OF1Cwf790ZLQN6iEQIJzRq1qcfwAOOUw5pCducwI4//dJNd5Sz/oewQk3jD/jA
+L0WFg0n/Kp9m4CDnWFbgmWrmQRbVFpeDmMSkF9PufTMbfWPer2yK9LqVAoGBAKwX
+AVNkwwgT0NyVEhCu7+pRudtjtozFx3HWctzWv7PDweytDXlZVbRlNk80LSzSCo7g
+Vh8/4l2PLWdXHnYmJgD2rT5f/UWGYxpIJPZ/Tl9clm03e9CEkFGVdi/bs9UZjrnG
+9pdsYfrN9SJ8vrDjwD9dZgp5zPBFHPlbpXNcuBl7AoGAetpMMqYDF5zu8siGQfMu
+AqSqry7L0dAk9DufbcVnDMhmVSPhpn2DhqZVCpZc9wzAWdTlJHb642EekkR/XH1P
+hZEwc6FnrAVziYCiBhj+VKXov7/bk25Cf0YHqo4gOaRWlfw1jw1yM+Lq+Xv9vldQ
+5ctooe0K87zEHP5bovNLLRM=
+-----END PRIVATE KEY-----`;
 
 interface PrinterConfig {
   printerName: string;
@@ -154,13 +180,26 @@ class QZTrayService {
   }
 
   /**
-   * Firmar mensaje (versión simplificada)
-   * En producción, usar jsrsasign o similar
+   * Firmar mensaje con RSA-SHA256 usando jsrsasign
    */
   private signMessage(message: string): string {
-    // TODO: Implementar firma real con jsrsasign
-    // Por ahora, retornar el mensaje (funciona para certificados self-signed)
-    return message;
+    try {
+      // Crear firma RSA-SHA256
+      const signature = new jsrsasign.KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
+      signature.init(PRIVATE_KEY);
+      signature.updateString(message);
+      const signatureHex = signature.sign();
+
+      // Convertir hex a base64
+      const signatureBase64 = jsrsasign.hextob64(signatureHex);
+
+      console.log('🔐 Mensaje firmado correctamente con RSA-SHA256');
+      return signatureBase64;
+    } catch (error) {
+      console.error('❌ Error firmando mensaje:', error);
+      // Fallback: retornar mensaje sin firmar
+      return message;
+    }
   }
 
   /**
