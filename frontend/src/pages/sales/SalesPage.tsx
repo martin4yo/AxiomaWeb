@@ -161,22 +161,11 @@ export default function SalesPage() {
       // Usar el nuevo endpoint de impresión térmica
       const response = await salesApi.printThermal(saleId)
 
-      if (response.success) {
-        // Mostrar mensaje de éxito (opcional - podrías usar un toast aquí)
-        console.log('Ticket enviado a impresora térmica')
-      } else {
-        console.error('Error al imprimir:', response.error)
-        alert(`Error al imprimir: ${response.error}`)
-      }
+      // Mostrar mensaje de éxito
+      console.log(`✅ ${response.message} (método: ${response.method})`)
     } catch (error: any) {
       console.error('Error al imprimir ticket:', error)
-
-      // Mensaje específico según el error
-      if (error.response?.status === 503) {
-        alert('Print Manager no disponible. Asegúrate de que el servicio esté corriendo.')
-      } else {
-        alert(`Error al imprimir: ${error.response?.data?.error || error.message}`)
-      }
+      alert(`Error al imprimir: ${error.message || 'Error desconocido'}`)
     }
   }
 
