@@ -70,13 +70,17 @@ Si la Solución 1 no funciona, ver logs:
    - `Certificate not trusted` → Problema con autorización
    - `Invalid message` → Problema con formato de mensaje
 
-### Solución 3: Usar Trusted Origins (QZ Tray 2.2+)
+### Solución 3: Usar Trusted Origins (QZ Tray 2.2+) ⭐ RECOMENDADO
 
 QZ Tray 2.2+ introdujo un nuevo método más simple:
 
 1. **Cerrar QZ Tray**
 
-2. **Ir a:** `C:\Users\[TuUsuario]\.qz\`
+2. **Ir a la carpeta de configuración de QZ Tray:**
+   - **Opción A:** `C:\Users\[TuUsuario]\AppData\Roaming\qz\`
+   - **Opción B:** `C:\Users\[TuUsuario]\.qz\`
+
+   ⚠️ La ubicación varía según la versión de QZ Tray. Busca donde está `allowed.dat`
 
 3. **Crear archivo:** `qz-tray.properties`
 
@@ -93,7 +97,9 @@ QZ Tray 2.2+ introdujo un nuevo método más simple:
 
 ⚠️ **SOLO PARA DESARROLLO LOCAL**
 
-1. **Ir a:** `C:\Users\[TuUsuario]\.qz\qz-tray.properties`
+1. **Ir a la carpeta de configuración:**
+   - `C:\Users\[TuUsuario]\AppData\Roaming\qz\qz-tray.properties`
+   - o `C:\Users\[TuUsuario]\.qz\qz-tray.properties`
 
 2. **Agregar:**
    ```properties
@@ -150,10 +156,19 @@ Si falla aquí, el problema es con jsrsasign o la clave privada.
 - Si la firma funciona en el test HTML pero no en tu app, el problema es la implementación en el frontend
 - Si ni siquiera funciona en el test HTML, el problema es el certificado o la clave privada
 
+## 📂 Ubicación de Archivos de QZ Tray
+
+QZ Tray guarda sus configuraciones en una de estas ubicaciones:
+
+- **Windows (común):** `C:\Users\[TuUsuario]\AppData\Roaming\qz\`
+- **Windows (alternativa):** `C:\Users\[TuUsuario]\.qz\`
+
+Busca donde existe el archivo `allowed.dat` para saber cuál es la correcta en tu sistema.
+
 ## 🆘 Si Nada Funciona
 
 1. **Desinstalar QZ Tray** completamente
-2. **Eliminar carpeta:** `C:\Users\[TuUsuario]\.qz\`
+2. **Eliminar carpeta:** `C:\Users\[TuUsuario]\AppData\Roaming\qz\` o `C:\Users\[TuUsuario]\.qz\`
 3. **Reinstalar QZ Tray**
 4. **Usar Solución 3** (trusted.origins)
 5. **Probar**

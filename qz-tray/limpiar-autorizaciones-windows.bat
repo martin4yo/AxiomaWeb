@@ -17,8 +17,26 @@ echo Intentando cerrar QZ Tray...
 taskkill /F /IM javaw.exe /FI "WINDOWTITLE eq QZ Tray*" 2>nul
 timeout /t 2 >nul
 
-REM Definir rutas
-set USER_QZ=%USERPROFILE%\.qz
+REM Definir rutas (QZ Tray puede usar cualquiera de estas ubicaciones)
+set USER_QZ_1=%USERPROFILE%\.qz
+set USER_QZ_2=%APPDATA%\qz
+
+REM Detectar cual ubicacion existe
+if exist "%USER_QZ_2%\allowed.dat" (
+    set USER_QZ=%USER_QZ_2%
+    echo Usando ubicacion: %USER_QZ_2%
+) else if exist "%USER_QZ_1%\allowed.dat" (
+    set USER_QZ=%USER_QZ_1%
+    echo Usando ubicacion: %USER_QZ_1%
+) else if exist "%USER_QZ_2%" (
+    set USER_QZ=%USER_QZ_2%
+    echo Usando ubicacion: %USER_QZ_2%
+) else (
+    set USER_QZ=%USER_QZ_1%
+    echo Usando ubicacion: %USER_QZ_1%
+)
+
+echo.
 set ALLOWED_FILE=%USER_QZ%\allowed.dat
 set BLOCKED_FILE=%USER_QZ%\blocked.dat
 set SAVED_DIR=%USER_QZ%\saved
