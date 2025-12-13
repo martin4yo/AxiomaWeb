@@ -104,11 +104,28 @@ rcnmMzfuZ1nIub10HjLEsb4M4py5nP+Vn17hd8lUPTm3Nw/lHUFFHO3iN+Lcz+N2
                 log('🔑 Iniciando firma del mensaje...', '');
                 log('📝 Mensaje a firmar: ' + message.substring(0, 50) + '...', '');
 
+                // Verificar que jsrsasign esté cargado
+                if (typeof KJUR === 'undefined') {
+                    throw new Error('jsrsasign no está cargado');
+                }
+
                 const signature = new KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
                 signature.init(PRIVATE_KEY);
                 signature.updateString(message);
                 const signatureHex = signature.sign();
-                const signatureBase64 = KJUR.hextob64(signatureHex);
+
+                // Usar la función global hextob64 (no KJUR.hextob64)
+                let signatureBase64;
+                if (typeof hextob64 === 'function') {
+                    signatureBase64 = hextob64(signatureHex);
+                } else if (typeof KJUR.hextob64 === 'function') {
+                    signatureBase64 = KJUR.hextob64(signatureHex);
+                } else {
+                    // Fallback: convertir manualmente hex a base64
+                    const hexBytes = signatureHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16));
+                    const binary = String.fromCharCode.apply(null, hexBytes);
+                    signatureBase64 = btoa(binary);
+                }
 
                 log('✅ Firma generada (primeros 40 chars): ' + signatureBase64.substring(0, 40) + '...', '');
                 log('📏 Longitud de la firma: ' + signatureBase64.length + ' caracteres', '');
