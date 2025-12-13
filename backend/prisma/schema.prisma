@@ -919,11 +919,12 @@ model VoucherConfiguration {
   nextVoucherNumber Int      @default(1) @map("next_voucher_number")
   isActive          Boolean  @default(true) @map("is_active")
   isDefault         Boolean  @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
-  printTemplateId   String?  @map("print_template_id") // ID del template de impresión a usar (ej: 'ticket-venta-80mm', 'factura-a-80mm')
-  printFormat       String?  @default("NONE") @map("print_format") // Formato de impresión por defecto: "THERMAL" | "PDF" | "NONE"
-  printTemplate     String?  @default("LEGAL") @map("print_template") // Template específico: "LEGAL" (con QR/datos fiscales) | "SIMPLE" (sin datos fiscales)
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  printTemplateId    String?  @map("print_template_id") // ID del template de impresión a usar (ej: 'ticket-venta-80mm', 'factura-a-80mm')
+  printFormat        String?  @default("NONE") @map("print_format") // Formato de impresión por defecto: "THERMAL" | "PDF" | "NONE"
+  printTemplate      String?  @default("LEGAL") @map("print_template") // Template específico: "LEGAL" (con QR/datos fiscales) | "SIMPLE" (sin datos fiscales)
+  thermalPrinterName String?  @map("thermal_printer_name") // Nombre de la impresora térmica configurada para este comprobante
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)

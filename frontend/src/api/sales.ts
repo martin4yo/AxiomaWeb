@@ -193,7 +193,37 @@ export const salesApi = {
     // 1. Obtener datos del backend
     const { data: printData } = await salesApi.getThermalPrintData(id)
 
-    // 2. Intentar imprimir con QZ Tray (método recomendado)
+    // 2. Intentar con servicio local (localhost:5555) - PRIORIDAD 1
+    try {
+      const printService = await import('../services/print-service')
+
+      // Verificar si el servicio está disponible
+      const isAvailable = await printService.isServiceRunning()
+
+      if (isAvailable && printData.printerName) {
+        // Generar comandos ESC/POS
+        const { qzTrayService } = await import('../services/qz-tray')
+        const commands = qzTrayService.generateESCPOS(
+          printData.business,
+          printData.sale,
+          printData.template as 'simple' | 'legal'
+        )
+
+        const result = await printService.printRaw(printData.printerName, commands)
+
+        if (result.success) {
+          return {
+            success: true,
+            message: 'Impreso correctamente con servicio local',
+            method: 'local-service'
+          }
+        }
+      }
+    } catch (localError) {
+      console.warn('Servicio local no disponible:', localError)
+    }
+
+    // 3. Fallback: QZ Tray - PRIORIDAD 2
     try {
       const { qzTrayService } = await import('../services/qz-tray')
 
@@ -209,21 +239,21 @@ export const salesApi = {
         method: 'qz-tray'
       }
     } catch (qzError) {
-      console.warn('QZ Tray no disponible, usando fallback HTML:', qzError)
+      console.warn('QZ Tray no disponible:', qzError)
+    }
 
-      // 3. Fallback: Impresión HTML (window.print)
-      try {
-        await salesApi.printThermalHTML(printData)
+    // 4. Último recurso: Impresión HTML (window.print) - PRIORIDAD 3
+    try {
+      await salesApi.printThermalHTML(printData)
 
-        return {
-          success: true,
-          message: 'Abriendo diálogo de impresión del navegador',
-          method: 'html'
-        }
-      } catch (htmlError) {
-        console.error('Error en fallback HTML:', htmlError)
-        throw new Error('No se pudo imprimir el ticket. QZ Tray no disponible.')
+      return {
+        success: true,
+        message: 'Abriendo diálogo de impresión del navegador',
+        method: 'html'
       }
+    } catch (htmlError) {
+      console.error('Error en fallback HTML:', htmlError)
+      throw new Error('No se pudo imprimir el ticket. Ningún método de impresión disponible.')
     }
   },
 

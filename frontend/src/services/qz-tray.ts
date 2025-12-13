@@ -329,7 +329,7 @@ class QZTrayService {
   /**
    * Generar comandos ESC/POS para ticket térmico
    */
-  private generateESCPOS(
+  generateESCPOS(
     business: BusinessInfo,
     sale: SaleData,
     template: 'simple' | 'legal'

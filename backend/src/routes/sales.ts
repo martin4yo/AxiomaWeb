@@ -454,7 +454,8 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
         // Notas
         notes: sale.notes || null
       },
-      template
+      template,
+      printerName: sale.voucherConfiguration?.thermalPrinterName || null
     }
 
     // Devolver los datos sin intentar imprimir
