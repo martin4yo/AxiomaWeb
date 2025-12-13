@@ -95,7 +95,7 @@ class QZTrayService {
       // El módulo puede exportar default o named exports
       qz = qzModule.default || qzModule;
       console.log('✅ Módulo qz-tray cargado:', qz);
-      console.log('🔍 qz.websockets después de asignar:', qz?.websockets);
+      console.log('🔍 qz.websocket después de asignar:', qz?.websocket);
     }
   }
 
@@ -109,10 +109,10 @@ class QZTrayService {
 
       // Debug: Verificar que qz esté correctamente cargado
       console.log('🔍 Debug - qz object:', qz);
-      console.log('🔍 Debug - qz.websockets:', qz?.websockets);
-      console.log('🔍 Debug - qz.websockets.connect:', qz?.websockets?.connect);
+      console.log('🔍 Debug - qz.websocket:', qz?.websocket);
+      console.log('🔍 Debug - qz.websocket.connect:', qz?.websocket?.connect);
 
-      if (!qz || !qz.websockets || !qz.websockets.connect) {
+      if (!qz || !qz.websocket || !qz.websocket.connect) {
         throw new Error('QZ Tray library not loaded correctly.');
       }
 
@@ -124,7 +124,7 @@ class QZTrayService {
 
       // Conectar a QZ Tray
       console.log('🔌 Intentando conectar a QZ Tray...');
-      await qz.websockets.connect();
+      await qz.websocket.connect();
       this.isConnected = true;
 
       console.log('✅ QZ Tray conectado exitosamente');
@@ -169,7 +169,7 @@ class QZTrayService {
   async isActive(): Promise<boolean> {
     try {
       await this.loadQZ();
-      return qz.websockets.isActive();
+      return qz.websocket.isActive();
     } catch {
       return false;
     }
@@ -392,7 +392,7 @@ class QZTrayService {
   async disconnect(): Promise<void> {
     if (this.isConnected) {
       try {
-        await qz.websockets.disconnect();
+        await qz.websocket.disconnect();
         this.isConnected = false;
         console.log('✅ Desconectado de QZ Tray');
       } catch (error) {

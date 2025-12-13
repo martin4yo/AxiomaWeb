@@ -4,7 +4,7 @@
  */
 
 declare module 'qz-tray' {
-  export interface WebsocketsAPI {
+  export interface WebsocketAPI {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     isActive(): boolean;
@@ -35,7 +35,7 @@ declare module 'qz-tray' {
     create(printer: string | Config): Config;
   }
 
-  export const websockets: WebsocketsAPI;
+  export const websocket: WebsocketAPI;  // ← SINGULAR
   export const printers: PrintersAPI;
   export const security: SecurityAPI;
   export const api: APII;
@@ -47,7 +47,7 @@ declare module 'qz-tray' {
   ): Promise<void>;
 
   const qz: {
-    websockets: WebsocketsAPI;
+    websocket: WebsocketAPI;  // ← SINGULAR
     printers: PrintersAPI;
     security: SecurityAPI;
     api: APII;
