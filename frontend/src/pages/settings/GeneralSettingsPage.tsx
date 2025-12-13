@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button'
 import { AlertDialog } from '../../components/ui/AlertDialog'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../services/api'
+import { QZTrayStatus } from '../../components/QZTrayStatus'
 
 export default function GeneralSettingsPage() {
   const { currentTenant, setCurrentTenant } = useAuthStore()
@@ -258,6 +259,20 @@ export default function GeneralSettingsPage() {
                 </Button>
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Configuración de Impresión QZ Tray */}
+        <Card className="mt-6">
+          <div className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Impresión Térmica
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Configura la impresora térmica para imprimir tickets directamente desde el navegador
+            </p>
+
+            <QZTrayStatus />
           </div>
         </Card>
       </div>
