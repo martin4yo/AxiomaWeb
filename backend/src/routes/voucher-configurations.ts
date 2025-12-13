@@ -69,7 +69,9 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
 // Create voucher configuration
 router.post('/', authMiddleware, async (req, res, next) => {
   try {
+    console.log('🔍 Body recibido (CREATE):', JSON.stringify(req.body, null, 2))
     const data = voucherConfigSchema.parse(req.body)
+    console.log('✅ Data después de validación (CREATE):', JSON.stringify(data, null, 2))
 
     // Verify voucher type exists (VoucherType is global, not tenant-scoped, so use global prisma)
     const voucherType = await prisma.voucherType.findUnique({
@@ -165,7 +167,9 @@ router.post('/', authMiddleware, async (req, res, next) => {
 // Update voucher configuration
 router.put('/:id', authMiddleware, async (req, res, next) => {
   try {
+    console.log('🔍 Body recibido:', JSON.stringify(req.body, null, 2))
     const data = voucherConfigSchema.partial().parse(req.body)
+    console.log('✅ Data después de validación:', JSON.stringify(data, null, 2))
 
     // Check if configuration exists
     const existing = await req.tenantDb!.voucherConfiguration.findUnique({

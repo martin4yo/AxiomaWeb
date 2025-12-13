@@ -8,6 +8,10 @@ export interface VoucherConfiguration {
   afipConnectionId?: string | null
   salesPointId?: string | null
   nextVoucherNumber: number
+  isDefault?: boolean
+  printFormat?: string | null
+  printTemplate?: string | null
+  thermalPrinterName?: string | null
   createdAt: string
   updatedAt: string
   voucherType?: {
@@ -43,6 +47,10 @@ export interface CreateVoucherConfigData {
   afipConnectionId?: string | null
   salesPointId?: string | null
   nextVoucherNumber?: number
+  isDefault?: boolean
+  printFormat?: string | null
+  printTemplate?: string | null
+  thermalPrinterName?: string | null
 }
 
 export interface UpdateVoucherConfigData extends Partial<CreateVoucherConfigData> {}
