@@ -12,7 +12,16 @@ QZ Tray permite confiar en un certificado personalizado usando el archivo `overr
 
 ## ✅ Solución para Windows
 
-### Paso 1: Crear el archivo override.crt
+### Opción A: Script Automático (Recomendado)
+
+1. **Click derecho** en `instalar-override-windows.bat`
+2. Seleccionar **"Ejecutar como administrador"**
+3. Seguir las instrucciones en pantalla
+4. Reiniciar QZ Tray
+
+### Opción B: Manual
+
+#### Paso 1: Crear el archivo override.crt
 
 1. **Abrir Notepad** (Bloc de notas)
 
@@ -20,28 +29,35 @@ QZ Tray permite confiar en un certificado personalizado usando el archivo `overr
 
 ```
 -----BEGIN CERTIFICATE-----
-MIIDlzCCAn8CFBhtuBBgopAogeDBUpGi7KbAEFPaMA0GCSqGSIb3DQEBCwUAMIGH
-MQswCQYDVQQGEwJBUjEVMBMGA1UECAwMQnVlbm9zIEFpcmVzMRUwEwYDVQQHDAxC
-dWVub3MgQWlyZXMxEjAQBgNVBAoMCUF4aW9tYVdlYjESMBAGA1UEAwwJbG9jYWxo
-b3N0MSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBheGlvbWF3ZWIuY29tMB4XDTI1MTIx
-MjE2MDIyOVoXDTI2MTIxMjE2MDIyOVowgYcxCzAJBgNVBAYTAkFSMRUwEwYDVQQI
-DAxCdWVub3MgQWlyZXMxFTATBgNVBAcMDEJ1ZW5vcyBBaXJlczESMBAGA1UECgwJ
-QXhpb21hV2ViMRIwEAYDVQQDDAlsb2NhbGhvc3QxIjAgBgkqhkiG9w0BCQEWE2Fk
-bWluQGF4aW9tYXdlYi5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
-AQDHUdSdIxld95sdpYWDk4Owl7nRnUGcGG3LYjgjz+EXcBFkMnXSBH3i1sZ+cMnO
-UTB9bHvNthtQ3I3VZglZn27VvAMvGPtOGVxW7tW2rWueWc9NQOvm3HJMW/c/6GeP
-zojWGs59vowK3/TVlcIYdk6mPhJXBOgHg234oM8rjQsgdxBg7e6PzOafBMxCV0y4
-0APPiJaE78iOIthLXcZ94ppMz2FbZkUEHQCXjzDXAYf97kf4xyvx1EFSF/9RKbE7
-CxxSSc7EfongQgN6qeLp4xjC68Jhrv/V2Sw+9uoptRRg9ubXoU33fqEHaxAhF8iw
-w1NWphf6LlXVMkVp0HUnPlVvAgMBAAEwDQYJKoZIhvcNAQELBQADggEBABT2opbU
-AvPcSbs7MBipxwK3sh539A5yLBAmorcswLZfy9IF/7gz2YT5R1gx9laEcI1rTVey
-8yWeq/jsKQ7/vXZZDJ/kCQYE4gzmDHaJWuM7kO6N5ohOdhlFih+elZlIY3qu56Eh
-o1RN/5IspgoxXrTaCb097r6fo4Zz1cFPLDdq4mJYv/bDzSw0hwaVQhbU90hpwJad
-YNx2i3C7BqW/AttYiWjIfnuPNIgI/fxhoUOJIKVJXh31kJxLtrbaY6Wi3wbXWcqe
-EueDS2POuRVtNcBlybJeMbycFOntNNVCeypRDyBfOdQtC1J17nbzNaWiz8ju6x7c
-lyImJCbNWzCGP5c=
+MIIEGzCCAwOgAwIBAgIUZwr8GY39yP7jUDm2SbH0v1sUTdUwDQYJKoZIhvcNAQEL
+BQAwgZcxCzAJBgNVBAYTAkFSMRUwEwYDVQQIDAxCdWVub3MgQWlyZXMxFTATBgNV
+BAcMDEJ1ZW5vcyBBaXJlczESMBAGA1UECgwJQXhpb21hV2ViMSIwIAYDVQQDDBlh
+eGlvbWF3ZWIuYXhpb21hY2xvdWQuY29tMSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBh
+eGlvbWF3ZWIuY29tMB4XDTI1MTIxMzEyNTkwOFoXDTI2MTIxMzEyNTkwOFowgZcx
+CzAJBgNVBAYTAkFSMRUwEwYDVQQIDAxCdWVub3MgQWlyZXMxFTATBgNVBAcMDEJ1
+ZW5vcyBBaXJlczESMBAGA1UECgwJQXhpb21hV2ViMSIwIAYDVQQDDBlheGlvbWF3
+ZWIuYXhpb21hY2xvdWQuY29tMSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBheGlvbWF3
+ZWIuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoMYYJ31BHwyp
+3+djbC+1/3NkpJFurUwo8mme13vrMhbxKWmcbPcU9FPVWVMtqnJuQjie/ytri5ZV
+HiV6h10kWA73EtzRUSgZSNoCUBwQlM2az+6s9/CY7ZG5LvKM+n0TkoQS6t8iiG4p
+K31W2/i9NWf1McVQ9LE5ntx0WJlHA8dVRkejZaXDNcQOpb5flrW+8LN2WLQXrKev
+BwX48nJaxJ8XNsymczVR5hcJ7WcNyunk3/gzOvzTEwEFGxNEmwsi6xfkmAxsTf7A
+0R0OL3Pb/Rr7OoWfCwfcz1kwXCdML+M4DnU/JJaoitXbfGL0lIFjacZC+vxCAO0F
+2/nFvCHKzQIDAQABo10wWzA6BgNVHREEMzAxghlheGlvbWF3ZWIuYXhpb21hY2xv
+dWQuY29tgglsb2NhbGhvc3SCCTEyNy4wLjAuMTAdBgNVHQ4EFgQUPUqpS0kRV/gB
+g2F9iOEDeqD+ttgwDQYJKoZIhvcNAQELBQADggEBAJ4sPwTIyNZJzgUq5zfbafca
+qi95ikjGJO8W+H1D66LnAFhzBynrl+MTH9u7pBfYXzcttdfy3vYFOCu0g+PwcGFf
+DV9xPE1VkSo5in5DIfu7+/OPQk9uywOKglGORNBcm3tmjLsy0IeSWd+JA3vTYQ3Y
+unGisCiWLEBfrDuG+5e92vfgq96NYbSdnAScekVffwROa6Fd24V23YG2J5uNp/Rf
+rIoaH/FnMlFGVveCD2gblEUfqXgl/TCxBxXHNt3biNJIiD+m9TMH0JUuR0cioLyz
+880/n9i13ehxWsOcL+tR32kdGmgiQxOSgojqZAv4yk1xlK3h3W7CdkTyw6scYzI=
 -----END CERTIFICATE-----
 ```
+
+**Nota:** Este certificado incluye SAN (Subject Alternative Names) para múltiples dominios:
+- ✓ axiomaweb.axiomacloud.com
+- ✓ localhost
+- ✓ 127.0.0.1
 
 3. **Guardar como:**
    - Nombre: `override.crt`
@@ -68,7 +84,15 @@ lyImJCbNWzCGP5c=
 
 ## ✅ Solución para Linux
 
-### Ubicación del archivo
+### Opción A: Script Automático (Recomendado)
+
+```bash
+./instalar-override-linux.sh
+```
+
+### Opción B: Manual
+
+#### Ubicación del archivo
 
 En Linux, QZ Tray busca el archivo en:
 
@@ -76,7 +100,7 @@ En Linux, QZ Tray busca el archivo en:
 ~/.qz/override.crt
 ```
 
-### Pasos
+#### Pasos
 
 ```bash
 # Crear el directorio si no existe
@@ -86,7 +110,7 @@ mkdir -p ~/.qz
 nano ~/.qz/override.crt
 ```
 
-Pegar el certificado (el mismo de arriba), guardar (Ctrl+O, Enter, Ctrl+X).
+Pegar el certificado (el mismo de arriba con SAN), guardar (Ctrl+O, Enter, Ctrl+X).
 
 Reiniciar QZ Tray:
 ```bash
@@ -203,16 +227,34 @@ Si el método de `override.crt` no funciona, puedes usar el archivo de propiedad
    - Si QZ Tray ya está corriendo cuando creas el archivo, reinícialo
 
 2. **El certificado es válido por 365 días**
-   - Fecha de expiración: 2026-12-12
+   - Fecha de expiración: 2026-12-13
    - Después de esa fecha, generar un nuevo certificado y actualizar override.crt
 
-3. **Cada PC necesita su propio override.crt**
-   - En un entorno multiusuario, cada PC debe tener el archivo
-   - Puede automatizarse con un script de instalación
+3. **Certificado con SAN (Subject Alternative Names)**
+   - Funciona para múltiples dominios: axiomaweb.axiomacloud.com, localhost, 127.0.0.1
+   - No necesitas certificados diferentes para desarrollo y producción
+   - Un solo certificado para todos los entornos
 
-4. **No confundir con Site Manager**
+4. **Cada PC necesita su propio override.crt**
+   - En un entorno multiusuario, cada PC debe tener el archivo
+   - Puede automatizarse con el script de instalación (`instalar-override-windows.bat` o `instalar-override-linux.sh`)
+
+5. **No confundir con Site Manager**
    - Site Manager es para gestionar certificados de sitios específicos
    - override.crt es para confiar en tu propio certificado como CA
+
+## 🔧 Regenerar Certificados (Opcional)
+
+Si necesitas generar nuevos certificados (por ejemplo, para agregar más dominios):
+
+**Solo en Linux/macOS** (donde está el repositorio):
+
+```bash
+cd qz-tray
+./generar-certificados.sh
+```
+
+El script genera certificados con SAN para múltiples dominios. Los certificados generados se copian automáticamente al código y al script de instalación de Windows.
 
 ---
 
