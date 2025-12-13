@@ -7,7 +7,7 @@
  * Documentación: https://qz.io/wiki/
  */
 
-import qz from 'qz-tray';
+import * as qz from 'qz-tray';
 
 // Certificado digital (generado con QZ Tray)
 // Generado: 2025-12-12, válido por 365 días
