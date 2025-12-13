@@ -101,34 +101,45 @@ rcnmMzfuZ1nIub10HjLEsb4M4py5nP+Vn17hd8lUPTm3Nw/lHUFFHO3iN+Lcz+N2
 
         function signMessage(message) {
             try {
+                log('🔑 Iniciando firma del mensaje...', '');
+                log('📝 Mensaje a firmar: ' + message.substring(0, 50) + '...', '');
+
                 const signature = new KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
                 signature.init(PRIVATE_KEY);
                 signature.updateString(message);
                 const signatureHex = signature.sign();
-                return KJUR.hextob64(signatureHex);
+                const signatureBase64 = KJUR.hextob64(signatureHex);
+
+                log('✅ Firma generada (primeros 40 chars): ' + signatureBase64.substring(0, 40) + '...', '');
+                log('📏 Longitud de la firma: ' + signatureBase64.length + ' caracteres', '');
+
+                return signatureBase64;
             } catch (error) {
                 log('❌ Error firmando: ' + error.message, 'error');
+                log('📋 Stack trace: ' + error.stack, 'error');
                 return null;
             }
         }
 
         async function testConnection() {
             log('🔌 Iniciando test de conexión...');
+            log('🌐 Conectando desde: ' + window.location.origin, '');
 
             try {
                 // Configurar certificado
                 qz.security.setCertificatePromise((resolve) => {
-                    log('📜 Proveyendo certificado...');
+                    log('📜 QZ Tray solicitó el certificado', '');
+                    log('📋 Enviando certificado (primeros 60 chars): ' + CERTIFICATE.substring(0, 60) + '...', '');
                     resolve(CERTIFICATE);
                 });
 
                 // Configurar firma
                 qz.security.setSignaturePromise((toSign) => {
                     return (resolve) => {
-                        log('✍️ Firmando mensaje...');
+                        log('✍️ QZ Tray solicitó firma para el mensaje', '');
                         const signature = signMessage(toSign);
                         if (signature) {
-                            log('✅ Mensaje firmado correctamente', 'success');
+                            log('✅ Firma enviada a QZ Tray', 'success');
                             resolve(signature);
                         } else {
                             log('❌ Fallo al firmar mensaje', 'error');
@@ -138,18 +149,29 @@ rcnmMzfuZ1nIub10HjLEsb4M4py5nP+Vn17hd8lUPTm3Nw/lHUFFHO3iN+Lcz+N2
                 });
 
                 // Intentar conectar
-                log('🔗 Conectando a QZ Tray...');
+                log('🔗 Iniciando conexión WebSocket a QZ Tray...');
                 await qz.websocket.connect();
 
                 log('✅ ¡CONECTADO EXITOSAMENTE!', 'success');
-                log('📌 QZ Tray versión: ' + await qz.api.getVersion(), 'success');
+                const version = await qz.api.getVersion();
+                log('📌 QZ Tray versión: ' + version, 'success');
 
-                // Verificar si aparece popup
-                log('⚠️ Si NO apareció popup → override.crt está funcionando', 'success');
-                log('⚠️ Si apareció popup → override.crt NO está instalado correctamente', 'error');
+                // Verificar popup
+                log('', '');
+                log('=== RESULTADO DEL TEST ===', '');
+                log('✓ Si NO apareció popup → La autorización funciona correctamente', 'success');
+                log('✗ Si apareció popup → Hay un problema con la firma o autorización', 'error');
+                log('', '');
+
+                // Test adicional: listar impresoras
+                log('🖨️ Test adicional: Listando impresoras...', '');
+                const printers = await qz.printers.find();
+                log('✅ Impresoras encontradas: ' + printers.length, 'success');
+                printers.forEach(p => log('  - ' + p, ''));
 
             } catch (error) {
                 log('❌ Error de conexión: ' + error.message, 'error');
+                log('📋 Error completo: ' + JSON.stringify(error), 'error');
                 log('💡 Verifica que QZ Tray esté ejecutándose', '');
             }
         }
