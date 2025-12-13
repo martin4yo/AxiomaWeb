@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test QZ Tray - Verificación de Certificado</title>
+    <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2.4/qz-tray.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsrsasign@11.1.0/lib/jsrsasign-all-min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+        .log { background: #252526; padding: 10px; margin: 10px 0; border-left: 3px solid #007acc; }
+        .success { border-left-color: #4ec9b0; }
+        .error { border-left-color: #f48771; }
+        button { background: #007acc; color: white; border: none; padding: 10px 20px; cursor: pointer; margin: 10px 5px; }
+        button:hover { background: #005a9e; }
+        h1 { color: #4ec9b0; }
+        h2 { color: #dcdcaa; margin-top: 20px; }
+        code { background: #3c3c3c; padding: 2px 6px; }
+    </style>
+</head>
+<body>
+    <h1>🔐 Verificación de Certificado QZ Tray</h1>
+
+    <h2>Certificado Actual:</h2>
+    <div class="log">
+        <strong>CN:</strong> axiomaweb.axiomacloud.com<br>
+        <strong>SAN:</strong> axiomaweb.axiomacloud.com, localhost, 127.0.0.1<br>
+        <strong>Válido hasta:</strong> 2026-12-13<br>
+        <strong>Serial:</strong> 67:0a:fc:19:8d:fd:c8:fe:e3:50:39:b6:49:b1:f4:bf:5b:14:4d:d5
+    </div>
+
+    <button onclick="testConnection()">🔌 Test Conexión</button>
+    <button onclick="testSignature()">✍️ Test Firma</button>
+    <button onclick="clearLogs()">🗑️ Limpiar</button>
+
+    <div id="logs"></div>
+
+    <script>
+        const CERTIFICATE = `-----BEGIN CERTIFICATE-----
+MIIEGzCCAwOgAwIBAgIUZwr8GY39yP7jUDm2SbH0v1sUTdUwDQYJKoZIhvcNAQEL
+BQawgZcxCzAJBgNVBAYTAkFSMRUwEwYDVQQIDAxCdWVub3MgQWlyZXMxFTATBgNV
+BAcMDEJ1ZW5vcyBBaXJlczESMBAGA1UECgwJQXhpb21hV2ViMSIwIAYDVQQDDBlh
+eGlvbWF3ZWIuYXhpb21hY2xvdWQuY29tMSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBh
+eGlvbWF3ZWIuY29tMB4XDTI1MTIxMzEyNTkwOFoXDTI2MTIxMzEyNTkwOFowgZcx
+CzAJBgNVBAYTAkFSMRUwEwYDVQQIDAxCdWVub3MgQWlyZXMxFTATBgNVBAcMDEJ1
+ZW5vcyBBaXJlczESMBAGA1UECgwJQXhpb21hV2ViMSIwIAYDVQQDDBlheGlvbWF3
+ZWIuYXhpb21hY2xvdWQuY29tMSIwIAYJKoZIhvcNAQkBFhNhZG1pbkBheGlvbWF3
+ZWIuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoMYYJ31BHwyp
+3+djbC+1/3NkpJFurUwo8mme13vrMhbxKWmcbPcU9FPVWVMtqnJuQjie/ytri5ZV
+HiV6h10kWA73EtzRUSgZSNoCUBwQlM2az+6s9/CY7ZG5LvKM+n0TkoQS6t8iiG4p
+K31W2/i9NWf1McVQ9LE5ntx0WJlHA8dVRkejZaXDNcQOpb5flrW+8LN2WLQXrKev
+BwX48nJaxJ8XNsymczVR5hcJ7WcNyunk3/gzOvzTEwEFGxNEmwsi6xfkmAxsTf7A
+0R0OL3Pb/Rr7OoWfCwfcz1kwXCdML+M4DnU/JJaoitXbfGL0lIFjacZC+vxCAO0F
+2/nFvCHKzQIDAQABo10wWzA6BgNVHREEMzAxghlheGlvbWF3ZWIuYXhpb21hY2xv
+dWQuY29tgglsb2NhbGhvc3SCCTEyNy4wLjAuMTAdBgNVHQ4EFgQUPUqpS0kRV/gB
+g2F9iOEDeqD+ttgwDQYJKoZIhvcNAQELBQADggEBAJ4sPwTIyNZJzgUq5zfbafca
+qi95ikjGJO8W+H1D66LnAFhzBynrl+MTH9u7pBfYXzcttdfy3vYFOCu0g+PwcGFf
+DV9xPE1VkSo5in5DIfu7+/OPQk9uywOKglGORNBcm3tmjLsy0IeSWd+JA3vTYQ3Y
+unGisCiWLEBfrDuG+5e92vfgq96NYbSdnAScekVffwROa6Fd24V23YG2J5uNp/Rf
+rIoaH/FnMlFGVveCD2gblEUfqXgl/TCxBxXHNt3biNJIiD+m9TMH0JUuR0cioLyz
+880/n9i13ehxWsOcL+tR32kdGmgiQxOSgojqZAv4yk1xlK3h3W7CdkTyw6scYzI=
+-----END CERTIFICATE-----`;
+
+        const PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCgxhgnfUEfDKnf
+52NsL7X/c2SkkW6tTCjyaZ7Xe+syFvEpaZxs9xT0U9VZUy2qcm5COJ7/K2uLllUe
+JXqHXSRYDvcS3NFRKBlI2gJQHBCUzZrP7qz38Jjtkbku8oz6fROShBLq3yKIbikr
+fVbb+L01Z/UxxVD0sTme3HRYmUcDx1VGR6NlpcM1xA6lvl+Wtb7ws3ZYtBesp68H
+BfjyclrEnxc2zKZzNVHmFwntZw3K6eTf+DM6/NMTAQUbE0SbCyLrF+SYDGxN/sDR
+HQ4vc9v9Gvs6hZ8LB9zPWTBcJ0wv4zgOdT8klqiK1dt8YvSUgWNpxkL6/EIA7QXb
++cW8IcrNAgMBAAECggEAAf0JOFdpSlORnn11Ly9oE+MVUmxV2KQmcn8VBTG/aJTV
+9Tu2gOnnMxfK8PcHvs6tASBdpdn5E2NWPxBagFkwaKIz8vwGEh48/jfSC2cZdMzi
+yaHetxW28nzY2m6+CLmqZKeOnooiQKedVnAcEA4dJ8KwirKXzBSM2gni3ePbBL35
+0MKz3Rz5q9Hx+i2GTA2EeBC91ct/ViD4kCNR6H85rCaQ6q2TDBfHmjXRNyWtTO6a
+u3aaYIKkHILP/ey4llBqGP/8HWY43jWHhpn/6HupTKPZY+SOgd/Geshfsq/dTfVU
+cAZ8MzqyNu7vs2Smmo+cnlITE4XAEQ6txOO/geZIOQKBgQDCNk0TaCLr9JsQqMcD
++elkBdS0wazoRWAXqLjgkJ5VByTBdrXyJo7uEQI2FXHn7mo9b/DJWdIdhA338ipv
+mPJdmUnHjr4IrffT+CyL0x/o6y4awOZRVeufdBkn9EWWLLEGlMFa67dsHK++T6aF
+RAj3Q0Ee+9Wb5O+qmbVxAdQjyQKBgQDT7GTtkTLwhdVQANGfnm+efuoYMjgVEgB7
+zxdXYsfreGSBWmyaeXVbq9O92178Iv3PTmGiiT+cUpHuZssToIz2dXv1yHgrLPAI
+LFPiNMuHt6DotIK8ehIJel/kEMlIqcnDhA4N6GYBN7rwvkW2pFXgajSqt48BEUCz
+LnVpowOI5QKBgQCEs22+0OzrpNs/atNxWBWtDn7kc2Gd46lhARwx9R76okLvHhn8
+N3R6Ho0QP17xRuq4yAAS1JjJKi4RORrd3ffdFJxhCpu2eohYAb8OW1f2YpvCFARL
+lxXEgiOeNT5G+oqLIKFtapqN+Jvswafabz5hFUct0I2IU8mfHB/p84HsYQKBgD86
+O06J0JnkRCVPaTtnSMQP94XqjcLzkQNfYQZoaV8+lzXkpZxc+n+0P0NYzPkK85DD
+QOv+aOUZ2YI4VwRvFT9/A9Hr0raG/MJjf09xEvxV9AMZwBu9i94aDbv8qiEszw6v
+OoY5vR1F5FdpXWFFnH2NElOQ2nCmFhifltZClY5lAoGAWvEKOiy7Hx+uzS4e8h1Y
+Z0IYCEmGuj0DJLycHGhaCejUqGYwLyTAyFx90w1JfS9feqVe7J6LZualTwj+O/JK
+rcnmMzfuZ1nIub10HjLEsb4M4py5nP+Vn17hd8lUPTm3Nw/lHUFFHO3iN+Lcz+N2
+/WfERsojABpzgcV1cuZ//sA=
+-----END PRIVATE KEY-----`;
+
+        function log(message, type = '') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+            document.getElementById('logs').appendChild(div);
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        function signMessage(message) {
+            try {
+                const signature = new KJUR.crypto.Signature({ alg: 'SHA256withRSA' });
+                signature.init(PRIVATE_KEY);
+                signature.updateString(message);
+                const signatureHex = signature.sign();
+                return KJUR.hextob64(signatureHex);
+            } catch (error) {
+                log('❌ Error firmando: ' + error.message, 'error');
+                return null;
+            }
+        }
+
+        async function testConnection() {
+            log('🔌 Iniciando test de conexión...');
+
+            try {
+                // Configurar certificado
+                qz.security.setCertificatePromise((resolve) => {
+                    log('📜 Proveyendo certificado...');
+                    resolve(CERTIFICATE);
+                });
+
+                // Configurar firma
+                qz.security.setSignaturePromise((toSign) => {
+                    return (resolve) => {
+                        log('✍️ Firmando mensaje...');
+                        const signature = signMessage(toSign);
+                        if (signature) {
+                            log('✅ Mensaje firmado correctamente', 'success');
+                            resolve(signature);
+                        } else {
+                            log('❌ Fallo al firmar mensaje', 'error');
+                            resolve('');
+                        }
+                    };
+                });
+
+                // Intentar conectar
+                log('🔗 Conectando a QZ Tray...');
+                await qz.websocket.connect();
+
+                log('✅ ¡CONECTADO EXITOSAMENTE!', 'success');
+                log('📌 QZ Tray versión: ' + await qz.api.getVersion(), 'success');
+
+                // Verificar si aparece popup
+                log('⚠️ Si NO apareció popup → override.crt está funcionando', 'success');
+                log('⚠️ Si apareció popup → override.crt NO está instalado correctamente', 'error');
+
+            } catch (error) {
+                log('❌ Error de conexión: ' + error.message, 'error');
+                log('💡 Verifica que QZ Tray esté ejecutándose', '');
+            }
+        }
+
+        async function testSignature() {
+            log('🧪 Testeando firma RSA-SHA256...');
+            const testMessage = 'Test message ' + Date.now();
+            const signature = signMessage(testMessage);
+
+            if (signature) {
+                log('✅ Firma generada: ' + signature.substring(0, 40) + '...', 'success');
+            } else {
+                log('❌ No se pudo generar firma', 'error');
+            }
+        }
+
+        // Auto-test al cargar
+        window.addEventListener('load', () => {
+            log('📋 Página de test cargada');
+            log('🌐 Dominio actual: ' + window.location.hostname);
+            log('📍 Certificado válido para: axiomaweb.axiomacloud.com, localhost, 127.0.0.1');
+        });
+    </script>
+</body>
+</html>
