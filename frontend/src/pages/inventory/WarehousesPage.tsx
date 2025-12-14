@@ -129,15 +129,15 @@ export default function WarehousesPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Almacenes</h1>
         <p className="text-gray-600">Gestiona los almacenes de tu empresa</p>
       </div>
 
       {/* Card */}
-      <div className="bg-white rounded-lg shadow mt-6">
+      <div className="bg-white rounded-lg shadow">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-lg font-semibold">Lista de Almacenes</h2>
           <button

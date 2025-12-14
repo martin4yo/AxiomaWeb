@@ -46,8 +46,8 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Compras</h1>
         <button
           onClick={() => navigate('/purchases/new')}

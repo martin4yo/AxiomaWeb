@@ -1,6 +1,6 @@
 import { CheckCircle, XCircle, Loader2, AlertTriangle, Printer } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { printService } from '../../services/printService'
+import { salesApi } from '../../api/sales'
 
 interface AFIPProgressStep {
   id: string
@@ -52,54 +52,28 @@ export function AFIPProgressModal({
   }, [isOpen, canClose, onClose])
 
   // Función para imprimir ticket térmico
+  // Flujo: 1. Servicio local (localhost:5555) + ESC/POS → 2. QZ Tray → 3. HTML
   const handlePrintThermal = async () => {
-    if (!saleResult?.sale) return
+    if (!saleResult?.sale?.id) return
 
     setIsPrinting(true)
     setPrintMessage(null)
 
     try {
-      // Preparar datos para el Print Manager
-      const printData = {
-        business: {
-          name: saleResult.sale.tenant?.businessName || saleResult.sale.tenant?.name || 'MI NEGOCIO',
-          cuit: saleResult.sale.tenant?.cuit,
-          address: saleResult.sale.tenant?.address,
-          phone: saleResult.sale.tenant?.phone,
-          email: saleResult.sale.tenant?.email
-        },
-        sale: {
-          number: saleResult.sale.fullVoucherNumber || saleResult.sale.saleNumber,
-          date: new Date(saleResult.sale.saleDate).toLocaleDateString('es-AR'),
-          voucherName: saleResult.sale.voucherType || 'TICKET',
-          voucherLetter: saleResult.sale.voucherLetter || '',
-          customer: saleResult.sale.customerName || 'Consumidor Final',
-          customerCuit: saleResult.sale.customerCuit || null,
-          items: (saleResult.sale.items || []).map((item: any) => ({
-            name: item.description || item.productName,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            total: Number(item.lineTotal)
-          })),
-          subtotal: Number(saleResult.sale.subtotal || 0),
-          discountAmount: Number(saleResult.sale.discountAmount || 0),
-          taxAmount: Number(saleResult.sale.taxAmount || 0),
-          totalAmount: Number(saleResult.sale.totalAmount || 0),
-          payments: saleResult.payments || [],
-          caeNumber: saleResult.caeInfo?.cae || null,
-          caeExpiration: saleResult.caeInfo?.caeExpiration
-            ? new Date(saleResult.caeInfo.caeExpiration).toLocaleDateString('es-AR')
-            : null,
-          notes: saleResult.sale.notes || null
-        }
-      }
-
-      const result = await printService.printToThermalPrinter(printData, 'simple')
+      // Usar el flujo completo de salesApi.printThermal que:
+      // 1. Obtiene datos del backend con thermal-data
+      // 2. Intenta servicio local (localhost:5555) + qzTrayService.generateESCPOS
+      // 3. Fallback a QZ Tray directo
+      // 4. Último recurso: HTML (window.print)
+      const result = await salesApi.printThermal(saleResult.sale.id)
 
       if (result.success) {
-        setPrintMessage({ type: 'success', text: result.message || 'Ticket enviado a impresora' })
+        setPrintMessage({
+          type: 'success',
+          text: result.message || `Ticket impreso (${result.method})`
+        })
       } else {
-        setPrintMessage({ type: 'error', text: result.error || 'Error al imprimir' })
+        setPrintMessage({ type: 'error', text: 'Error al imprimir' })
       }
     } catch (error: any) {
       setPrintMessage({ type: 'error', text: error.message || 'Error inesperado al imprimir' })

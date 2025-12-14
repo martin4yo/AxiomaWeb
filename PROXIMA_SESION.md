@@ -1,215 +1,182 @@
-# 🚀 Inicio Rápido - Próxima Sesión
+# Inicio Rápido - Próxima Sesión
 
-## 📊 Estado Actual del Proyecto (01/12/2025)
+## Estado Actual del Proyecto (13/12/2025)
 
-### ✅ Módulos Completados y Operativos
-1. **Ventas** - 100% ✅
-2. **Compras** - 100% ✅
-3. **Sistema de Caja** - 85% ✅
-4. **Productos e Inventario** - 100% ✅
-5. **Clientes y Proveedores** - 100% ✅
-
-### 📝 Última Sesión (01/12/2025)
-
-**Implementado:**
-- ✅ Descripción personalizada en items de venta/compra
-- ✅ Fecha de venta configurable
-- ✅ Fecha de vencimiento en compras
-- ✅ Filtro por cuenta en movimientos de caja
-- ✅ Bug fix: actualización automática de movimientos
-
-**Documentación:**
-- ✅ `docs/SESION_2025-12-01.md` - Documentación detallada
-- ✅ `ROADMAP.md` actualizado
+### Módulos Completados y Operativos
+1. **Ventas** - 100%
+2. **Compras** - 100%
+3. **Sistema de Caja** - 100%
+4. **Productos e Inventario** - 100%
+5. **Clientes y Proveedores** - 100%
+6. **Facturación Electrónica AFIP** - 100%
+7. **Impresión** - 100% (Térmica 80mm, PDF A4, Print Manager Windows)
 
 ---
 
-## 🎯 Próximos Pasos Prioritarios
+## Última Sesión (13/12/2025)
 
-### Prioridad ALTA 🔴
-1. **Dashboard con Métricas**
-   - Total vendido hoy/semana/mes
-   - Productos más vendidos
-   - Movimientos de caja del día
-   - Stock bajo mínimo
-   - Productos próximos a vencer
+### Implementado
 
-2. **Módulo de Informes**
-   - Ventas por producto
-   - Cobranzas por forma de pago
-   - Exportación a Excel
+#### 1. Ticket Térmico - Corrección de Datos
+**Problema:** Los precios, totales y formas de pago aparecían en 0 o "Sin Especificar"
 
-3. **Mejoras de UX**
-   - Notificación de productos próximos a vencer
-   - Alertas de stock bajo
-   - Atajos de teclado en POS
+**Causa:** Desajuste de nombres de campos entre backend y frontend:
+- Backend enviaba `unitPrice` → Frontend esperaba `price`
+- Backend enviaba `totalAmount` → Frontend esperaba `total`
+- Backend enviaba `name` en payments → Frontend esperaba `method`
 
-### Prioridad MEDIA 🟡
-1. **Integración AFIP**
-   - Configuración de certificados
-   - Facturación electrónica
-   - Generación de PDFs
+**Solución:** Actualizado `backend/src/routes/sales.ts` (endpoints `thermal-data` y `thermal`) para enviar ambos nombres de campos:
+```javascript
+items: {
+  description, name,           // Ambos para compatibilidad
+  price, unitPrice,            // Ambos para compatibilidad
+  total, ...
+}
+payments: {
+  method, name,                // Ambos para compatibilidad
+  amount, ...
+}
+sale: {
+  total, totalAmount,          // Ambos para compatibilidad
+  ...
+}
+```
 
-2. **Optimizaciones**
-   - Índices en tablas principales
-   - Paginación en endpoints
-   - Cache de consultas frecuentes
+#### 2. Selector de Impresora Térmica - Fix de Selección
+**Problema:** La impresora guardada no aparecía seleccionada al editar voucher
 
-### Prioridad BAJA 🟢
-1. **Extras**
-   - Sistema de impresión térmica (Electron app)
-   - App móvil para ventas
-   - Integración Mercado Pago
+**Causa:** El `useEffect` que populaba el formulario no tenía `printers` como dependencia, entonces se ejecutaba antes de que la lista de impresoras estuviera cargada.
+
+**Solución:** Agregado `printers` como dependencia en `EditVoucherConfigurationPage.tsx`:
+```javascript
+// Antes
+}, [configuration, salesPoints, reset])
+
+// Después
+}, [configuration, salesPoints, reset, printers])
+```
+
+#### 3. Productos - Campos Opcionales de Stock y Peso
+**Problema:** Los campos de stock y peso eran requeridos aunque `trackStock` estuviera desactivado
+
+**Solución:**
+- **Frontend:** Actualizado schema Zod en `ProductModal.tsx` con `preprocess` para permitir valores vacíos/null
+- **Backend:** Actualizado schema en `products.ts` para hacer campos opcionales y nullable:
+  - `currentStock`, `minStock`, `maxStock`, `reorderPoint` → opcionales
+  - `weight` → opcional
+
+#### 4. Sidebar - Menú de Cajas
+**Problema:** Usuario no encontraba el CRUD de cajas
+
+**Solución:** Renombrado "Balance" a "Cajas" y reordenado en el menú "Fondos":
+- Antes: Movimientos, Balance
+- Ahora: **Cajas**, Movimientos
+
+#### 5. Seed KeySoft
+Ejecutado seed para crear tenant KeySoft con todos los datos base:
+- Tenant, Usuario Admin, Condiciones IVA, Tipos de Comprobante
+- Sucursal, Conexión AFIP, Punto de Venta
+- Configuraciones de Comprobantes, Almacén, Caja, Formas de Pago
+
+**Credenciales:**
+```
+Email: admin@keysoft.com
+Password: KeySoft2024!
+Tenant: keysoft
+```
 
 ---
 
-## 🛠️ Comandos Útiles
+## Base de Datos Actual
+
+```
+Host: 66.97.45.210
+Puerto: 5432
+Usuario: postgres
+Password: Q27G4B98
+Base de datos: axiomaweb_db
+```
+
+---
+
+## Archivos Modificados Esta Sesión
+
+### Backend
+- `backend/src/routes/sales.ts` - Corregido mapeo de campos para thermal-data
+- `backend/src/routes/products.ts` - Campos de stock opcionales
+- `backend/.env` - Configuración de BD remota
+
+### Frontend
+- `frontend/src/pages/settings/EditVoucherConfigurationPage.tsx` - Fix selector impresora + logs debug
+- `frontend/src/components/products/ProductModal.tsx` - Campos stock/peso opcionales
+- `frontend/src/components/layout/Sidebar.tsx` - Renombrado "Balance" a "Cajas"
+
+---
+
+## Logs de Debug Activos
+
+### Frontend (Consola del navegador)
+En `EditVoucherConfigurationPage.tsx`:
+- `[EditVoucherConfig] Servicio de impresión disponible: true/false`
+- `[EditVoucherConfig] Lista de impresoras recuperadas: [...]`
+- `[EditVoucherConfig] Configuración recibida del backend: {...}`
+
+### Backend (Consola del servidor)
+En endpoint `thermal-data`:
+- `[ThermalData] Sale ID: ...`
+- `[ThermalData] Items crudos: [...]`
+- `[ThermalData] Totales crudos: {...}`
+- `[ThermalData] Payments crudos: [...]`
+- `[ThermalData] printData.sale preparado: {...}`
+
+**Nota:** Estos logs pueden eliminarse una vez confirmado que todo funciona.
+
+---
+
+## Próximos Pasos Sugeridos
+
+### Prioridad ALTA
+1. **Quitar logs de debug** - Una vez confirmado que impresión funciona
+2. **Dashboard con Métricas** - Total vendido, productos más vendidos, stock bajo
+3. **Módulo de Informes** - Ventas por producto, exportación Excel
+
+### Prioridad MEDIA
+1. **Cuenta Corriente de Clientes**
+2. **Notas de Crédito/Débito AFIP**
+3. **Optimizaciones de rendimiento**
+
+---
+
+## Comandos Útiles
 
 ### Iniciar Desarrollo
 ```bash
-# Terminal 1 - Backend
-cd /home/martin/Desarrollos/AxiomaWeb/backend
-npm run dev  # Puerto 3001
+# Backend (Puerto 3150)
+cd backend && npm run dev
 
-# Terminal 2 - Frontend
-cd /home/martin/Desarrollos/AxiomaWeb/frontend
-npm run dev  # Puerto 5173
+# Frontend (Puerto 8088)
+cd frontend && npm run dev
+
+# Print Manager (Puerto 5555)
+cd print-manager && node server-windows.js
 ```
 
-### Base de Datos
+### Seed KeySoft
 ```bash
-# Conectar a PostgreSQL
-PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d axiomaweb_db
-
-# Ver migraciones
-cd /home/martin/Desarrollos/AxiomaWeb/backend
-npx prisma migrate status
-
-# Crear nueva migración
-DATABASE_URL="postgresql://postgres:postgres@localhost:5433/axiomaweb_db" npx prisma migrate dev --name nombre_de_migracion
-```
-
-### Datos de Prueba
-- **Tenant:** Demo (slug: demo)
-- **Usuario:** demo@axioma.com
-- **Cuentas:** Caja Principal, Cuenta Bancaria, Mercado Pago
-- **Formas de pago:** Efectivo, Crédito, Débito, MP
-
----
-
-## 📁 Estructura de Archivos Clave
-
-### Backend
-```
-backend/
-├── src/
-│   ├── routes/
-│   │   ├── sales.ts          # API de ventas
-│   │   ├── purchases.ts      # API de compras
-│   │   ├── cash.ts           # API de movimientos de caja
-│   │   └── ...
-│   ├── services/
-│   │   ├── salesService.ts   # Lógica de negocio ventas
-│   │   ├── purchaseService.ts # Lógica de negocio compras
-│   │   ├── cashMovementService.ts # Lógica movimientos
-│   │   └── ...
-│   └── middleware/
-│       ├── tenantMiddleware.ts # Aislamiento multi-tenant
-│       └── authMiddleware.ts   # Autenticación JWT
-└── prisma/
-    └── schema.prisma         # Modelos de datos
-```
-
-### Frontend
-```
-frontend/
-├── src/
-│   ├── pages/
-│   │   ├── sales/
-│   │   │   ├── NewSalePage.tsx      # POS
-│   │   │   └── SalesPage.tsx        # Listado
-│   │   ├── purchases/
-│   │   │   ├── NewPurchasePage.tsx  # Formulario compra
-│   │   │   └── PurchasesPage.tsx    # Listado
-│   │   └── cash/
-│   │       ├── CashMovementsPage.tsx # Movimientos
-│   │       └── CashAccountsPage.tsx  # Cuentas
-│   ├── services/
-│   │   ├── api.ts            # Cliente Axios
-│   │   └── ...
-│   └── stores/
-│       └── authStore.ts      # Zustand store auth
+cd backend
+export DATABASE_URL="postgresql://postgres:Q27G4B98@66.97.45.210:5432/axiomaweb_db?schema=public"
+npx tsx src/seed-keysoft.ts
 ```
 
 ---
 
-## 🐛 Issues Conocidos
+## Tenants Disponibles
 
-### Pendientes
-- [ ] Agregar índice en `purchase_items.expiration_date` para optimizar búsquedas
-- [ ] Validar que fecha de venta no sea futura (opcional)
-- [ ] Límite de caracteres en descripción personalizada (500 chars)
-
-### En Desarrollo
-- Ninguno actualmente
+| Tenant | Email | Password |
+|--------|-------|----------|
+| demo | demo@axioma.com | (verificar) |
+| keysoft | admin@keysoft.com | KeySoft2024! |
 
 ---
 
-## 💡 Notas para Recordar
-
-### Arquitectura Multi-Tenant
-- Todos los modelos principales tienen `tenantId`
-- El middleware `tenantMiddleware` filtra automáticamente por tenant
-- Algunos modelos están en `skipModels` (ej: User, SaleItem, PurchaseItem)
-
-### Cálculo de IVA
-- Se calcula automáticamente según condición IVA del cliente
-- Responsable Inscripto → IVA discriminado
-- Consumidor Final → IVA incluido
-
-### Movimientos de Caja
-- Se crean automáticamente al guardar venta/compra
-- Vinculados a la cuenta del método de pago
-- Si método no tiene cuenta, usa cuenta por defecto
-
-### React Query
-- Invalidar cache al mutar: `queryClient.invalidateQueries({ queryKey: [...] })`
-- Siempre incluir dependencias en `queryKey` para reactividad
-
----
-
-## 📚 Documentación Disponible
-
-- `README.md` - Información general del proyecto
-- `ROADMAP.md` - Hoja de ruta y estado del proyecto
-- `CONFIGURATION.md` - Configuración del sistema
-- `DEPLOYMENT.md` - Guía de deployment
-- `docs/AFIP_INTEGRACION.md` - Documentación AFIP
-- `docs/SESION_2025-12-01.md` - Última sesión de desarrollo
-
----
-
-## 🔗 Enlaces Útiles
-
-- [Prisma Docs](https://www.prisma.io/docs)
-- [React Query Docs](https://tanstack.com/query/latest)
-- [Zustand Docs](https://github.com/pmndrs/zustand)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [Lucide React Icons](https://lucide.dev/)
-
----
-
-**Última actualización:** 01/12/2025
-**Próxima revisión:** Al inicio de la próxima sesión
-
----
-
-## ✨ Quick Start Checklist
-
-Al iniciar la próxima sesión:
-- [ ] Leer `docs/SESION_2025-12-01.md` para contexto
-- [ ] Verificar que servicios estén corriendo (backend + frontend)
-- [ ] Hacer pull de cambios si hay colaboradores
-- [ ] Revisar issues en GitHub (si aplica)
-- [ ] Confirmar estado de la base de datos
-- [ ] Abrir esta documentación para referencia rápida
+**Última actualización:** 13/12/2025

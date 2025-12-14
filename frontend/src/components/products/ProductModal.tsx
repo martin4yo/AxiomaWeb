@@ -22,12 +22,29 @@ const schema = z.object({
   salePrice: z.number().min(0, 'El precio de venta debe ser mayor o igual a 0'),
   currency: z.string().default('ARS'),
   trackStock: z.boolean().default(true),
-  currentStock: z.number().min(0, 'El stock actual debe ser mayor o igual a 0').default(0),
-  minStock: z.number().min(0, 'El stock mínimo debe ser mayor o igual a 0').default(0),
-  maxStock: z.number().min(0, 'El stock máximo debe ser mayor o igual a 0').optional().nullable(),
-  reorderPoint: z.number().min(0, 'El punto de pedido debe ser mayor o igual a 0').optional().nullable(),
+  // Campos de stock opcionales - solo requeridos si trackStock es true (validación en superRefine)
+  currentStock: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || Number.isNaN(val)) ? null : Number(val),
+    z.number().min(0, 'El stock actual debe ser mayor o igual a 0').nullable().optional()
+  ),
+  minStock: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || Number.isNaN(val)) ? null : Number(val),
+    z.number().min(0, 'El stock mínimo debe ser mayor o igual a 0').nullable().optional()
+  ),
+  maxStock: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || Number.isNaN(val)) ? null : Number(val),
+    z.number().min(0, 'El stock máximo debe ser mayor o igual a 0').nullable().optional()
+  ),
+  reorderPoint: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || Number.isNaN(val)) ? null : Number(val),
+    z.number().min(0, 'El punto de pedido debe ser mayor o igual a 0').nullable().optional()
+  ),
   barcode: z.string().optional(),
-  weight: z.number().optional(),
+  // Peso opcional - puede estar vacío
+  weight: z.preprocess(
+    (val) => (val === '' || val === null || val === undefined || Number.isNaN(val)) ? null : Number(val),
+    z.number().min(0, 'El peso debe ser mayor o igual a 0').nullable().optional()
+  ),
   weightUnit: z.string().default('kg'),
   dimensions: z.string().optional(),
   notes: z.string().optional(),
@@ -349,7 +366,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                   step="0.01"
                   placeholder="0"
                   error={errors.currentStock?.message}
-                  {...register('currentStock', { valueAsNumber: true })}
+                  {...register('currentStock')}
                 />
                 <Input
                   label="Stock Mínimo (Crítico)"
@@ -357,7 +374,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                   step="0.01"
                   placeholder="0"
                   error={errors.minStock?.message}
-                  {...register('minStock', { valueAsNumber: true })}
+                  {...register('minStock')}
                 />
               </div>
 
@@ -368,10 +385,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                   step="0.01"
                   placeholder="Opcional"
                   error={errors.reorderPoint?.message}
-                  {...register('reorderPoint', {
-                    valueAsNumber: true,
-                    setValueAs: (v) => v === '' || v === null ? null : Number(v)
-                  })}
+                  {...register('reorderPoint')}
                   helperText="Aviso cuando stock llegue a este nivel"
                 />
                 <Input
@@ -380,10 +394,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
                   step="0.01"
                   placeholder="Opcional"
                   error={errors.maxStock?.message}
-                  {...register('maxStock', {
-                    valueAsNumber: true,
-                    setValueAs: (v) => v === '' || v === null ? null : Number(v)
-                  })}
+                  {...register('maxStock')}
                   helperText="Alerta si stock supera este nivel"
                 />
               </div>
@@ -409,9 +420,9 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
             label="Peso"
             type="number"
             step="0.001"
-            placeholder="0.000"
+            placeholder="Opcional"
             error={errors.weight?.message}
-            {...register('weight', { valueAsNumber: true })}
+            {...register('weight')}
           />
           <Select
             label="Unidad de Peso"

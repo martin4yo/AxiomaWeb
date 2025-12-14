@@ -502,7 +502,13 @@ export default function NewSalePage() {
       }
 
       try {
-        console.log('[Voucher] Calling API...')
+        console.log('[Voucher] Calling API...', {
+          customerId: selectedCustomer.id,
+          customerName: selectedCustomer.name,
+          customerIvaCondition: selectedCustomer.ivaCondition,
+          documentClass,
+          branchId: selectedBranch?.id
+        })
         const response = await axios.post(`/${currentTenant.slug}/voucher/determine`, {
           customerId: selectedCustomer.id,
           documentClass,
@@ -512,7 +518,12 @@ export default function NewSalePage() {
         setVoucherInfo(response.data)
       } catch (error: any) {
         console.error('[Voucher] Error determining voucher:', error)
+        console.error('[Voucher] Error response:', error.response?.data)
+        console.error('[Voucher] Error message:', error.response?.data?.error || error.message)
         setVoucherInfo(null)
+        // Mostrar alerta con el error
+        const errorMessage = error.response?.data?.error || error.message || 'Error desconocido'
+        showAlert('Error de Configuración', errorMessage, 'error')
       }
     }
 

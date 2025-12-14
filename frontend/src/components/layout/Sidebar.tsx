@@ -74,8 +74,8 @@ const navigation: NavigationItem[] = [
     name: 'Fondos',
     icon: Wallet,
     children: [
+      { name: 'Cajas', href: '/cash/accounts', icon: CreditCard },
       { name: 'Movimientos', href: '/cash/movements', icon: Banknote },
-      { name: 'Balance', href: '/cash/accounts', icon: CreditCard },
     ]
   },
   { name: 'Entidades', href: '/entities', icon: Users },

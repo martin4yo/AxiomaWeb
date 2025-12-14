@@ -85,16 +85,16 @@ export default function RegisterPaymentPage() {
   }
 
   if (loadingPurchase) {
-    return <div className="p-6">Cargando...</div>;
+    return <div className="space-y-6">Cargando...</div>;
   }
 
   if (!purchase) {
-    return <div className="p-6">Compra no encontrada</div>;
+    return <div className="space-y-6">Compra no encontrada</div>;
   }
 
   if (purchase.paymentStatus === 'paid') {
     return (
-      <div className="p-6">
+      <div className="space-y-6">
         <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
           <h2 className="text-xl font-semibold text-green-900 mb-2">
             Esta compra ya está completamente pagada
@@ -111,8 +111,8 @@ export default function RegisterPaymentPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
+    <div className="space-y-6">
+      <div>
         <button
           onClick={() => navigate(`/${currentTenant.slug}/purchases/${id}`)}
           className="text-blue-600 hover:text-blue-800 mb-2"

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsx:*)",
+      "Bash(export DATABASE_URL=\"postgresql://postgres:Q27G4B98@66.97.45.210:5432/axiomaweb_db?schema=public\")",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(done)"
+    ]
+  }
+}

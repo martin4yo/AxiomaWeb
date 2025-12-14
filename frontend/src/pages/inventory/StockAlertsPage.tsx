@@ -101,9 +101,9 @@ export default function StockAlertsPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
+      <div>
         <h1 className="text-2xl font-bold text-gray-900">Alertas de Stock</h1>
         <p className="text-gray-600">
           Monitoreo en tiempo real del estado de inventario

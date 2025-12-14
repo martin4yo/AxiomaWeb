@@ -41,9 +41,9 @@ export default function SupplierAccountDetailPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
+      <div>
         <button
           onClick={() => navigate('/supplier-accounts')}
           className="text-blue-600 hover:text-blue-800 mb-2"

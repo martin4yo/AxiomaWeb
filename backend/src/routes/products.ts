@@ -49,8 +49,12 @@ const productSchema = z.object({
   salePrice: z.number().default(0),
   currency: z.string().default('ARS'),
   trackStock: z.boolean().default(true),
-  currentStock: z.number().default(0),
-  minStock: z.number().default(0),
+  // Campos de stock - opcionales cuando trackStock es false
+  currentStock: z.number().optional().nullable(),
+  minStock: z.number().optional().nullable(),
+  maxStock: z.number().optional().nullable(),
+  reorderPoint: z.number().optional().nullable(),
+  // Peso opcional
   weight: z.number().optional().nullable(),
   weightUnit: z.string().optional(),
   dimensions: z.string().optional(),

@@ -62,21 +62,21 @@ export default function PurchaseDetailPage() {
   };
 
   if (!currentTenant || !id) {
-    return <div>Compra no encontrada</div>;
+    return <div className="space-y-6">Compra no encontrada</div>;
   }
 
   if (isLoading) {
-    return <div className="p-6">Cargando...</div>;
+    return <div className="space-y-6">Cargando...</div>;
   }
 
   if (!purchase) {
-    return <div className="p-6">Compra no encontrada</div>;
+    return <div className="space-y-6">Compra no encontrada</div>;
   }
 
   return (
-    <div className="p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
+      <div>
         <button
           onClick={() => navigate('/purchases')}
           className="text-blue-600 hover:text-blue-800 mb-2"
