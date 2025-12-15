@@ -108,12 +108,6 @@ export class PDFTemplateService {
     currentY += 20
 
     doc.fontSize(8).font('Helvetica')
-    doc.text(`CUIT: ${cuit}`, 50, currentY)
-    currentY += 12
-    doc.text(`Ingresos Brutos: EXENTO`, 50, currentY)
-    currentY += 12
-    doc.text(`Inicio de Actividades: 01/01/2024`, 50, currentY)
-    currentY += 12
 
     if (address) {
       doc.text(`Domicilio: ${address}`, 50, currentY, { width: 200 })
@@ -153,22 +147,28 @@ export class PDFTemplateService {
     // DERECHA: Tipo y número de comprobante
     currentY = headerTop
     doc.fontSize(12).font('Helvetica-Bold')
-    doc.text(voucherName, 345, currentY, { width: 200, align: 'left' })
+    doc.text(voucherName, 345, currentY, { width: 200, align: 'right' })
     currentY += 15
 
     doc.fontSize(9).font('Helvetica')
-    doc.text(`Nº ${sale.fullVoucherNumber || sale.saleNumber}`, 345, currentY)
+    doc.text(`Nº ${sale.fullVoucherNumber || sale.saleNumber}`, 345, currentY, { width: 200, align: 'right' })
     currentY += 15
-    doc.text(`Fecha: ${saleDate}`, 345, currentY)
+    doc.text(`Fecha: ${saleDate}`, 345, currentY, { width: 200, align: 'right' })
+    currentY += 15
+    doc.text(`CUIT: ${cuit}`, 345, currentY, { width: 200, align: 'right' })
+    currentY += 12
+    doc.text(`Ingresos Brutos: EXENTO`, 345, currentY, { width: 200, align: 'right' })
+    currentY += 12
+    doc.text(`Inicio de Actividades: 01/01/2024`, 345, currentY, { width: 200, align: 'right' })
 
     // Línea divisoria
     currentY = Math.max(currentY + 25, headerTop + letterBoxSize + 25)
     doc.rect(50, currentY, 495, 0.5).fill('#000')
     currentY += 15
 
-    // ==================== DATOS DEL RECEPTOR ====================
+    // ==================== CLIENTE ====================
     doc.fontSize(9).font('Helvetica-Bold')
-    doc.text('DATOS DEL RECEPTOR', 50, currentY)
+    doc.text('CLIENTE', 50, currentY)
     currentY += 12
 
     doc.fontSize(8).font('Helvetica')
@@ -409,7 +409,7 @@ export class PDFTemplateService {
     currentY = Math.max(currentY, 750) // Ir al final de la página
     doc.fontSize(7).font('Helvetica').fillColor('#666')
     doc.text(
-      'Comprobante Autorizado. Documento no válido como factura.',
+      'Comprobante Autorizado',
       50,
       currentY,
       { width: 495, align: 'center' }
@@ -422,6 +422,7 @@ export class PDFTemplateService {
    */
   private renderQuoteInvoice(doc: PDFKit.PDFDocument, sale: SaleWithRelations) {
     const businessName = sale.tenant.businessName || sale.tenant.name
+    const cuit = sale.tenant.cuit || 'Sin CUIT'
     const address = sale.tenant.address || ''
     const phone = sale.tenant.phone || ''
     const email = sale.tenant.email || ''
@@ -460,6 +461,10 @@ export class PDFTemplateService {
     doc.text(`Nº ${sale.saleNumber}`, 350, doc.y - 36, { width: 195, align: 'right' })
     doc.font('Helvetica')
     doc.text(`Fecha: ${saleDate}`, 350, doc.y, { width: 195, align: 'right' })
+    doc.fontSize(9)
+    doc.text(`CUIT: ${cuit}`, 350, doc.y + 2, { width: 195, align: 'right' })
+    doc.text(`Ingresos Brutos: EXENTO`, 350, doc.y + 2, { width: 195, align: 'right' })
+    doc.text(`Inicio de Actividades: 01/01/2024`, 350, doc.y + 2, { width: 195, align: 'right' })
 
     currentY += 20
 
