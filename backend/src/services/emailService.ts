@@ -17,15 +17,28 @@ export class EmailService {
 
   constructor() {
     // Configurar transporter con Gmail usando variables de entorno
-    this.transporter = nodemailer.createTransport({
+    const smtpConfig = {
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: process.env.SMTP_SECURE === 'true', // true para port 465, false para otros puertos
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS
+      },
+      tls: {
+        rejectUnauthorized: false
       }
+    }
+
+    console.log('[EmailService] Configuración SMTP:', {
+      host: smtpConfig.host,
+      port: smtpConfig.port,
+      secure: smtpConfig.secure,
+      user: smtpConfig.auth.user,
+      passLength: smtpConfig.auth.pass?.length || 0
     })
+
+    this.transporter = nodemailer.createTransport(smtpConfig)
   }
 
   async sendEmail(options: SendEmailOptions, fromName?: string): Promise<void> {
