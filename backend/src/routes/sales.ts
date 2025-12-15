@@ -528,6 +528,7 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
         notes: sale.notes || null
       },
       template,
+      printFormat: sale.voucherConfiguration?.printFormat || 'NONE',
       printerName: sale.voucherConfiguration?.thermalPrinterName || null
     }
 

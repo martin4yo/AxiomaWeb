@@ -153,56 +153,82 @@ export const salesApi = {
     // 1. Obtener datos del backend
     const { data: printData } = await salesApi.getThermalPrintData(id)
 
-    // 2. Intentar con servicio local (localhost:5555) - PRIORIDAD 1
-    try {
-      const printService = await import('../services/print-service')
+    // 2. Determinar método según configuración
+    const printFormat = printData.printFormat || 'NONE'
 
-      // Verificar si el servicio está disponible
-      const isAvailable = await printService.isServiceRunning()
+    console.log(`[Print] Format configurado: ${printFormat}`)
+    console.log(`[Print] Impresora térmica: ${printData.printerName || 'ninguna'}`)
 
-      if (isAvailable && printData.printerName) {
-        // Generar comandos ESC/POS
+    // Si el formato es PDF, descargar el PDF
+    if (printFormat === 'PDF') {
+      try {
+        const pdfBlob = await salesApi.getPDF(id)
+        const url = URL.createObjectURL(pdfBlob)
+        window.open(url, '_blank')
+        return {
+          success: true,
+          message: 'PDF abierto en nueva pestaña',
+          method: 'pdf'
+        }
+      } catch (pdfError) {
+        console.error('Error abriendo PDF:', pdfError)
+        throw new Error('No se pudo abrir el PDF')
+      }
+    }
+
+    // Si el formato es THERMAL o tiene impresora configurada, intentar impresión térmica
+    if (printFormat === 'THERMAL' || printData.printerName) {
+      // 2.1. Intentar con servicio local (localhost:5555) - PRIORIDAD 1
+      try {
+        const printService = await import('../services/print-service')
+
+        // Verificar si el servicio está disponible
+        const isAvailable = await printService.isServiceRunning()
+
+        if (isAvailable && printData.printerName) {
+          // Generar comandos ESC/POS
+          const { qzTrayService } = await import('../services/qz-tray')
+          const commands = qzTrayService.generateESCPOS(
+            printData.business,
+            printData.sale,
+            printData.template as 'simple' | 'legal'
+          )
+
+          const result = await printService.printRaw(printData.printerName, commands)
+
+          if (result.success) {
+            return {
+              success: true,
+              message: 'Impreso correctamente con servicio local',
+              method: 'local-service'
+            }
+          }
+        }
+      } catch (localError) {
+        console.warn('Servicio local no disponible:', localError)
+      }
+
+      // 2.2. Fallback: QZ Tray - PRIORIDAD 2
+      try {
         const { qzTrayService } = await import('../services/qz-tray')
-        const commands = qzTrayService.generateESCPOS(
+
+        await qzTrayService.printThermal(
           printData.business,
           printData.sale,
           printData.template as 'simple' | 'legal'
         )
 
-        const result = await printService.printRaw(printData.printerName, commands)
-
-        if (result.success) {
-          return {
-            success: true,
-            message: 'Impreso correctamente con servicio local',
-            method: 'local-service'
-          }
+        return {
+          success: true,
+          message: 'Impreso correctamente con QZ Tray',
+          method: 'qz-tray'
         }
+      } catch (qzError) {
+        console.warn('QZ Tray no disponible:', qzError)
       }
-    } catch (localError) {
-      console.warn('Servicio local no disponible:', localError)
     }
 
-    // 3. Fallback: QZ Tray - PRIORIDAD 2
-    try {
-      const { qzTrayService } = await import('../services/qz-tray')
-
-      await qzTrayService.printThermal(
-        printData.business,
-        printData.sale,
-        printData.template as 'simple' | 'legal'
-      )
-
-      return {
-        success: true,
-        message: 'Impreso correctamente con QZ Tray',
-        method: 'qz-tray'
-      }
-    } catch (qzError) {
-      console.warn('QZ Tray no disponible:', qzError)
-    }
-
-    // 4. Último recurso: Impresión HTML (window.print) - PRIORIDAD 3
+    // 3. Último recurso: Impresión HTML (window.print) - PRIORIDAD 3
     try {
       await salesApi.printThermalHTML(printData)
 
