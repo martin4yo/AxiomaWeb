@@ -480,12 +480,12 @@ class QZTrayService {
     // ============ ITEMS ============
     left();
     sale.items.forEach((item) => {
-      const desc = item.description || item.productName || item.name || 'Sin descripcion';
+      const desc = item.productName || item.name || item.description || 'Sin descripcion';
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.price || item.unitPrice) || 0;
       const total = Number(item.total) || 0;
 
-      // Descripción completa (hace wrap automático si es larga)
+      // Nombre del producto completo (hace wrap automático si es largo)
       print(`${desc}\n`);
       // Números en línea siguiente, alineados a la derecha
       const numLine = `  ${quantity} x $${price.toFixed(2)}`;
