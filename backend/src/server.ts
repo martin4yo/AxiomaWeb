@@ -32,6 +32,7 @@ import voucherDeterminationRoutes from './routes/voucher-determination.js'
 import vatConditionRoutes from './routes/vat-conditions.js'
 import purchaseRoutes from './routes/purchases.js'
 import supplierAccountRoutes from './routes/supplier-accounts.js'
+import entityAccountRoutes from './routes/entity-accounts.js'
 import cashRoutes from './routes/cash.js'
 
 // Load environment variables
@@ -101,6 +102,7 @@ app.use('/api/:tenantSlug/voucher', voucherDeterminationRoutes)
 app.use('/api/:tenantSlug/vat-conditions', vatConditionRoutes)
 app.use('/api/:tenantSlug/purchases', purchaseRoutes)
 app.use('/api/:tenantSlug/supplier-accounts', supplierAccountRoutes)
+app.use('/api/:tenantSlug/entity-accounts', entityAccountRoutes)
 app.use('/api/:tenantSlug/cash', cashRoutes)
 app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
 

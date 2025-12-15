@@ -13,6 +13,7 @@ import { AfipWSFEService } from './afip-wsfe.service.js'
 import { prisma as globalPrisma } from '../server.js'
 import { cashMovementService } from './cashMovementService.js'
 import { printDecisionService } from './printDecisionService.js'
+import { entityAccountService } from './entityAccountService.js'
 
 interface CreateSaleItemInput {
   productId: string
@@ -691,6 +692,35 @@ export class SalesService {
         }
       } catch (error) {
         console.error('Error registering cash movement for sale payment:', error)
+        // No fallar la venta si falla el registro del movimiento
+      }
+    }
+
+    // Registrar movimiento de cuenta corriente si hay saldo pendiente
+    if (finalCustomerId && (paymentStatus === 'pending' || paymentStatus === 'partial')) {
+      try {
+        const movementType = documentClass === 'credit_note' ? 'CREDIT_NOTE' :
+                           documentClass === 'debit_note' ? 'DEBIT_NOTE' : 'SALE'
+        const movementNature = documentClass === 'credit_note' ? 'CREDIT' : 'DEBIT'
+        const balanceAmount = Number(createdSale.sale.balanceAmount)
+
+        if (balanceAmount > 0) {
+          await entityAccountService.createMovement({
+            tenantId: this.tenantId,
+            entityId: finalCustomerId,
+            type: movementType as any,
+            nature: movementNature as any,
+            amount: balanceAmount,
+            date: createdSale.sale.saleDate,
+            description: `${documentClass === 'credit_note' ? 'Nota de Crédito' :
+                          documentClass === 'debit_note' ? 'Nota de Débito' : 'Venta'} ${
+                          createdSale.sale.fullVoucherNumber || createdSale.sale.saleNumber}`,
+            saleId: createdSale.sale.id,
+          })
+          console.log(`[Sales:${requestId}] Movimiento de cuenta corriente registrado: ${movementType} ${balanceAmount}`)
+        }
+      } catch (error) {
+        console.error('Error registering entity account movement:', error)
         // No fallar la venta si falla el registro del movimiento
       }
     }

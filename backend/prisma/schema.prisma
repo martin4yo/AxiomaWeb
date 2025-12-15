@@ -62,6 +62,8 @@ model Tenant {
   purchases             Purchase[]
   cashAccounts          CashAccount[]          @relation("CashAccountTenant")
   cashMovements         CashMovement[]         @relation("CashMovementTenant")
+  entityMovements       EntityMovement[]
+  entityPayments        EntityPayment[]
 
   @@map("tenants")
 }
@@ -89,6 +91,7 @@ model User {
   createdPurchasePayments PurchasePayment[] @relation("PurchasePaymentCreatedBy")
   createdCashAccounts     CashAccount[]     @relation("CashAccountCreatedBy")
   createdCashMovements    CashMovement[]    @relation("CashMovementCreatedBy")
+  createdEntityPayments   EntityPayment[]   @relation("EntityPaymentCreatedBy")
 
   @@map("users")
 }
@@ -187,6 +190,8 @@ model Entity {
   deliveryAddresses  EntityDeliveryAddress[]
   sales              Sale[]
   purchases          Purchase[]               @relation("PurchaseSupplier")
+  accountMovements   EntityMovement[]
+  accountPayments    EntityPayment[]
 
   @@unique([tenantId, code])
   @@map("entities")
@@ -307,6 +312,7 @@ model PaymentMethod {
   salePayments     SalePayment[]
   purchasePayments PurchasePayment[] @relation("PurchasePaymentMethod")
   cashMovements    CashMovement[]    @relation("CashMovementPaymentMethod")
+  entityPayments   EntityPayment[]
 
   @@unique([tenantId, name])
   @@map("payment_methods")
@@ -689,6 +695,7 @@ model Sale {
   items                SaleItem[]
   payments             SalePayment[]
   cashMovements        CashMovement[]        @relation("CashMovementSale")
+  entityMovements      EntityMovement[]
 
   @@unique([tenantId, branchId, salesPointNumber, voucherNumber], name: "sale_unique_voucher")
   @@unique([tenantId, saleNumber])
@@ -987,9 +994,10 @@ model Purchase {
   supplier      Entity            @relation("PurchaseSupplier", fields: [supplierId], references: [id])
   warehouse     Warehouse         @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
   creator       User              @relation("PurchaseCreatedBy", fields: [createdBy], references: [id])
-  items         PurchaseItem[]
-  payments      PurchasePayment[]
-  cashMovements CashMovement[]    @relation("CashMovementPurchase")
+  items           PurchaseItem[]
+  payments        PurchasePayment[]
+  cashMovements   CashMovement[]      @relation("CashMovementPurchase")
+  entityMovements EntityMovement[]
 
   @@unique([tenantId, purchaseNumber])
   @@index([tenantId, purchaseDate])
@@ -1164,4 +1172,87 @@ model CashMovement {
   @@index([purchaseId])
   @@index([paymentMethodId])
   @@map("cash_movements")
+}
+// 📊 CUENTA CORRIENTE - MOVIMIENTOS DE ENTIDADES
+model EntityMovement {
+  id          String   @id @default(cuid())
+  tenantId    String   @map("tenant_id")
+  entityId    String   @map("entity_id")
+
+  // Tipo y naturaleza del movimiento
+  type        String   // SALE, SALE_PAYMENT, PURCHASE, PURCHASE_PAYMENT, CREDIT_NOTE, DEBIT_NOTE, ADJUSTMENT, INITIAL_BALANCE
+  nature      String   // DEBIT (aumenta saldo) o CREDIT (disminuye saldo)
+
+  // Monto
+  amount      Decimal  @db.Decimal(15, 2)
+
+  // Balance acumulado DESPUÉS de este movimiento
+  balance     Decimal  @db.Decimal(15, 2)
+
+  // Referencia al documento que generó el movimiento (opcional)
+  saleId      String?  @map("sale_id")
+  purchaseId  String?  @map("purchase_id")
+  paymentId   String?  @map("payment_id")
+
+  // Detalles
+  description String?
+  notes       String?
+
+  // Fechas
+  date        DateTime @db.Date // Fecha del movimiento (fecha de venta/compra/pago)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity      Entity         @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  sale        Sale?          @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  purchase    Purchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  payment     EntityPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityId, date])
+  @@index([tenantId, entityId, type])
+  @@index([saleId])
+  @@index([purchaseId])
+  @@index([paymentId])
+  @@map("entity_movements")
+}
+
+// 💳 CUENTA CORRIENTE - PAGOS DE ENTIDADES
+model EntityPayment {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  entityId          String   @map("entity_id")
+
+  // Tipo de pago
+  type              String   // CUSTOMER_PAYMENT (cobro) o SUPPLIER_PAYMENT (pago)
+
+  // Monto total del pago
+  amount            Decimal  @db.Decimal(15, 2)
+
+  // Forma de pago
+  paymentMethodId   String   @map("payment_method_id")
+  paymentMethodName String   @map("payment_method_name")
+
+  // Referencias (cheque, transferencia, etc.)
+  reference         String?
+  referenceDate     DateTime? @map("reference_date") @db.Date
+
+  // Detalles
+  notes             String?
+
+  // Fechas
+  date              DateTime @db.Date // Fecha del pago
+  createdAt         DateTime @default(now()) @map("created_at")
+  createdBy         String   @map("created_by")
+
+  // Relations
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity            Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  paymentMethod     PaymentMethod    @relation(fields: [paymentMethodId], references: [id])
+  createdByUser     User             @relation("EntityPaymentCreatedBy", fields: [createdBy], references: [id])
+  movements         EntityMovement[] // Un pago genera 1+ movimientos
+
+  @@index([tenantId, entityId, date])
+  @@index([paymentMethodId])
+  @@map("entity_payments")
 }

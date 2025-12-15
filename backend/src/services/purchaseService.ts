@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { cashMovementService } from './cashMovementService.js';
+import { entityAccountService } from './entityAccountService.js';
 
 const globalPrisma = new PrismaClient();
 
@@ -425,6 +426,26 @@ export class PurchaseService {
         });
       } catch (error) {
         console.error('Error registering cash movement for purchase payment:', error);
+        // No fallar la compra si falla el registro del movimiento
+      }
+    }
+
+    // Registrar movimiento de cuenta corriente si hay saldo pendiente
+    if (paymentStatus === 'pending' || paymentStatus === 'partial') {
+      try {
+        await entityAccountService.createMovement({
+          tenantId,
+          entityId: supplierId,
+          type: 'PURCHASE',
+          nature: 'DEBIT',
+          amount: balanceAmount,
+          date: purchase.purchase.purchaseDate,
+          description: `Compra ${purchaseNumber}${invoiceNumber ? ` - FC ${invoiceNumber}` : ''}`,
+          purchaseId: purchase.purchase.id,
+        });
+        console.log(`Movimiento de cuenta corriente registrado: PURCHASE ${balanceAmount}`);
+      } catch (error) {
+        console.error('Error registering entity account movement:', error);
         // No fallar la compra si falla el registro del movimiento
       }
     }
