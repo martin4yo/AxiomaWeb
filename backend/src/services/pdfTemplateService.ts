@@ -215,7 +215,7 @@ export class PDFTemplateService {
     doc.font('Helvetica').fontSize(8)
 
     for (const item of sale.items) {
-      const productText = item.description || item.productName
+      const productText = item.productName || item.description
       const textHeight = doc.heightOfString(productText, { width: 200 })
       const rowHeight = Math.max(15, textHeight + 5)
 
@@ -512,7 +512,7 @@ export class PDFTemplateService {
     let alternate = false
 
     for (const item of sale.items) {
-      const productText = item.description || item.productName
+      const productText = item.productName || item.description
       const textHeight = doc.heightOfString(productText, { width: 250 })
       const rowHeight = Math.max(20, textHeight + 10)
 
