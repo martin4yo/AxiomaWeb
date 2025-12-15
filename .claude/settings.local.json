@@ -8,7 +8,15 @@
       "Bash(done)",
       "Bash(npx prisma migrate dev:*)",
       "Bash(npx prisma:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Read(//home/martin/.claude/**)",
+      "Bash(PGPASSWORD=Q27G4B98 psql -h 66.97.45.210 -U postgres -d axiomaweb_db -c \"\\d tenants\")"
     ]
   }
 }

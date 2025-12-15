@@ -15,6 +15,8 @@ import { Input } from '../../components/ui/Input'
 import { Badge } from '../../components/ui/Badge'
 import { useAuthStore } from '../../stores/authStore'
 import { entityAccountService } from '../../services/entityAccountService'
+import { PaymentModal } from '../../components/entity-accounts/PaymentModal'
+import { api } from '../../services/api'
 
 export default function EntityAccountPage() {
   const { entityId } = useParams<{ entityId: string }>()
@@ -24,6 +26,16 @@ export default function EntityAccountPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+
+  // Fetch entity details
+  const { data: entity } = useQuery({
+    queryKey: ['entity', currentTenant?.slug, entityId],
+    queryFn: async () => {
+      const response = await api.get(`/entities/${entityId}`)
+      return response.data
+    },
+    enabled: !!currentTenant && !!entityId
+  })
 
   // Fetch entity balance
   const { data: balance, isLoading: isLoadingBalance } = useQuery({
@@ -358,19 +370,15 @@ export default function EntityAccountPage() {
         </div>
       </Card>
 
-      {/* TODO: Payment Modal */}
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Registrar Pago</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Funcionalidad próximamente
-            </p>
-            <Button onClick={() => setShowPaymentModal(false)}>
-              Cerrar
-            </Button>
-          </div>
-        </div>
+      {/* Payment Modal */}
+      {showPaymentModal && entity && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          entityId={entityId!}
+          entityName={entity.name}
+          type={entity.isCustomer ? 'customer' : 'supplier'}
+        />
       )}
     </div>
   )
