@@ -485,7 +485,10 @@ export const FACTURA_B_80MM: TicketTemplate = {
     {
       type: 'info',
       items: [
-        { content: 'Cliente: {{sale.customer}}' },
+        { content: 'Cliente: {{sale.customer}}', bold: true },
+        { content: 'CUIT/DNI: {{sale.customerCuit}}' },
+        { content: 'Cond. IVA: {{sale.customerVatCondition}}' },
+        { content: 'Domicilio: {{sale.customerAddress}}' },
       ]
     },
     { type: 'divider' },

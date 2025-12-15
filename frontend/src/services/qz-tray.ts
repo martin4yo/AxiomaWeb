@@ -83,6 +83,10 @@ interface BusinessInfo {
   address: string;
   phone?: string;
   email?: string;
+  // Datos fiscales adicionales para template legal
+  vatCondition?: string;        // Condición IVA (ej: "IVA Responsable Inscripto")
+  grossIncomeNumber?: string;   // Número de Ingresos Brutos
+  activityStartDate?: string;   // Fecha inicio actividades
 }
 
 interface SaleData {
@@ -90,19 +94,41 @@ interface SaleData {
   date: string;
   items: Array<{
     description: string;
+    name?: string;
+    productName?: string;
     quantity: number;
     price: number;
+    unitPrice?: number;
     total: number;
+    taxAmount?: number;
   }>;
   total: number;
+  totalAmount?: number;
+  subtotal?: number;
+  discountAmount?: number;
+  taxAmount?: number;
   payments?: Array<{
     method: string;
+    name?: string;
     amount: number;
+    reference?: string;
   }>;
   cae?: {
     number: string;
     expirationDate: string;
   };
+  // Campos adicionales para template legal
+  caeNumber?: string;
+  caeExpiration?: string;
+  voucherName?: string;         // "Factura", "Nota de Crédito", etc.
+  voucherLetter?: string;       // "A", "B", "C"
+  salesPointNumber?: number;
+  customer?: string;
+  customerCuit?: string;
+  customerVatCondition?: string;
+  customerAddress?: string;
+  qrData?: string;              // URL del QR de AFIP
+  discriminatesVat?: boolean;   // Si discrimina IVA (Factura A)
 }
 
 class QZTrayService {
@@ -336,101 +362,231 @@ class QZTrayService {
   ): Array<{ type: string; data: string }> {
     const ESC = '\x1B';
     const GS = '\x1D';
+    const WIDTH = 42; // Caracteres por línea en impresora de 80mm
 
     const commands: Array<{ type: string; data: string }> = [];
+
+    // Helpers
+    const center = () => commands.push({ type: 'raw', data: `${ESC}a${String.fromCharCode(1)}` });
+    const left = () => commands.push({ type: 'raw', data: `${ESC}a${String.fromCharCode(0)}` });
+    const boldOn = () => commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(1)}` });
+    const boldOff = () => commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(0)}` });
+    const doubleHeight = () => commands.push({ type: 'raw', data: `${GS}!${String.fromCharCode(16)}` });
+    const normalSize = () => commands.push({ type: 'raw', data: `${GS}!${String.fromCharCode(0)}` });
+    const print = (text: string) => commands.push({ type: 'raw', data: text });
+    const divider = () => print(`${'='.repeat(WIDTH)}\n`);
+    const dividerDash = () => print(`${'-'.repeat(WIDTH)}\n`);
 
     // Inicializar impresora
     commands.push({ type: 'raw', data: `${ESC}@` });
 
-    // Centrar texto
-    commands.push({ type: 'raw', data: `${ESC}a${String.fromCharCode(1)}` });
+    // ============ HEADER DEL NEGOCIO ============
+    center();
+    boldOn();
+    doubleHeight();
+    print(`${business.name}\n`);
+    normalSize();
+    boldOff();
 
-    // Negrita
-    commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(1)}` });
+    // Datos fiscales del negocio (template legal)
+    if (template === 'legal') {
+      if (business.vatCondition) {
+        print(`${business.vatCondition}\n`);
+      }
+    }
 
-    // Nombre del negocio
-    commands.push({ type: 'raw', data: `${business.name}\n` });
-
-    // Desactivar negrita
-    commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(0)}` });
-
-    // CUIT
     if (business.cuit) {
-      commands.push({ type: 'raw', data: `CUIT: ${business.cuit}\n` });
+      boldOn();
+      print(`CUIT: ${business.cuit}\n`);
+      boldOff();
     }
 
-    // Dirección
     if (business.address) {
-      commands.push({ type: 'raw', data: `${business.address}\n` });
+      print(`${business.address}\n`);
     }
 
-    // Teléfono
+    // Datos fiscales adicionales (solo template legal)
+    if (template === 'legal') {
+      if (business.grossIncomeNumber) {
+        print(`IIBB: ${business.grossIncomeNumber}\n`);
+      }
+      if (business.activityStartDate) {
+        print(`Inicio Act.: ${business.activityStartDate}\n`);
+      }
+    }
+
     if (business.phone) {
-      commands.push({ type: 'raw', data: `Tel: ${business.phone}\n` });
+      print(`Tel: ${business.phone}\n`);
     }
 
-    // Separador
-    commands.push({ type: 'raw', data: `${'-'.repeat(40)}\n` });
+    divider();
 
-    // Alinear a la izquierda
-    commands.push({ type: 'raw', data: `${ESC}a${String.fromCharCode(0)}` });
+    // ============ TIPO DE COMPROBANTE (template legal) ============
+    if (template === 'legal' && sale.voucherLetter) {
+      center();
+      boldOn();
+      doubleHeight();
+      // Recuadro con la letra
+      print(`[ ${sale.voucherLetter} ]\n`);
+      normalSize();
 
-    // Número de venta
-    commands.push({ type: 'raw', data: `Comprobante: ${sale.number}\n` });
-    commands.push({ type: 'raw', data: `Fecha: ${sale.date}\n` });
+      // Tipo de comprobante
+      const voucherType = sale.voucherName || 'FACTURA';
+      print(`${voucherType}\n`);
+      boldOff();
+    } else {
+      center();
+      boldOn();
+      print(`TICKET DE VENTA\n`);
+      boldOff();
+    }
 
-    // Separador
-    commands.push({ type: 'raw', data: `${'-'.repeat(40)}\n` });
+    // Número de comprobante
+    center();
+    boldOn();
+    print(`Nro: ${sale.number}\n`);
+    boldOff();
+    print(`Fecha: ${sale.date}\n`);
 
-    // Items
+    dividerDash();
+
+    // ============ DATOS DEL CLIENTE (template legal) ============
+    if (template === 'legal') {
+      left();
+      const customerName = sale.customer || 'Consumidor Final';
+      print(`Cliente: ${customerName}\n`);
+
+      if (sale.customerCuit) {
+        print(`CUIT: ${sale.customerCuit}\n`);
+      }
+      if (sale.customerVatCondition && sale.customerVatCondition !== 'CF') {
+        print(`Cond. IVA: ${sale.customerVatCondition}\n`);
+      }
+      if (sale.customerAddress) {
+        print(`Dom.: ${sale.customerAddress}\n`);
+      }
+      dividerDash();
+    }
+
+    // ============ ITEMS ============
+    left();
     sale.items.forEach((item) => {
-      // Descripción
-      commands.push({ type: 'raw', data: `${item.description || 'Sin descripción'}\n` });
+      const desc = item.description || item.productName || item.name || 'Sin descripción';
+      print(`${desc}\n`);
 
-      // Cantidad x Precio = Total (validar valores)
       const quantity = Number(item.quantity) || 0;
-      const price = Number(item.price) || 0;
+      const price = Number(item.price || item.unitPrice) || 0;
       const total = Number(item.total) || 0;
 
-      const line = `${quantity} x $${price.toFixed(2)} = $${total.toFixed(2)}`;
-      commands.push({ type: 'raw', data: `${line}\n` });
+      const line = `  ${quantity} x $${price.toFixed(2)} = $${total.toFixed(2)}`;
+      print(`${line}\n`);
     });
 
-    // Separador
-    commands.push({ type: 'raw', data: `${'-'.repeat(40)}\n` });
+    dividerDash();
+
+    // ============ TOTALES ============
+    left();
+
+    // Subtotal y descuentos (si aplica)
+    if (sale.subtotal && sale.subtotal !== sale.total) {
+      print(`Subtotal: $${Number(sale.subtotal).toFixed(2)}\n`);
+    }
+    if (sale.discountAmount && Number(sale.discountAmount) > 0) {
+      print(`Descuento: -$${Number(sale.discountAmount).toFixed(2)}\n`);
+    }
+    // IVA discriminado (Factura A)
+    if (template === 'legal' && sale.discriminatesVat && sale.taxAmount) {
+      print(`IVA 21%: $${Number(sale.taxAmount).toFixed(2)}\n`);
+    }
+
+    dividerDash();
 
     // Total
-    const saleTotal = Number(sale.total) || 0;
-    commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(1)}` }); // Negrita
-    commands.push({ type: 'raw', data: `TOTAL: $${saleTotal.toFixed(2)}\n` });
-    commands.push({ type: 'raw', data: `${ESC}E${String.fromCharCode(0)}` }); // Desactivar negrita
+    const saleTotal = Number(sale.totalAmount || sale.total) || 0;
+    center();
+    boldOn();
+    doubleHeight();
+    print(`TOTAL: $${saleTotal.toFixed(2)}\n`);
+    normalSize();
+    boldOff();
 
-    // Pagos
+    dividerDash();
+
+    // ============ FORMAS DE PAGO ============
     if (sale.payments && sale.payments.length > 0) {
-      commands.push({ type: 'raw', data: `\nFormas de pago:\n` });
+      left();
+      boldOn();
+      print(`FORMAS DE PAGO:\n`);
+      boldOff();
       sale.payments.forEach((payment) => {
         const paymentAmount = Number(payment.amount) || 0;
-        commands.push({
-          type: 'raw',
-          data: `  ${payment.method || 'Sin especificar'}: $${paymentAmount.toFixed(2)}\n`
-        });
+        const method = payment.name || payment.method || 'Sin especificar';
+        print(`  ${method}: $${paymentAmount.toFixed(2)}\n`);
       });
+      dividerDash();
     }
 
-    // CAE (si es legal)
-    if (template === 'legal' && sale.cae) {
-      commands.push({ type: 'raw', data: `\n${'-'.repeat(40)}\n` });
-      commands.push({ type: 'raw', data: `CAE: ${sale.cae.number}\n` });
-      commands.push({ type: 'raw', data: `Vto. CAE: ${sale.cae.expirationDate}\n` });
+    // ============ CAE Y QR (template legal) ============
+    if (template === 'legal') {
+      const caeNumber = sale.caeNumber || sale.cae?.number;
+      const caeExpiration = sale.caeExpiration || sale.cae?.expirationDate;
+
+      if (caeNumber) {
+        center();
+        print(`CAE: ${caeNumber}\n`);
+        if (caeExpiration) {
+          print(`Vto. CAE: ${caeExpiration}\n`);
+        }
+
+        // QR de AFIP (si la impresora lo soporta)
+        if (sale.qrData) {
+          print(`\n`);
+          // Comando para QR en ESC/POS (GS ( k)
+          // Modelo QR: Model 2, Tamaño: 4, Error correction: M
+          const qrContent = sale.qrData;
+
+          // Función de QR (GS ( k)
+          // 1. Seleccionar modelo QR (Model 2)
+          commands.push({ type: 'raw', data: `${GS}(k\x04\x00\x31\x41\x32\x00` });
+
+          // 2. Tamaño del módulo (4 puntos)
+          commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x43\x04` });
+
+          // 3. Error correction level (M = 49)
+          commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x45\x31` });
+
+          // 4. Almacenar datos del QR
+          const qrLen = qrContent.length + 3;
+          const pL = qrLen % 256;
+          const pH = Math.floor(qrLen / 256);
+          commands.push({
+            type: 'raw',
+            data: `${GS}(k${String.fromCharCode(pL)}${String.fromCharCode(pH)}\x31\x50\x30${qrContent}`
+          });
+
+          // 5. Imprimir QR
+          commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x51\x30` });
+
+          print(`\n`);
+        }
+
+        print(`Comprobante Autorizado\n`);
+      }
     }
 
-    // Footer
-    commands.push({ type: 'raw', data: `\n${'-'.repeat(40)}\n` });
-    commands.push({ type: 'raw', data: `${ESC}a${String.fromCharCode(1)}` }); // Centrar
-    commands.push({ type: 'raw', data: `Gracias por su compra!\n` });
+    // ============ FOOTER ============
+    dividerDash();
+    center();
+    if (template === 'legal') {
+      print(`Gracias por su compra!\n`);
+    } else {
+      print(`TICKET NO VALIDO COMO FACTURA\n`);
+      print(`Gracias por su compra!\n`);
+    }
 
-    // Cortar papel
-    commands.push({ type: 'raw', data: `\n\n\n${GS}V${String.fromCharCode(66)}${String.fromCharCode(0)}` });
+    // Cortar papel (con avance)
+    print(`\n\n\n`);
+    commands.push({ type: 'raw', data: `${GS}V${String.fromCharCode(66)}${String.fromCharCode(0)}` });
 
     return commands;
   }
