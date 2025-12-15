@@ -407,7 +407,8 @@ router.post('/:id/send-email', authMiddleware, async (req, res, next) => {
       docType,
       Number(sale.totalAmount) || 0,
       pdfBuffer,
-      filename
+      filename,
+      req.tenant!.name
     )
 
     console.log(`[Email] ✓ Comprobante enviado a ${email}`)

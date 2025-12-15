@@ -28,13 +28,13 @@ export class EmailService {
     })
   }
 
-  async sendEmail(options: SendEmailOptions): Promise<void> {
+  async sendEmail(options: SendEmailOptions, fromName?: string): Promise<void> {
     try {
-      const fromName = process.env.EMAIL_FROM_NAME || 'Axioma ERP'
+      const senderName = fromName || process.env.EMAIL_FROM_NAME || 'Axioma ERP'
       const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER
 
       const mailOptions = {
-        from: `"${fromName}" <${fromAddress}>`,
+        from: `"${senderName}" <${fromAddress}>`,
         to: options.to,
         subject: options.subject,
         text: options.text,
@@ -57,9 +57,10 @@ export class EmailService {
     voucherType: string,
     totalAmount: number,
     pdfBuffer: Buffer,
-    filename: string
+    filename: string,
+    tenantName: string
   ): Promise<void> {
-    const subject = `${voucherType} ${saleNumber} - Axioma ERP`
+    const subject = `${voucherType} ${saleNumber} - ${tenantName}`
 
     const html = `
       <!DOCTYPE html>
@@ -115,11 +116,11 @@ export class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0;">Axioma ERP</h1>
-              <p style="margin: 10px 0 0 0;">Sistema de Gestión Empresarial</p>
+              <h1 style="margin: 0;">${tenantName}</h1>
+              <p style="margin: 10px 0 0 0;">Comprobante de Venta</p>
             </div>
             <div class="content">
-              <h2>Nuevo Comprobante Generado</h2>
+              <h2>Detalle del Comprobante</h2>
               <div class="info-box">
                 <p><strong>Tipo:</strong> ${voucherType}</p>
                 <p><strong>Número:</strong> ${saleNumber}</p>
@@ -129,7 +130,7 @@ export class EmailService {
               <p>Si tiene alguna consulta, no dude en contactarnos.</p>
               <div class="footer">
                 <p>Este es un mensaje automático, por favor no responder.</p>
-                <p>&copy; ${new Date().getFullYear()} Axioma ERP. Todos los derechos reservados.</p>
+                <p>&copy; ${new Date().getFullYear()} ${tenantName}. Todos los derechos reservados.</p>
               </div>
             </div>
           </div>
@@ -148,6 +149,6 @@ export class EmailService {
           contentType: 'application/pdf'
         }
       ]
-    })
+    }, tenantName)
   }
 }
