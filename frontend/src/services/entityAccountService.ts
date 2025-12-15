@@ -80,6 +80,17 @@ export interface CreateMovementInput {
   notes?: string
 }
 
+export interface PendingDocument {
+  id: string
+  documentNumber: string
+  date: string
+  type: string
+  totalAmount: number
+  paidAmount: number
+  balanceAmount: number
+  paymentStatus: string
+}
+
 export const entityAccountService = {
   /**
    * Obtener saldo de todas las entidades
@@ -163,6 +174,14 @@ export const entityAccountService = {
    */
   async createMovement(entityId: string, data: CreateMovementInput): Promise<any> {
     const response = await api.post(`/entity-accounts/${entityId}/movements`, data)
+    return response.data
+  },
+
+  /**
+   * Obtener comprobantes pendientes de pago
+   */
+  async getPendingDocuments(entityId: string, type: 'customer' | 'supplier'): Promise<PendingDocument[]> {
+    const response = await api.get<PendingDocument[]>(`/entity-accounts/${entityId}/pending?type=${type}`)
     return response.data
   },
 }

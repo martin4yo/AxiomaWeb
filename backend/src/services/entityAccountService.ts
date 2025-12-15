@@ -540,6 +540,91 @@ export class EntityAccountService {
 
     return balances;
   }
+
+  /**
+   * Obtener comprobantes pendientes de pago de una entidad
+   */
+  async getPendingDocuments(tenantId: string, entityId: string, type: 'customer' | 'supplier') {
+    // Verificar que la entidad existe
+    const entity = await globalPrisma.entity.findFirst({
+      where: { id: entityId, tenantId },
+    });
+
+    if (!entity) {
+      throw new Error('Entidad no encontrada');
+    }
+
+    if (type === 'customer') {
+      // Obtener ventas pendientes o parcialmente pagas
+      const sales = await globalPrisma.sale.findMany({
+        where: {
+          tenantId,
+          customerId: entityId,
+          status: { not: 'cancelled' },
+          paymentStatus: { in: ['pending', 'partial'] },
+        },
+        select: {
+          id: true,
+          saleNumber: true,
+          fullVoucherNumber: true,
+          saleDate: true,
+          documentClass: true,
+          totalAmount: true,
+          paidAmount: true,
+          balanceAmount: true,
+          paymentStatus: true,
+        },
+        orderBy: {
+          saleDate: 'asc',
+        },
+      });
+
+      return sales.map((s) => ({
+        id: s.id,
+        documentNumber: s.fullVoucherNumber || s.saleNumber,
+        date: s.saleDate,
+        type: s.documentClass || 'INVOICE',
+        totalAmount: Number(s.totalAmount),
+        paidAmount: Number(s.paidAmount),
+        balanceAmount: Number(s.balanceAmount),
+        paymentStatus: s.paymentStatus,
+      }));
+    } else {
+      // Obtener compras pendientes o parcialmente pagas
+      const purchases = await globalPrisma.purchase.findMany({
+        where: {
+          tenantId,
+          supplierId: entityId,
+          status: { not: 'cancelled' },
+          paymentStatus: { in: ['pending', 'partial'] },
+        },
+        select: {
+          id: true,
+          purchaseNumber: true,
+          invoiceNumber: true,
+          purchaseDate: true,
+          totalAmount: true,
+          paidAmount: true,
+          balanceAmount: true,
+          paymentStatus: true,
+        },
+        orderBy: {
+          purchaseDate: 'asc',
+        },
+      });
+
+      return purchases.map((p) => ({
+        id: p.id,
+        documentNumber: p.invoiceNumber || p.purchaseNumber,
+        date: p.purchaseDate,
+        type: 'PURCHASE',
+        totalAmount: Number(p.totalAmount),
+        paidAmount: Number(p.paidAmount),
+        balanceAmount: Number(p.balanceAmount),
+        paymentStatus: p.paymentStatus,
+      }));
+    }
+  }
 }
 
 export const entityAccountService = new EntityAccountService();

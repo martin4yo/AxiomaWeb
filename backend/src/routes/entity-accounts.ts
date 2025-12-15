@@ -71,6 +71,34 @@ router.get('/:entityId/movements', async (req: Request, res: Response) => {
 });
 
 /**
+ * Obtener comprobantes pendientes de pago
+ * GET /api/:tenantSlug/entity-accounts/:entityId/pending
+ * Query params: type (customer | supplier)
+ */
+router.get('/:entityId/pending', async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req as any;
+    const { entityId } = req.params;
+    const { type } = req.query;
+
+    if (!type || !['customer', 'supplier'].includes(type as string)) {
+      return res.status(400).json({ error: 'Tipo inválido. Debe ser "customer" o "supplier"' });
+    }
+
+    const documents = await entityAccountService.getPendingDocuments(
+      tenantId,
+      entityId,
+      type as 'customer' | 'supplier'
+    );
+
+    res.json(documents);
+  } catch (error: any) {
+    console.error('Error getting pending documents:', error);
+    res.status(500).json({ error: error.message || 'Error al obtener comprobantes pendientes' });
+  }
+});
+
+/**
  * Obtener estado de cuenta completo (para exportar a PDF)
  * GET /api/:tenantSlug/entity-accounts/:entityId/statement
  * Query params: dateFrom, dateTo
