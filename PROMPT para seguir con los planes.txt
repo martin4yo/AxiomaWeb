@@ -1,0 +1,10 @@
+
+  Hola Claude, necesito continuar con el desarrollo de AxiomaWeb.
+
+  Lee el plan en C:\Users\marti\.claude\plans\adaptive-jumping-pony.md para recuperar contexto.
+
+  Hay 2 planes pendientes:
+  1. Cuenta Corriente Unificada (tablas EntityMovement/EntityPayment)
+  2. Wizard de Configuración de Tenant (11 pasos)
+
+  Empecemos por el Plan [1 o 2].

@@ -1,115 +1,75 @@
 import { api } from '../services/api'
+import { printService } from '../services/printService'
+import { TICKET_VENTA_80MM, FACTURA_B_80MM, FACTURA_A_80MM, TicketData } from '../services/printTemplates'
 
-// Función auxiliar para generar HTML de impresión térmica
-const generateThermalHTML = (printData: any): string => {
+/**
+ * Convierte los datos del backend al formato TicketData que usa printService
+ */
+const convertToTicketData = (printData: any): TicketData => {
   const { business, sale } = printData
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Ticket de Venta</title>
-      <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
+  return {
+    business: {
+      name: business.name || 'Mi Negocio',
+      cuit: business.cuit || '',
+      address: business.address || '',
+      phone: business.phone || '',
+      email: business.email || '',
+      vatCondition: business.vatCondition || 'IVA Responsable Inscripto',
+      grossIncomeNumber: business.grossIncomeNumber || '',
+      activityStartDate: business.activityStartDate || '',
+    },
+    sale: {
+      number: sale.number || '',
+      date: sale.date || new Date().toLocaleDateString('es-AR'),
+      time: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+      customer: sale.customer || 'Consumidor Final',
+      customerCuit: sale.customerCuit || '',
+      customerVatCondition: sale.customerVatCondition || 'CF',
+      customerAddress: sale.customerAddress || '',
+      voucherType: sale.voucherName ? `${sale.voucherName} ${sale.voucherLetter || ''}`.trim() : 'Ticket',
+      voucherLetter: sale.voucherLetter || '',
+      fullVoucherNumber: sale.number || '',
+      items: (sale.items || []).map((item: any) => ({
+        productName: item.productName || item.name || item.description || '',
+        description: item.description !== item.productName ? item.description : undefined,
+        quantity: Number(item.quantity) || 0,
+        unitPrice: Number(item.unitPrice || item.price) || 0,
+        lineTotal: Number(item.total || item.lineTotal) || 0,
+      })),
+      subtotal: Number(sale.subtotal) || Number(sale.total) || 0,
+      discountAmount: Number(sale.discountAmount) || 0,
+      taxAmount: Number(sale.taxAmount) || 0,
+      totalAmount: Number(sale.totalAmount || sale.total) || 0,
+      payments: (sale.payments || []).map((p: any) => ({
+        name: p.name || p.method || 'Efectivo',
+        amount: Number(p.amount) || 0,
+        reference: p.reference || undefined,
+      })),
+      caeNumber: sale.caeNumber || sale.cae?.number || '',
+      caeExpiration: sale.caeExpiration || sale.cae?.expirationDate || '',
+      qrData: sale.qrData || '',
+      notes: sale.notes || '',
+    }
+  }
+}
 
-        @page {
-          size: 80mm auto;
-          margin: 0;
-        }
+/**
+ * Selecciona el template correcto basándose en el tipo de template y datos de la venta
+ */
+const selectTemplate = (templateType: string, saleData: any) => {
+  // Si es template legal, seleccionar según el tipo de comprobante
+  if (templateType === 'legal') {
+    const letter = saleData?.voucherLetter?.toUpperCase()
+    if (letter === 'A') {
+      return FACTURA_A_80MM
+    }
+    // Por defecto usar Factura B (también para C y otros)
+    return FACTURA_B_80MM
+  }
 
-        body {
-          font-family: 'Courier New', Courier, monospace;
-          font-size: 12px;
-          line-height: 1.4;
-          color: #000;
-          background: #fff;
-          width: 80mm;
-          margin: 0 auto;
-          padding: 5mm;
-        }
-
-        .center { text-align: center; }
-        .bold { font-weight: bold; }
-        .large { font-size: 16px; }
-        .divider { border-top: 1px dashed #000; margin: 5px 0; }
-
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin: 5px 0;
-        }
-
-        table td {
-          padding: 2px 0;
-        }
-
-        .item-desc {
-          margin-bottom: 2px;
-        }
-
-        .item-detail {
-          margin-bottom: 5px;
-        }
-
-        @media print {
-          body { width: 80mm; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="center">
-        <div class="bold large">${business.name || ''}</div>
-        ${business.cuit ? `<div>CUIT: ${business.cuit}</div>` : ''}
-        ${business.address ? `<div>${business.address}</div>` : ''}
-        ${business.phone ? `<div>Tel: ${business.phone}</div>` : ''}
-      </div>
-
-      <div class="divider"></div>
-
-      <div>
-        <div>Comprobante: ${sale.number || ''}</div>
-        <div>Fecha: ${sale.date || ''}</div>
-      </div>
-
-      <div class="divider"></div>
-
-      ${sale.items.map((item: any) => `
-        <div class="item-desc">${item.description || 'Sin descripción'}</div>
-        <div class="item-detail">
-          ${Number(item.quantity) || 0} x $${(Number(item.price) || 0).toFixed(2)} = $${(Number(item.total) || 0).toFixed(2)}
-        </div>
-      `).join('')}
-
-      <div class="divider"></div>
-
-      <div class="bold large center">
-        TOTAL: $${(Number(sale.total) || 0).toFixed(2)}
-      </div>
-
-      ${sale.payments && sale.payments.length > 0 ? `
-        <div class="divider"></div>
-        <div class="bold">FORMAS DE PAGO:</div>
-        ${sale.payments.map((p: any) => `
-          <div>${p.method || 'Sin especificar'}: $${(Number(p.amount) || 0).toFixed(2)}</div>
-        `).join('')}
-      ` : ''}
-
-      ${sale.cae ? `
-        <div class="divider"></div>
-        <div>CAE: ${sale.cae.number}</div>
-        <div>Vto. CAE: ${sale.cae.expirationDate}</div>
-      ` : ''}
-
-      <div class="divider"></div>
-      <div class="center">¡Gracias por su compra!</div>
-    </body>
-    </html>
-  `
+  // Template simple
+  return TICKET_VENTA_80MM
 }
 
 export interface SaleItem {
@@ -257,57 +217,23 @@ export const salesApi = {
     }
   },
 
-  // Imprimir usando fallback HTML
+  // Imprimir usando fallback HTML con el sistema de templates
   printThermalHTML: async (printData: any) => {
-    return new Promise<void>((resolve, reject) => {
-      try {
-        const html = generateThermalHTML(printData)
+    // Seleccionar el template correcto basándose en printData.template
+    const templateType = printData.template || 'simple'
+    const template = selectTemplate(templateType, printData.sale)
 
-        // Crear iframe oculto
-        const iframe = document.createElement('iframe')
-        iframe.style.position = 'absolute'
-        iframe.style.width = '0'
-        iframe.style.height = '0'
-        iframe.style.border = 'none'
+    // Convertir datos al formato TicketData
+    const ticketData = convertToTicketData(printData)
 
-        document.body.appendChild(iframe)
+    console.log(`🖨️ Imprimiendo con template: ${template.name} (tipo: ${templateType})`)
 
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
-        if (!iframeDoc) {
-          document.body.removeChild(iframe)
-          reject(new Error('No se pudo acceder al documento del iframe'))
-          return
-        }
+    // Usar el printService que tiene el sistema de templates completo
+    const success = await printService.printTicket(template, ticketData)
 
-        iframeDoc.open()
-        iframeDoc.write(html)
-        iframeDoc.close()
-
-        // Esperar render y luego imprimir
-        setTimeout(() => {
-          try {
-            iframe.contentWindow?.focus()
-            iframe.contentWindow?.print()
-
-            // Remover iframe después de imprimir
-            setTimeout(() => {
-              if (document.body.contains(iframe)) {
-                document.body.removeChild(iframe)
-              }
-            }, 1000)
-
-            resolve()
-          } catch (error) {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe)
-            }
-            reject(error)
-          }
-        }, 250)
-      } catch (error) {
-        reject(error)
-      }
-    })
+    if (!success) {
+      throw new Error('Error al preparar la impresión')
+    }
   },
 
 

@@ -5,7 +5,10 @@
       "Bash(export DATABASE_URL=\"postgresql://postgres:Q27G4B98@66.97.45.210:5432/axiomaweb_db?schema=public\")",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm run build:*)"
     ]
   }
 }

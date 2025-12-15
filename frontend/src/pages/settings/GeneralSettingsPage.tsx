@@ -9,18 +9,11 @@ import { api } from '../../services/api'
 import { QZTrayStatus } from '../../components/QZTrayStatus'
 
 export default function GeneralSettingsPage() {
-  const { currentTenant, setCurrentTenant } = useAuthStore()
+  const { currentTenant, updateCurrentTenant } = useAuthStore()
   const queryClient = useQueryClient()
   const [selectedDocumentClass, setSelectedDocumentClass] = useState<string>(
     currentTenant?.defaultDocumentClass || 'invoice'
   )
-  const [businessData, setBusinessData] = useState({
-    businessName: '',
-    cuit: '',
-    address: '',
-    phone: '',
-    email: ''
-  })
   const [isSaving, setIsSaving] = useState(false)
   const [alertDialog, setAlertDialog] = useState<{
     show: boolean
@@ -45,34 +38,19 @@ export default function GeneralSettingsPage() {
       if (tenantData.tenant.defaultDocumentClass) {
         setSelectedDocumentClass(tenantData.tenant.defaultDocumentClass)
       }
-      setBusinessData({
-        businessName: tenantData.tenant.businessName || '',
-        cuit: tenantData.tenant.cuit || '',
-        address: tenantData.tenant.address || '',
-        phone: tenantData.tenant.phone || '',
-        email: tenantData.tenant.email || ''
-      })
     }
   }, [tenantData])
 
   // Update tenant settings mutation
   const updateSettingsMutation = useMutation({
-    mutationFn: async (data: {
-      defaultDocumentClass: string
-      businessName?: string
-      cuit?: string
-      address?: string
-      phone?: string
-      email?: string
-    }) => {
+    mutationFn: async (data: { defaultDocumentClass: string }) => {
       const response = await api.put(`/${currentTenant!.slug}/tenants/settings`, data)
       return response.data
     },
     onSuccess: () => {
       // Update the current tenant in the auth store
       if (currentTenant) {
-        setCurrentTenant({
-          ...currentTenant,
+        updateCurrentTenant({
           defaultDocumentClass: selectedDocumentClass as any
         })
       }
@@ -98,8 +76,7 @@ export default function GeneralSettingsPage() {
     setIsSaving(true)
     try {
       await updateSettingsMutation.mutateAsync({
-        defaultDocumentClass: selectedDocumentClass,
-        ...businessData
+        defaultDocumentClass: selectedDocumentClass
       })
     } finally {
       setIsSaving(false)
@@ -126,157 +103,81 @@ export default function GeneralSettingsPage() {
       <div className="px-4 sm:px-6 lg:px-8 py-8">
         <PageHeader title="Configuración General" />
 
-      <div className="mt-8 max-w-3xl">
-        <Card>
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Configuración de Ventas
-            </h3>
+        <div className="mt-8 max-w-3xl">
+          {/* Configuración de Ventas */}
+          <Card>
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Configuración de Ventas
+              </h3>
 
-            <div className="space-y-6">
-              {/* Tipo de Documento por Defecto */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tipo de Documento por Defecto
-                </label>
-                <select
-                  value={selectedDocumentClass}
-                  onChange={(e) => setSelectedDocumentClass(e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  disabled={isLoading}
-                >
-                  {documentClassOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-sm text-gray-500">
-                  Este será el tipo de documento seleccionado por defecto al crear una nueva venta
-                </p>
+              <div className="space-y-6">
+                {/* Tipo de Documento por Defecto */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tipo de Documento por Defecto
+                  </label>
+                  <select
+                    value={selectedDocumentClass}
+                    onChange={(e) => setSelectedDocumentClass(e.target.value)}
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    disabled={isLoading}
+                  >
+                    {documentClassOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Este será el tipo de documento seleccionado por defecto al crear una nueva venta
+                  </p>
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex justify-end space-x-3 pt-6 border-t">
+                  <Button
+                    onClick={handleSave}
+                    loading={isSaving}
+                    disabled={isLoading}
+                  >
+                    Guardar Cambios
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Datos del Negocio */}
-        <Card className="mt-6">
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Datos del Negocio
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Esta información se utiliza en los comprobantes fiscales y tickets de impresión
-            </p>
-
-            <div className="space-y-6">
-              {/* Nombre Comercial */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre Comercial
-                </label>
-                <input
-                  type="text"
-                  value={businessData.businessName}
-                  onChange={(e) => setBusinessData({ ...businessData, businessName: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="Ej: Mi Negocio SA"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* CUIT */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  CUIT <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={businessData.cuit}
-                  onChange={(e) => setBusinessData({ ...businessData, cuit: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="Ej: 20-12345678-9"
-                  disabled={isLoading}
-                />
-                <p className="mt-2 text-sm text-gray-500">
-                  Requerido para generar comprobantes fiscales con QR de AFIP
-                </p>
-              </div>
-
-              {/* Dirección */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  value={businessData.address}
-                  onChange={(e) => setBusinessData({ ...businessData, address: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="Ej: Av. Corrientes 1234, CABA"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Teléfono */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono
-                </label>
-                <input
-                  type="text"
-                  value={businessData.phone}
-                  onChange={(e) => setBusinessData({ ...businessData, phone: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="Ej: 011-4567-8910"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={businessData.email}
-                  onChange={(e) => setBusinessData({ ...businessData, email: e.target.value })}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  placeholder="Ej: contacto@minegocio.com"
-                  disabled={isLoading}
-                />
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex justify-end space-x-3 pt-6 border-t">
-                <Button
-                  onClick={handleSave}
-                  loading={isSaving}
-                  disabled={isLoading}
-                >
-                  Guardar Cambios
-                </Button>
-              </div>
+          {/* Nota sobre datos del negocio */}
+          <Card className="mt-6">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                Datos del Negocio
+              </h3>
+              <p className="text-sm text-gray-500">
+                Los datos fiscales del negocio (CUIT, Ingresos Brutos, Dirección, etc.) se configuran desde la
+                <a href="/tenants" className="text-blue-600 hover:text-blue-800 ml-1">
+                  administración de Tenants
+                </a>.
+              </p>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* Configuración de Impresión QZ Tray */}
-        <Card className="mt-6">
-          <div className="p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Impresión Térmica
-            </h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Configura la impresora térmica para imprimir tickets directamente desde el navegador
-            </p>
+          {/* Configuración de Impresión QZ Tray */}
+          <Card className="mt-6">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Impresión Térmica
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Configura la impresora térmica para imprimir tickets directamente desde el navegador
+              </p>
 
-            <QZTrayStatus />
-          </div>
-        </Card>
+              <QZTrayStatus />
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
     </>
   )
 }

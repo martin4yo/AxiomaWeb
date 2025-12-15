@@ -2,13 +2,21 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
 import { tenantsApi, Tenant } from '../../api/tenants'
 import { useAuthStore } from '../../stores/authStore'
+import { api } from '../../services/api'
+
+interface VatCondition {
+  id: string
+  code: string
+  name: string
+  description: string | null
+}
 
 const schema = z.object({
   name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
@@ -27,6 +35,10 @@ const schema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
+  // Datos fiscales
+  grossIncomeNumber: z.string().optional(),
+  activityStartDate: z.string().optional(),
+  vatConditionId: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -41,6 +53,18 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'general' | 'config' | 'business'>('general')
+
+  // Fetch VAT conditions
+  const { data: vatConditionsData } = useQuery({
+    queryKey: ['vat-conditions', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant!.slug}/vat-conditions`)
+      return response.data
+    },
+    enabled: !!currentTenant
+  })
+
+  const vatConditions: VatCondition[] = vatConditionsData?.conditions || []
 
   const {
     register,
@@ -73,6 +97,16 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       setValue('address', tenant.address || '')
       setValue('phone', tenant.phone || '')
       setValue('email', tenant.email || '')
+      setValue('grossIncomeNumber', tenant.grossIncomeNumber || '')
+      // Formatear fecha para input date
+      if (tenant.activityStartDate) {
+        const date = new Date(tenant.activityStartDate)
+        setValue('activityStartDate', date.toISOString().split('T')[0])
+      } else {
+        setValue('activityStartDate', '')
+      }
+      // Condición de IVA
+      setValue('vatConditionId', tenant.vatConditionId || '')
     } else {
       reset()
     }
@@ -102,6 +136,9 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
         address: data.address || null,
         phone: data.phone || null,
         email: data.email || null,
+        grossIncomeNumber: data.grossIncomeNumber || null,
+        activityStartDate: data.activityStartDate || null,
+        vatConditionId: data.vatConditionId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
@@ -127,6 +164,9 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
         address: data.address || null,
         phone: data.phone || null,
         email: data.email || null,
+        grossIncomeNumber: data.grossIncomeNumber || null,
+        activityStartDate: data.activityStartDate || null,
+        vatConditionId: data.vatConditionId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
@@ -304,6 +344,37 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
               error={errors.cuit?.message}
               {...register('cuit')}
             />
+
+            <Select
+              label="Condición de IVA"
+              error={errors.vatConditionId?.message}
+              {...register('vatConditionId')}
+            >
+              <option value="">Seleccionar...</option>
+              {vatConditions.map((vc) => (
+                <option key={vc.id} value={vc.id}>
+                  {vc.name} ({vc.code})
+                </option>
+              ))}
+            </Select>
+
+            <Input
+              label="Ingresos Brutos"
+              placeholder="901-123456-7"
+              error={errors.grossIncomeNumber?.message}
+              {...register('grossIncomeNumber')}
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Fecha Inicio de Actividades
+              </label>
+              <input
+                type="date"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                {...register('activityStartDate')}
+              />
+            </div>
 
             <Input
               label="Dirección"

@@ -4,6 +4,7 @@ import axios from 'axios'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { SalesService } from '../services/salesService.js'
 import { PDFService } from '../services/pdfService.js'
+import { AfipQRService } from '../services/afipQRService.js'
 
 const router = Router({ mergeParams: true })
 
@@ -393,9 +394,11 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
     })), null, 2))
 
     // Determinar tipo de plantilla
+    console.log('[ThermalData] printTemplate en config:', sale.voucherConfiguration?.printTemplate)
     let template = req.query.template as string ||
                    sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
                    'legal'
+    console.log('[ThermalData] Template a usar:', template)
 
     // Mapear 'quote' a 'simple' para tickets térmicos
     if (template === 'quote') {
@@ -417,13 +420,50 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
       ? voucherTypeName.replace(new RegExp(`\\s*${voucherLetter}\\s*$`), '').trim()
       : voucherTypeName
 
+    // Generar QR de AFIP si tiene CAE
+    let qrData: string | null = null
+    const caeNumber = sale.cae || sale.afipCae
+    if (caeNumber && sale.tenant.cuit && sale.voucherConfiguration?.voucherType?.afipCode) {
+      try {
+        // Determinar tipo de documento del cliente
+        let customerDocType = 99 // Sin identificar (consumidor final)
+        const customerDoc = sale.customer?.cuit || sale.customer?.taxId || ''
+        if (customerDoc) {
+          // Si tiene 11 dígitos, es CUIT
+          const cleanDoc = customerDoc.replace(/\D/g, '')
+          customerDocType = cleanDoc.length === 11 ? 80 : 96 // 80=CUIT, 96=DNI
+        }
+
+        qrData = AfipQRService.generateQRData({
+          cuit: sale.tenant.cuit,
+          voucherTypeCode: sale.voucherConfiguration.voucherType.afipCode,
+          salesPointNumber: sale.voucherConfiguration?.salesPoint?.number || 1,
+          voucherNumber: sale.voucherNumber || 1,
+          amount: Number(sale.totalAmount),
+          documentDate: new Date(sale.saleDate),
+          customerDocType,
+          customerDocNumber: customerDoc || '0',
+          cae: caeNumber
+        })
+        console.log('[ThermalData] QR generado:', qrData)
+      } catch (qrError) {
+        console.error('[ThermalData] Error generando QR:', qrError)
+      }
+    }
+
     const printData = {
       business: {
         name: sale.tenant.businessName || sale.tenant.name,
         cuit: sale.tenant.cuit,
         address: sale.tenant.address,
         phone: sale.tenant.phone,
-        email: sale.tenant.email
+        email: sale.tenant.email,
+        // Datos fiscales adicionales para facturas legales
+        grossIncomeNumber: sale.tenant.grossIncomeNumber || null,
+        activityStartDate: sale.tenant.activityStartDate
+          ? new Date(sale.tenant.activityStartDate).toLocaleDateString('es-AR')
+          : null,
+        vatCondition: sale.tenant.tenantVatCondition?.name || 'IVA Responsable Inscripto'
       },
       sale: {
         // Info del comprobante
@@ -468,11 +508,21 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
           reference: p.reference || null
         })),
 
-        // CAE
+        // CAE - estructura para compatibilidad con frontend
+        cae: (sale.cae || sale.afipCae) ? {
+          number: sale.cae || sale.afipCae,
+          expirationDate: sale.caeExpiration || sale.afipCaeExpiry
+            ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+            : null
+        } : null,
+        // También mantener campos planos para compatibilidad
         caeNumber: sale.cae || sale.afipCae || null,
         caeExpiration: sale.caeExpiration || sale.afipCaeExpiry
           ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
           : null,
+
+        // QR de AFIP
+        qrData: qrData,
 
         // Notas
         notes: sale.notes || null
@@ -588,7 +638,14 @@ router.post('/:id/print/thermal', authMiddleware, async (req, res, next) => {
           reference: p.reference || null
         })),
 
-        // CAE
+        // CAE - estructura para compatibilidad con frontend
+        cae: (sale.cae || sale.afipCae) ? {
+          number: sale.cae || sale.afipCae,
+          expirationDate: sale.caeExpiration || sale.afipCaeExpiry
+            ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+            : null
+        } : null,
+        // También mantener campos planos para compatibilidad
         caeNumber: sale.cae || sale.afipCae || null,
         caeExpiration: sale.caeExpiration || sale.afipCaeExpiry
           ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')

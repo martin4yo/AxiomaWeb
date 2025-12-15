@@ -16,6 +16,10 @@ export interface Tenant {
   address?: string
   phone?: string
   email?: string
+  // Datos fiscales
+  grossIncomeNumber?: string
+  activityStartDate?: string
+  vatConditionId?: string
   createdAt: string
   updatedAt: string
   _count?: {
@@ -38,6 +42,9 @@ export interface CreateTenantData {
   address?: string | null
   phone?: string | null
   email?: string | null
+  grossIncomeNumber?: string | null
+  activityStartDate?: string | null
+  vatConditionId?: string | null
 }
 
 export interface UpdateTenantData {
@@ -55,6 +62,9 @@ export interface UpdateTenantData {
   address?: string | null
   phone?: string | null
   email?: string | null
+  grossIncomeNumber?: string | null
+  activityStartDate?: string | null
+  vatConditionId?: string | null
 }
 
 export const tenantsApi = {

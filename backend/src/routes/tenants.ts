@@ -20,6 +20,16 @@ const createTenantSchema = z.object({
     timezone: z.string().default('America/Argentina/Buenos_Aires'),
     dateFormat: z.string().default('DD/MM/YYYY'),
   }).optional(),
+  // Datos del negocio
+  businessName: z.string().optional(),
+  cuit: z.string().optional(),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  // Datos fiscales
+  grossIncomeNumber: z.string().optional(),
+  activityStartDate: z.string().optional(),
+  vatConditionId: z.string().optional(),
 })
 
 const updateTenantSchema = z.object({
@@ -41,6 +51,10 @@ const updateTenantSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().optional(),
+  // Datos fiscales adicionales
+  grossIncomeNumber: z.string().optional(),
+  activityStartDate: z.string().optional(), // Fecha en formato ISO
+  vatConditionId: z.string().optional(),
 })
 
 // Get current tenant info
@@ -71,7 +85,19 @@ router.get('/settings', authMiddleware, async (req, res, next) => {
         businessName: true,
         address: true,
         phone: true,
-        email: true
+        email: true,
+        // Datos fiscales adicionales
+        grossIncomeNumber: true,
+        activityStartDate: true,
+        vatConditionId: true,
+        tenantVatCondition: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            description: true
+          }
+        }
       }
     })
 
@@ -118,6 +144,19 @@ router.put('/settings', authMiddleware, requireRole('admin'), async (req, res, n
 
     if (req.body.email !== undefined) {
       updateData.email = req.body.email
+    }
+
+    // Datos fiscales adicionales
+    if (req.body.grossIncomeNumber !== undefined) {
+      updateData.grossIncomeNumber = req.body.grossIncomeNumber
+    }
+
+    if (req.body.activityStartDate !== undefined) {
+      updateData.activityStartDate = req.body.activityStartDate ? new Date(req.body.activityStartDate) : null
+    }
+
+    if (req.body.vatConditionId !== undefined) {
+      updateData.vatConditionId = req.body.vatConditionId || null
     }
 
     console.log('[Tenant Settings] Update data:', updateData)
@@ -238,6 +277,9 @@ router.post(
           address: data.address,
           phone: data.phone,
           email: data.email,
+          grossIncomeNumber: data.grossIncomeNumber,
+          activityStartDate: data.activityStartDate ? new Date(data.activityStartDate) : null,
+          vatConditionId: data.vatConditionId || null,
         },
       })
 
@@ -296,6 +338,14 @@ router.put(
       if (data.address !== undefined) updateData.address = data.address
       if (data.phone !== undefined) updateData.phone = data.phone
       if (data.email !== undefined) updateData.email = data.email
+      // Datos fiscales
+      if (data.grossIncomeNumber !== undefined) updateData.grossIncomeNumber = data.grossIncomeNumber
+      if (data.activityStartDate !== undefined) {
+        updateData.activityStartDate = data.activityStartDate ? new Date(data.activityStartDate) : null
+      }
+      if (data.vatConditionId !== undefined) {
+        updateData.vatConditionId = data.vatConditionId || null
+      }
 
       const tenant = await prisma.tenant.update({
         where: { id: req.params.id },

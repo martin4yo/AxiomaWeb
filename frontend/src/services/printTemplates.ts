@@ -42,12 +42,16 @@ export interface TicketData {
     address?: string
     phone?: string
     email?: string
+    // Datos fiscales adicionales
+    grossIncomeNumber?: string    // Número de Ingresos Brutos
+    activityStartDate?: string    // Fecha inicio actividades (formato DD/MM/YYYY)
+    vatCondition?: string         // Condición IVA del emisor (ej: "IVA Responsable Inscripto")
   }
   sale?: {
-    number: string
+    number: string                // Número interno de venta
     date: string
     time: string
-    customer?: string
+    customer?: string             // Nombre del cliente
     items: SaleItemData[]
     subtotal: number
     discountAmount?: number
@@ -55,10 +59,19 @@ export interface TicketData {
     totalAmount: number
     payments?: PaymentData[]
     notes?: string
-    // Datos AFIP
-    caeNumber?: string
-    caeExpiration?: string
-    qrData?: string  // Datos para generar QR code
+    // Datos fiscales del comprobante
+    voucherType?: string          // Tipo: "Factura A", "Factura B", "Nota de Crédito A", etc.
+    voucherLetter?: string        // Letra: "A", "B", "C"
+    salesPointNumber?: number     // Punto de venta (4 dígitos)
+    voucherNumber?: number        // Número de comprobante (8 dígitos)
+    fullVoucherNumber?: string    // Número completo: "00001-00000123"
+    caeNumber?: string            // CAE (14 dígitos)
+    caeExpiration?: string        // Vencimiento CAE (formato DD/MM/YYYY)
+    qrData?: string               // URL del QR de ARCA
+    // Datos del cliente (para Factura A)
+    customerCuit?: string         // CUIT del cliente
+    customerVatCondition?: string // Condición IVA del cliente
+    customerAddress?: string      // Domicilio del cliente
   }
   purchase?: {
     number: string
@@ -248,6 +261,7 @@ export const TICKET_VENTA_58MM: TicketTemplate = {
 
 /**
  * Template para Factura A (80mm) - Con discriminación de IVA
+ * Comprobante fiscal con todos los datos requeridos por AFIP/ARCA
  */
 export const FACTURA_A_80MM: TicketTemplate = {
   name: 'Factura A 80mm',
@@ -255,20 +269,22 @@ export const FACTURA_A_80MM: TicketTemplate = {
   paperWidth: 80,
   fontSize: 11,
   sections: [
-    // HEADER
+    // HEADER - Datos del emisor
     {
       type: 'header',
       items: [
         { content: '{{business.name}}', bold: true, size: 'large', align: 'center' },
+        { content: '{{business.vatCondition}}', size: 'small', align: 'center' },
         { content: 'CUIT: {{business.cuit}}', bold: true, align: 'center' },
         { content: '{{business.address}}', size: 'small', align: 'center' },
-        { content: 'Ingresos Brutos: XXX', size: 'small', align: 'center' },
-        { content: 'Inicio de Actividades: XX/XX/XXXX', size: 'small', align: 'center' },
+        { content: 'IIBB: {{business.grossIncomeNumber}}', size: 'small', align: 'center' },
+        { content: 'Inicio Act.: {{business.activityStartDate}}', size: 'small', align: 'center' },
       ]
     },
 
     { type: 'divider-solid' },
 
+    // Letra del comprobante
     {
       type: 'text',
       content: '<div style="text-align: center; font-size: 24px; font-weight: bold; border: 3px solid #000; padding: 5px; margin: 5px 0;">A</div>',
@@ -279,21 +295,22 @@ export const FACTURA_A_80MM: TicketTemplate = {
       type: 'info',
       items: [
         { content: 'FACTURA', bold: true, align: 'center', size: 'large' },
-        { content: 'Punto de Venta: XXXX - Comp. Nº: XXXXXXXX', bold: true, align: 'center' },
+        { content: 'Nº {{sale.fullVoucherNumber}}', bold: true, align: 'center' },
         { content: 'Fecha: {{sale.date}}', align: 'center' },
       ]
     },
 
     { type: 'divider' },
 
-    // INFO CLIENTE
+    // INFO CLIENTE (obligatorio para Factura A)
     {
       type: 'info',
       items: [
         { content: 'DATOS DEL CLIENTE', bold: true },
         { content: 'Razón Social: {{sale.customer}}' },
-        { content: 'CUIT: XXX' },
-        { content: 'Condición IVA: Responsable Inscripto' },
+        { content: 'CUIT: {{sale.customerCuit}}' },
+        { content: 'Cond. IVA: {{sale.customerVatCondition}}' },
+        { content: 'Domicilio: {{sale.customerAddress}}' },
       ]
     },
 
@@ -323,12 +340,36 @@ export const FACTURA_A_80MM: TicketTemplate = {
       ]
     },
 
-    // FOOTER AFIP
+    // FORMAS DE PAGO
+    {
+      type: 'payments',
+      items: [
+        { content: 'FORMAS DE PAGO:', bold: true }
+      ]
+    },
+
+    { type: 'divider' },
+
+    // DATOS AFIP - CAE
+    {
+      type: 'info',
+      items: [
+        { content: 'CAE: {{sale.caeNumber}}', align: 'center', size: 'small' },
+        { content: 'Vto. CAE: {{sale.caeExpiration}}', align: 'center', size: 'small' },
+      ]
+    },
+
+    // QR ARCA
+    {
+      type: 'qrcode',
+      data: '{{sale.qrData}}',
+      align: 'center'
+    },
+
+    // FOOTER
     {
       type: 'footer',
       items: [
-        { content: 'CAE: XXXXXXXXXXXXXX', align: 'center', size: 'small' },
-        { content: 'Vto. CAE: XX/XX/XXXX', align: 'center', size: 'small' },
         { content: 'Comprobante Autorizado', align: 'center', bold: true },
       ]
     }
@@ -401,6 +442,7 @@ export const TICKET_COMPRA_80MM: TicketTemplate = {
 
 /**
  * Template para Factura B (80mm)
+ * Comprobante fiscal con IVA incluido para consumidores finales
  */
 export const FACTURA_B_80MM: TicketTemplate = {
   name: 'Factura B 80mm',
@@ -408,28 +450,38 @@ export const FACTURA_B_80MM: TicketTemplate = {
   paperWidth: 80,
   fontSize: 11,
   sections: [
+    // HEADER - Datos del emisor
     {
       type: 'header',
       items: [
         { content: '{{business.name}}', bold: true, size: 'large', align: 'center' },
+        { content: '{{business.vatCondition}}', size: 'small', align: 'center' },
         { content: 'CUIT: {{business.cuit}}', bold: true, align: 'center' },
         { content: '{{business.address}}', size: 'small', align: 'center' },
+        { content: 'IIBB: {{business.grossIncomeNumber}}', size: 'small', align: 'center' },
+        { content: 'Inicio Act.: {{business.activityStartDate}}', size: 'small', align: 'center' },
       ]
     },
     { type: 'divider-solid' },
+
+    // Letra del comprobante
     {
       type: 'text',
       content: '<div style="text-align: center; font-size: 24px; font-weight: bold; border: 3px solid #000; padding: 5px; margin: 5px 0;">B</div>',
     },
+
+    // INFO FACTURA
     {
       type: 'info',
       items: [
         { content: 'FACTURA', bold: true, align: 'center', size: 'large' },
-        { content: 'Punto de Venta: XXXX - Comp. Nº: XXXXXXXX', bold: true, align: 'center' },
+        { content: 'Nº {{sale.fullVoucherNumber}}', bold: true, align: 'center' },
         { content: 'Fecha: {{sale.date}}', align: 'center' },
       ]
     },
     { type: 'divider' },
+
+    // INFO CLIENTE
     {
       type: 'info',
       items: [
@@ -437,6 +489,8 @@ export const FACTURA_B_80MM: TicketTemplate = {
       ]
     },
     { type: 'divider' },
+
+    // ITEMS
     {
       type: 'table',
       columns: [
@@ -446,6 +500,8 @@ export const FACTURA_B_80MM: TicketTemplate = {
         { header: 'Total', field: 'lineTotal', align: 'right', decimals: 2 }
       ]
     },
+
+    // TOTALES
     {
       type: 'totals',
       items: [
@@ -454,11 +510,37 @@ export const FACTURA_B_80MM: TicketTemplate = {
         { type: 'divider' },
       ]
     },
+
+    // FORMAS DE PAGO
+    {
+      type: 'payments',
+      items: [
+        { content: 'FORMAS DE PAGO:', bold: true }
+      ]
+    },
+
+    { type: 'divider' },
+
+    // DATOS AFIP - CAE
+    {
+      type: 'info',
+      items: [
+        { content: 'CAE: {{sale.caeNumber}}', align: 'center', size: 'small' },
+        { content: 'Vto. CAE: {{sale.caeExpiration}}', align: 'center', size: 'small' },
+      ]
+    },
+
+    // QR ARCA
+    {
+      type: 'qrcode',
+      data: '{{sale.qrData}}',
+      align: 'center'
+    },
+
+    // FOOTER
     {
       type: 'footer',
       items: [
-        { content: 'CAE: XXXXXXXXXXXXXX', align: 'center', size: 'small' },
-        { content: 'Vto. CAE: XX/XX/XXXX', align: 'center', size: 'small' },
         { content: 'Comprobante Autorizado', align: 'center', bold: true },
       ]
     }
@@ -467,41 +549,68 @@ export const FACTURA_B_80MM: TicketTemplate = {
 
 /**
  * Template para Nota de Crédito (80mm)
+ * Comprobante fiscal para anulaciones/devoluciones
  */
 export const NOTA_CREDITO_80MM: TicketTemplate = {
   name: 'Nota de Crédito 80mm',
-  description: 'Nota de crédito estándar',
+  description: 'Nota de crédito fiscal',
   paperWidth: 80,
-  fontSize: 12,
+  fontSize: 11,
   sections: [
+    // HEADER - Datos del emisor
     {
       type: 'header',
       items: [
         { content: '{{business.name}}', bold: true, size: 'large', align: 'center' },
+        { content: '{{business.vatCondition}}', size: 'small', align: 'center' },
         { content: 'CUIT: {{business.cuit}}', bold: true, align: 'center' },
         { content: '{{business.address}}', size: 'small', align: 'center' },
+        { content: 'IIBB: {{business.grossIncomeNumber}}', size: 'small', align: 'center' },
+        { content: 'Inicio Act.: {{business.activityStartDate}}', size: 'small', align: 'center' },
       ]
     },
     { type: 'divider-solid' },
+
+    // Letra del comprobante (se muestra dinámicamente A, B o C)
+    {
+      type: 'text',
+      content: '<div style="text-align: center; font-size: 18px; font-weight: bold; border: 2px solid #000; padding: 3px; margin: 5px 0;">NC {{sale.voucherLetter}}</div>',
+    },
+
+    // INFO NOTA DE CRÉDITO
     {
       type: 'info',
       items: [
         { content: 'NOTA DE CRÉDITO', bold: true, align: 'center', size: 'large' },
-        { content: 'Nº: {{sale.number}}', bold: true },
-        { content: 'Fecha: {{sale.date}} {{sale.time}}' },
-        { content: 'Cliente: {{sale.customer}}' },
+        { content: 'Nº {{sale.fullVoucherNumber}}', bold: true, align: 'center' },
+        { content: 'Fecha: {{sale.date}}', align: 'center' },
       ]
     },
     { type: 'divider' },
+
+    // INFO CLIENTE
+    {
+      type: 'info',
+      items: [
+        { content: 'Cliente: {{sale.customer}}' },
+        { content: 'CUIT: {{sale.customerCuit}}' },
+        { content: 'Cond. IVA: {{sale.customerVatCondition}}' },
+      ]
+    },
+    { type: 'divider' },
+
+    // ITEMS
     {
       type: 'table',
       columns: [
-        { header: 'Producto', field: 'productName', align: 'left' },
+        { header: 'Descripción', field: 'productName', align: 'left' },
         { header: 'Cant.', field: 'quantity', align: 'right', decimals: 2 },
         { header: 'P.Unit', field: 'unitPrice', align: 'right', decimals: 2 },
         { header: 'Total', field: 'lineTotal', align: 'right', decimals: 2 }
       ]
     },
+
+    // TOTALES
     {
       type: 'totals',
       items: [
@@ -509,13 +618,32 @@ export const NOTA_CREDITO_80MM: TicketTemplate = {
         { label: 'Subtotal:', value: '{{sale.subtotal}}', align: 'right' },
         { label: 'IVA:', value: '{{sale.taxAmount}}', align: 'right' },
         { type: 'divider' },
-        { label: 'TOTAL:', value: '{{sale.totalAmount}}', bold: true, align: 'right' },
+        { label: 'TOTAL:', value: '{{sale.totalAmount}}', bold: true, align: 'right', size: 'large' },
         { type: 'divider' },
       ]
     },
+
+    // DATOS AFIP - CAE
+    {
+      type: 'info',
+      items: [
+        { content: 'CAE: {{sale.caeNumber}}', align: 'center', size: 'small' },
+        { content: 'Vto. CAE: {{sale.caeExpiration}}', align: 'center', size: 'small' },
+      ]
+    },
+
+    // QR ARCA
+    {
+      type: 'qrcode',
+      data: '{{sale.qrData}}',
+      align: 'center'
+    },
+
+    // FOOTER
     {
       type: 'footer',
       items: [
+        { content: 'Comprobante Autorizado', align: 'center', bold: true },
         { content: 'Documento que anula o reduce venta', align: 'center', size: 'small' },
       ]
     }
@@ -524,41 +652,68 @@ export const NOTA_CREDITO_80MM: TicketTemplate = {
 
 /**
  * Template para Nota de Débito (80mm)
+ * Comprobante fiscal para incrementos de deuda
  */
 export const NOTA_DEBITO_80MM: TicketTemplate = {
   name: 'Nota de Débito 80mm',
-  description: 'Nota de débito estándar',
+  description: 'Nota de débito fiscal',
   paperWidth: 80,
-  fontSize: 12,
+  fontSize: 11,
   sections: [
+    // HEADER - Datos del emisor
     {
       type: 'header',
       items: [
         { content: '{{business.name}}', bold: true, size: 'large', align: 'center' },
+        { content: '{{business.vatCondition}}', size: 'small', align: 'center' },
         { content: 'CUIT: {{business.cuit}}', bold: true, align: 'center' },
         { content: '{{business.address}}', size: 'small', align: 'center' },
+        { content: 'IIBB: {{business.grossIncomeNumber}}', size: 'small', align: 'center' },
+        { content: 'Inicio Act.: {{business.activityStartDate}}', size: 'small', align: 'center' },
       ]
     },
     { type: 'divider-solid' },
+
+    // Letra del comprobante (se muestra dinámicamente A, B o C)
+    {
+      type: 'text',
+      content: '<div style="text-align: center; font-size: 18px; font-weight: bold; border: 2px solid #000; padding: 3px; margin: 5px 0;">ND {{sale.voucherLetter}}</div>',
+    },
+
+    // INFO NOTA DE DÉBITO
     {
       type: 'info',
       items: [
         { content: 'NOTA DE DÉBITO', bold: true, align: 'center', size: 'large' },
-        { content: 'Nº: {{sale.number}}', bold: true },
-        { content: 'Fecha: {{sale.date}} {{sale.time}}' },
-        { content: 'Cliente: {{sale.customer}}' },
+        { content: 'Nº {{sale.fullVoucherNumber}}', bold: true, align: 'center' },
+        { content: 'Fecha: {{sale.date}}', align: 'center' },
       ]
     },
     { type: 'divider' },
+
+    // INFO CLIENTE
+    {
+      type: 'info',
+      items: [
+        { content: 'Cliente: {{sale.customer}}' },
+        { content: 'CUIT: {{sale.customerCuit}}' },
+        { content: 'Cond. IVA: {{sale.customerVatCondition}}' },
+      ]
+    },
+    { type: 'divider' },
+
+    // ITEMS
     {
       type: 'table',
       columns: [
-        { header: 'Producto', field: 'productName', align: 'left' },
+        { header: 'Descripción', field: 'productName', align: 'left' },
         { header: 'Cant.', field: 'quantity', align: 'right', decimals: 2 },
         { header: 'P.Unit', field: 'unitPrice', align: 'right', decimals: 2 },
         { header: 'Total', field: 'lineTotal', align: 'right', decimals: 2 }
       ]
     },
+
+    // TOTALES
     {
       type: 'totals',
       items: [
@@ -566,13 +721,32 @@ export const NOTA_DEBITO_80MM: TicketTemplate = {
         { label: 'Subtotal:', value: '{{sale.subtotal}}', align: 'right' },
         { label: 'IVA:', value: '{{sale.taxAmount}}', align: 'right' },
         { type: 'divider' },
-        { label: 'TOTAL:', value: '{{sale.totalAmount}}', bold: true, align: 'right' },
+        { label: 'TOTAL:', value: '{{sale.totalAmount}}', bold: true, align: 'right', size: 'large' },
         { type: 'divider' },
       ]
     },
+
+    // DATOS AFIP - CAE
+    {
+      type: 'info',
+      items: [
+        { content: 'CAE: {{sale.caeNumber}}', align: 'center', size: 'small' },
+        { content: 'Vto. CAE: {{sale.caeExpiration}}', align: 'center', size: 'small' },
+      ]
+    },
+
+    // QR ARCA
+    {
+      type: 'qrcode',
+      data: '{{sale.qrData}}',
+      align: 'center'
+    },
+
+    // FOOTER
     {
       type: 'footer',
       items: [
+        { content: 'Comprobante Autorizado', align: 'center', bold: true },
         { content: 'Documento que incrementa deuda', align: 'center', size: 'small' },
       ]
     }

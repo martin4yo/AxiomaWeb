@@ -10,20 +10,17 @@ export class VoucherService {
   }
 
   /**
-   * Determina el tipo de comprobante según:
-   * 1. Tipo de documento elegido por el usuario (invoice, credit_note, debit_note, quote)
-   * 2. Condición de IVA del cliente
-   * 3. Los allowedVoucherTypes configurados para esa condición de IVA
+   * Determina el tipo de comprobante según las reglas de AFIP:
    *
-   * La condición de IVA del tenant NO se toma en cuenta porque lo que define
-   * qué comprobantes se pueden emitir está en allowedVoucherTypes de cada condición.
+   * La letra del comprobante depende de la combinación entre:
+   * - Condición IVA del EMISOR (tenant)
+   * - Condición IVA del RECEPTOR (cliente)
    *
-   * Lógica de determinación de letra según condición IVA del cliente:
-   * - RI (Responsable Inscripto) → Letra A
-   * - MT (Monotributista) → Letra C
-   * - CF (Consumidor Final) → Letra B
-   * - EX (Exento) → Letra E
-   * - NR (No Responsable) → Letra C
+   * Reglas principales:
+   * - Emisor MONOTRIBUTISTA (MT) → Siempre Factura C (a cualquier cliente)
+   * - Emisor RI + Cliente RI → Factura A
+   * - Emisor RI + Cliente CF/MT/EX/NR → Factura B
+   * - Emisor EXENTO → Factura C
    */
   async determineVoucherType(
     tenantId: string,
@@ -38,6 +35,18 @@ export class VoucherService {
       branchId
     })
 
+    // Get tenant to check its VAT condition
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: {
+        tenantVatCondition: true
+      }
+    })
+
+    if (!tenant) {
+      throw new AppError('Tenant no encontrado', 404)
+    }
+
     // Get customer
     const customer = await this.prisma.entity.findUnique({
       where: { id: customerId }
@@ -48,62 +57,74 @@ export class VoucherService {
     }
 
     const customerVatCode = customer.ivaCondition
+    const tenantVatCode = tenant.tenantVatCondition?.code
 
     if (!customerVatCode) {
       throw new AppError('El cliente no tiene condición de IVA configurada', 400)
     }
 
-    // Get customer VAT condition
-    const customerVatCondition = await this.prisma.vatCondition.findFirst({
-      where: {
-        tenantId,
-        code: customerVatCode
-      }
+    console.log('[VoucherService] VAT conditions:', {
+      tenantVatCode,
+      customerVatCode
     })
 
-    if (!customerVatCondition) {
-      throw new AppError(`Condición de IVA "${customerVatCode}" no encontrada`, 404)
-    }
-
-    // Determine voucher letter based ONLY on customer's VAT condition
+    // Determine voucher letter based on BOTH tenant and customer VAT conditions
     let letter: string
 
-    switch (customerVatCode) {
-      case 'RI':
-        letter = 'A'
-        break
-      case 'MT':
+    // Si el tenant es Monotributista o Exento → siempre Factura C
+    if (tenantVatCode === 'MT' || tenantVatCode === 'EX' || tenantVatCode === 'NR') {
+      letter = 'C'
+    }
+    // Si el tenant es RI → depende del cliente
+    else if (tenantVatCode === 'RI') {
+      switch (customerVatCode) {
+        case 'RI':
+          letter = 'A'
+          break
+        case 'CF':
+        case 'MT':
+        case 'EX':
+        case 'NR':
+        default:
+          letter = 'B'
+          break
+      }
+    }
+    // Si el tenant no tiene condición configurada, intentar determinar por configuraciones existentes
+    else {
+      // Fallback: buscar qué configuraciones tiene el tenant
+      const existingConfigs = await this.prisma.voucherConfiguration.findMany({
+        where: { tenantId },
+        include: { voucherType: true },
+        take: 1
+      })
+
+      if (existingConfigs.length > 0) {
+        // Usar la letra de las configuraciones existentes
+        const existingLetter = existingConfigs[0].voucherType.letter
+        letter = existingLetter || 'C'
+        console.log('[VoucherService] Using letter from existing config:', letter)
+      } else {
+        // Default a C si no hay nada configurado
         letter = 'C'
-        break
-      case 'CF':
-        letter = 'B'
-        break
-      case 'EX':
-        letter = 'E'
-        break
-      case 'NR':
-        letter = 'C'
-        break
-      default:
-        throw new AppError(`Condición de IVA "${customerVatCode}" no soportada`, 400)
+        console.log('[VoucherService] No tenant VAT condition, defaulting to C')
+      }
     }
 
+    console.log('[VoucherService] Determined letter:', letter)
+
     // Map document class to voucher code prefix
-    let codePrefix: string
     let voucherCode: string
 
     switch (documentClass) {
       case 'invoice':
-        codePrefix = 'F'
-        voucherCode = `${codePrefix}${letter}`
+        voucherCode = `F${letter}`
         break
       case 'credit_note':
-        codePrefix = 'NC'
-        voucherCode = `${codePrefix}${letter}`
+        voucherCode = `NC${letter}`
         break
       case 'debit_note':
-        codePrefix = 'ND'
-        voucherCode = `${codePrefix}${letter}`
+        voucherCode = `ND${letter}`
         break
       case 'quote':
         voucherCode = 'PR' // Presupuesto no tiene letra
@@ -112,20 +133,7 @@ export class VoucherService {
         throw new AppError('Clase de documento inválida', 400)
     }
 
-    // Validate that the customer's VAT condition allows this voucher type
-    // (no aplica para presupuestos que no dependen de condición IVA)
-    if (documentClass !== 'quote') {
-      const allowedTypes = Array.isArray(customerVatCondition.allowedVoucherTypes)
-        ? customerVatCondition.allowedVoucherTypes
-        : []
-
-      if (allowedTypes.length > 0 && !allowedTypes.includes(voucherCode)) {
-        throw new AppError(
-          `La condición de IVA "${customerVatCondition.name}" (${customerVatCode}) no permite emitir comprobantes tipo ${voucherCode}. Tipos permitidos: ${allowedTypes.join(', ')}`,
-          400
-        )
-      }
-    }
+    console.log('[VoucherService] Voucher code:', voucherCode)
 
     // Find voucher type
     const voucherType = await this.prisma.voucherType.findUnique({

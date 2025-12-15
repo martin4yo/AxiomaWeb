@@ -11,6 +11,7 @@ import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
 import { SaleSearchModal } from '../../components/sales/SaleSearchModal'
 import { printService } from '../../services/printService'
 import { getTemplate, TicketData } from '../../services/printTemplates'
+import { generateAfipQRUrl, AFIP_DOC_TYPES } from '../../utils/afipQR'
 
 interface Product {
   id: string
@@ -841,6 +842,53 @@ export default function NewSalePage() {
   const handlePrintTicket = async (saleResponse: any) => {
     try {
       const sale = saleResponse.sale
+      const caeInfo = saleResponse.caeInfo || sale.caeInfo
+
+      // Obtener CAE (puede venir de caeInfo o directamente del sale)
+      const cae = caeInfo?.cae || sale.afipCae || sale.cae
+      const caeExpiration = caeInfo?.caeExpiration || sale.caeExpiration || sale.afipCaeExpiry
+
+      // Generar QR de ARCA si hay CAE
+      let qrData: string | null = null
+      if (cae && currentTenant?.cuit && sale.voucherConfiguration?.voucherType?.afipCode) {
+        // Determinar tipo de documento del cliente
+        let customerDocType: number = AFIP_DOC_TYPES.SIN_IDENTIFICAR
+        let customerDocNumber = '0'
+        if (sale.customer?.cuit) {
+          customerDocType = AFIP_DOC_TYPES.CUIT
+          customerDocNumber = sale.customer.cuit
+        } else if (sale.customer?.taxId) {
+          customerDocType = AFIP_DOC_TYPES.DNI
+          customerDocNumber = sale.customer.taxId
+        }
+
+        qrData = generateAfipQRUrl({
+          cuit: currentTenant.cuit,
+          voucherTypeCode: sale.voucherConfiguration.voucherType.afipCode,
+          salesPointNumber: sale.salesPointNumber || sale.voucherConfiguration.salesPoint?.number || 1,
+          voucherNumber: sale.voucherNumber || 1,
+          amount: parseFloat(sale.totalAmount),
+          documentDate: new Date(sale.saleDate),
+          customerDocType,
+          customerDocNumber,
+          cae
+        })
+      }
+
+      // Formatear fecha de vencimiento CAE
+      const caeExpirationFormatted = caeExpiration
+        ? new Date(caeExpiration).toLocaleDateString('es-AR')
+        : undefined
+
+      // Formatear fecha de inicio de actividades
+      const activityStartFormatted = currentTenant?.activityStartDate
+        ? new Date(currentTenant.activityStartDate).toLocaleDateString('es-AR')
+        : undefined
+
+      // Obtener condición IVA del tenant
+      const tenantVatCondition = currentTenant?.tenantVatCondition?.name ||
+        currentTenant?.tenantVatCondition?.description ||
+        'IVA Responsable Inscripto'
 
       // Preparar datos del ticket
       const ticketData: TicketData = {
@@ -849,7 +897,10 @@ export default function NewSalePage() {
           cuit: currentTenant?.cuit || '',
           address: currentTenant?.address || '',
           phone: currentTenant?.phone || '',
-          email: currentTenant?.email
+          email: currentTenant?.email,
+          grossIncomeNumber: currentTenant?.grossIncomeNumber,
+          activityStartDate: activityStartFormatted,
+          vatCondition: tenantVatCondition
         },
         sale: {
           number: sale.saleNumber,
@@ -870,10 +921,23 @@ export default function NewSalePage() {
           taxAmount: parseFloat(sale.taxAmount || 0),
           totalAmount: parseFloat(sale.totalAmount),
           payments: sale.payments?.map((p: any) => ({
-            name: p.paymentMethodName,
+            name: p.paymentMethodName || p.paymentMethod?.name || 'Efectivo',
             amount: parseFloat(p.amount)
           })),
-          notes: sale.notes
+          notes: sale.notes,
+          // Datos fiscales del comprobante
+          voucherType: sale.voucherConfiguration?.voucherType?.name,
+          voucherLetter: sale.voucherConfiguration?.voucherType?.letter,
+          salesPointNumber: sale.salesPointNumber || sale.voucherConfiguration?.salesPoint?.number,
+          voucherNumber: sale.voucherNumber,
+          fullVoucherNumber: sale.fullVoucherNumber,
+          caeNumber: cae,
+          caeExpiration: caeExpirationFormatted,
+          qrData: qrData || undefined,
+          // Datos del cliente (para Factura A)
+          customerCuit: sale.customer?.cuit,
+          customerVatCondition: sale.customer?.vatCondition?.name || sale.customer?.ivaCondition,
+          customerAddress: sale.customer?.address
         }
       }
 

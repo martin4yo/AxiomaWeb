@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw, Printer, FileText } from 'lucide-react'
+import { RefreshCw, Printer, FileText, Receipt, Loader2 } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -23,6 +23,9 @@ export default function SalesPage() {
   const [afipStatus, setAfipStatus] = useState('')
   const [orderBy, setOrderBy] = useState('saleDate')
   const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc')
+
+  // Estado para mostrar spinner mientras prepara impresión
+  const [printingId, setPrintingId] = useState<string | null>(null)
 
   // AFIP Progress Modal
   const [afipProgressModal, setAfipProgressModal] = useState<{
@@ -158,6 +161,9 @@ export default function SalesPage() {
 
   const handlePrintSale = async (saleId: string) => {
     try {
+      // Mostrar spinner mientras prepara la impresión
+      setPrintingId(saleId)
+
       // Usar el nuevo endpoint de impresión térmica
       const response = await salesApi.printThermal(saleId)
 
@@ -166,6 +172,9 @@ export default function SalesPage() {
     } catch (error: any) {
       console.error('Error al imprimir ticket:', error)
       alert(`Error al imprimir: ${error.message || 'Error desconocido'}`)
+    } finally {
+      // Quitar spinner después de un pequeño delay para que se vea el diálogo de impresión
+      setTimeout(() => setPrintingId(null), 500)
     }
   }
 
@@ -382,13 +391,35 @@ export default function SalesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
                       <div className="flex items-center justify-center gap-2">
-                        {/* Botón de imprimir térmica */}
+                        {/* Botón de imprimir térmica - icono diferente según template */}
                         <button
                           onClick={() => handlePrintSale(sale.id)}
-                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-800"
-                          title="Imprimir en térmica"
+                          disabled={printingId === sale.id}
+                          className={`inline-flex items-center px-2 py-1 text-xs font-medium ${
+                            printingId === sale.id
+                              ? 'text-blue-400 cursor-wait'
+                              : sale.voucherConfiguration?.printTemplate?.toUpperCase() === 'LEGAL' ||
+                                sale.voucherConfiguration?.voucherType?.requiresCae
+                                ? 'text-green-600 hover:text-green-800'
+                                : 'text-gray-600 hover:text-gray-800'
+                          }`}
+                          title={
+                            printingId === sale.id
+                              ? 'Preparando impresión...'
+                              : sale.voucherConfiguration?.printTemplate?.toUpperCase() === 'LEGAL' ||
+                                sale.voucherConfiguration?.voucherType?.requiresCae
+                                ? 'Imprimir ticket fiscal (con CAE/QR)'
+                                : 'Imprimir ticket simple'
+                          }
                         >
-                          <Printer className="w-4 h-4" />
+                          {printingId === sale.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : sale.voucherConfiguration?.printTemplate?.toUpperCase() === 'LEGAL' ||
+                             sale.voucherConfiguration?.voucherType?.requiresCae ? (
+                            <Receipt className="w-4 h-4" />
+                          ) : (
+                            <Printer className="w-4 h-4" />
+                          )}
                         </button>
 
                         {/* Botón de generar PDF */}

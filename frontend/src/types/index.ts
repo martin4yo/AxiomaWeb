@@ -17,6 +17,16 @@ export interface Tenant {
   address?: string
   phone?: string
   email?: string
+  // Datos fiscales adicionales
+  grossIncomeNumber?: string           // Número de Ingresos Brutos
+  activityStartDate?: string | Date    // Fecha de inicio de actividades
+  vatConditionId?: string              // ID de condición IVA
+  tenantVatCondition?: {               // Condición IVA del tenant (relación)
+    id: string
+    code: string
+    name: string
+    description?: string
+  }
 }
 
 export interface AuthState {

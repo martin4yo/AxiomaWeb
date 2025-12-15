@@ -147,7 +147,84 @@ export class AfipWSFEService {
       // Helper para redondear a 2 decimales
       const round2 = (num: number) => Math.round(num * 100) / 100
 
-      // Preparar request
+      // Determinar si es comprobante tipo C (no discrimina IVA)
+      // Códigos AFIP: 11=FC, 12=NDC, 13=NCC
+      const isTypeC = [11, 12, 13].includes(voucherData.voucherTypeCode)
+
+      // Preparar request base
+      const feCAEDetRequest: any = {
+        Concepto: 1, // 1=Productos, 2=Servicios, 3=Productos y Servicios
+        DocTipo: voucherData.customerDocType,
+        DocNro: voucherData.customerDocNumber,
+        CbteDesde: voucherData.voucherNumber,
+        CbteHasta: voucherData.voucherNumber,
+        CbteFch: voucherData.documentDate.toISOString().slice(0, 10).replace(/-/g, ''),
+        ImpTotal: round2(voucherData.total),
+        ImpTotConc: 0, // Importe neto no gravado
+        ImpOpEx: 0, // Importe exento
+        ImpTrib: 0, // Otros tributos
+        MonId: 'PES', // Moneda (PES=Pesos)
+        MonCotiz: 1,
+        CondicionIVAReceptorId: ivaReceptor // RG 5616 - Condición IVA del receptor
+      }
+
+      if (isTypeC) {
+        // Comprobante C: no discrimina IVA
+        // ImpNeto = total (todo es neto, no hay IVA discriminado)
+        // ImpIVA = 0
+        // No se envía el objeto Iva
+        feCAEDetRequest.ImpNeto = round2(voucherData.total)
+        feCAEDetRequest.ImpIVA = 0
+        console.log('[WSFE] Comprobante tipo C - No se discrimina IVA')
+      } else {
+        // Comprobante A/B: discrimina IVA
+        feCAEDetRequest.ImpNeto = round2(voucherData.subtotal)
+        feCAEDetRequest.ImpIVA = round2(voucherData.iva)
+
+        // Agregar detalle de alícuotas de IVA
+        if (voucherData.items.length > 0) {
+          // Agrupar items por alícuota de IVA
+          const alicuotasMap = new Map<number, { baseImp: number, importe: number }>()
+
+          voucherData.items.forEach(item => {
+            // Determinar código de alícuota según tasa y monto
+            let alicuotaId = 3 // Default: 0% / No gravado
+            if (item.ivaAmount > 0) {
+              if (item.ivaRate === 21) {
+                alicuotaId = 5 // 21%
+              } else if (item.ivaRate === 10.5) {
+                alicuotaId = 4 // 10.5%
+              }
+            }
+
+            // Calcular base imponible sin IVA
+            // subtotal incluye IVA, entonces base = subtotal - ivaAmount
+            const baseImponible = item.subtotal - item.ivaAmount
+
+            const existing = alicuotasMap.get(alicuotaId)
+            if (existing) {
+              existing.baseImp += baseImponible
+              existing.importe += item.ivaAmount
+            } else {
+              alicuotasMap.set(alicuotaId, {
+                baseImp: baseImponible,
+                importe: item.ivaAmount
+              })
+            }
+          })
+
+          // Convertir a array para AFIP (redondear a 2 decimales)
+          feCAEDetRequest.Iva = {
+            AlicIva: Array.from(alicuotasMap.entries()).map(([id, values]) => ({
+              Id: id,
+              BaseImp: round2(values.baseImp),
+              Importe: round2(values.importe)
+            }))
+          }
+        }
+      }
+
+      // Preparar request completo
       const request = {
         Auth: {
           Token: ta.token,
@@ -161,63 +238,7 @@ export class AfipWSFEService {
             CbteTipo: voucherData.voucherTypeCode
           },
           FeDetReq: {
-            FECAEDetRequest: {
-              Concepto: 1, // 1=Productos, 2=Servicios, 3=Productos y Servicios
-              DocTipo: voucherData.customerDocType,
-              DocNro: voucherData.customerDocNumber,
-              CbteDesde: voucherData.voucherNumber,
-              CbteHasta: voucherData.voucherNumber,
-              CbteFch: voucherData.documentDate.toISOString().slice(0, 10).replace(/-/g, ''),
-              ImpTotal: round2(voucherData.total),
-              ImpTotConc: 0, // Importe neto no gravado
-              ImpNeto: round2(voucherData.subtotal),
-              ImpOpEx: 0, // Importe exento
-              ImpIVA: round2(voucherData.iva),
-              ImpTrib: 0, // Otros tributos
-              MonId: 'PES', // Moneda (PES=Pesos)
-              MonCotiz: 1,
-              CondicionIVAReceptorId: ivaReceptor, // RG 5616 - Condición IVA del receptor
-              Iva: voucherData.items.length > 0 ? {
-                AlicIva: (() => {
-                  // Agrupar items por alícuota de IVA
-                  const alicuotasMap = new Map<number, { baseImp: number, importe: number }>()
-
-                  voucherData.items.forEach(item => {
-                    // Determinar código de alícuota según tasa y monto
-                    let alicuotaId = 3 // Default: 0% / No gravado
-                    if (item.ivaAmount > 0) {
-                      if (item.ivaRate === 21) {
-                        alicuotaId = 5 // 21%
-                      } else if (item.ivaRate === 10.5) {
-                        alicuotaId = 4 // 10.5%
-                      }
-                    }
-
-                    // Calcular base imponible sin IVA
-                    // subtotal incluye IVA, entonces base = subtotal - ivaAmount
-                    const baseImponible = item.subtotal - item.ivaAmount
-
-                    const existing = alicuotasMap.get(alicuotaId)
-                    if (existing) {
-                      existing.baseImp += baseImponible
-                      existing.importe += item.ivaAmount
-                    } else {
-                      alicuotasMap.set(alicuotaId, {
-                        baseImp: baseImponible,
-                        importe: item.ivaAmount
-                      })
-                    }
-                  })
-
-                  // Convertir a array para AFIP (redondear a 2 decimales)
-                  return Array.from(alicuotasMap.entries()).map(([id, values]) => ({
-                    Id: id,
-                    BaseImp: round2(values.baseImp),
-                    Importe: round2(values.importe)
-                  }))
-                })()
-              } : undefined
-            }
+            FECAEDetRequest: feCAEDetRequest
           }
         }
       }

@@ -444,27 +444,24 @@ export class SalesService {
         finalVoucherNumber = await this.generateSaleNumberInTransaction(tx as any, salesPointNumber)
         console.log(`[Sales:${requestId}] Número generado (local): ${finalVoucherNumber}`)
       } else if (voucherInfo) {
-        // Si es numeración AFIP, incrementar y obtener el número DENTRO de la transacción
-        // Esto previene race conditions cuando se crean múltiples ventas simultáneas
-        console.log(`[Sales:${requestId}] Incrementando nextVoucherNumber para config ${voucherInfo.configuration.id}`)
+        // Si es numeración AFIP, usar el número que ya calculó VoucherService (sincronizado con AFIP)
+        // y actualizar la configuración local para mantenerla sincronizada
+        const numberToUse = voucherInfo.nextNumberRaw
+        const nextNumber = numberToUse + 1
 
-        const updatedConfig = await tx.voucherConfiguration.update({
+        console.log(`[Sales:${requestId}] Usando número de VoucherService: ${numberToUse}, actualizando config a: ${nextNumber}`)
+
+        // Actualizar la configuración con el próximo número (después del que vamos a usar)
+        await tx.voucherConfiguration.update({
           where: { id: voucherInfo.configuration.id },
           data: {
-            nextVoucherNumber: { increment: 1 }
+            nextVoucherNumber: nextNumber
           }
         })
 
-        // El número a usar es el anterior al incremento
-        const numberToUse = updatedConfig.nextVoucherNumber - 1
         finalVoucherNumber = `${voucherInfo.salesPoint?.number.toString().padStart(5, '0') || '00000'}-${numberToUse.toString().padStart(8, '0')}`
 
-        console.log(`[Sales:${requestId}] Número generado (AFIP): ${finalVoucherNumber} (nextVoucherNumber después de incremento: ${updatedConfig.nextVoucherNumber})`)
-
-        // Actualizar también el nextNumberRaw para usar después
-        if (voucherInfo.nextNumberRaw) {
-          voucherInfo.nextNumberRaw = numberToUse
-        }
+        console.log(`[Sales:${requestId}] Número generado (AFIP): ${finalVoucherNumber}`)
       }
 
       // Crear venta
@@ -923,7 +920,11 @@ export class SalesService {
             salesPoint: true
           }
         },
-        tenant: true,
+        tenant: {
+          include: {
+            tenantVatCondition: true
+          }
+        },
         creator: {
           select: {
             id: true,
@@ -1061,7 +1062,16 @@ export class SalesService {
           voucherTypeRelation: true,
           voucherConfiguration: {
             include: {
-              afipConnection: true
+              afipConnection: true,
+              voucherType: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                  letter: true,
+                  requiresCae: true
+                }
+              }
             }
           },
           creator: {

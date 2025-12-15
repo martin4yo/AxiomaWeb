@@ -6,6 +6,7 @@ interface AuthActions {
   login: (token: string, user: User, tenants: Tenant[]) => void
   logout: () => void
   setCurrentTenant: (tenant: Tenant) => void
+  updateCurrentTenant: (tenantData: Partial<Tenant>) => void
   updateUser: (user: Partial<User>) => void
   _hasHydrated: boolean
   setHasHydrated: (state: boolean) => void
@@ -45,6 +46,15 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       setCurrentTenant: (tenant: Tenant) => {
         set({ currentTenant: tenant })
+      },
+
+      updateCurrentTenant: (tenantData: Partial<Tenant>) => {
+        const currentTenant = get().currentTenant
+        if (currentTenant) {
+          set({
+            currentTenant: { ...currentTenant, ...tenantData }
+          })
+        }
       },
 
       updateUser: (userData: Partial<User>) => {
