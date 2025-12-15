@@ -16,20 +16,25 @@ export class EmailService {
   private transporter: nodemailer.Transporter
 
   constructor() {
-    // Configurar transporter con Gmail
+    // Configurar transporter con Gmail usando variables de entorno
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true', // true para port 465, false para otros puertos
       auth: {
-        user: 'axiomaremote@gmail.com',
-        pass: 'rcfb uzlc yget wpgx'
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
       }
     })
   }
 
   async sendEmail(options: SendEmailOptions): Promise<void> {
     try {
+      const fromName = process.env.EMAIL_FROM_NAME || 'Axioma ERP'
+      const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.SMTP_USER
+
       const mailOptions = {
-        from: '"Axioma ERP" <axiomaremote@gmail.com>',
+        from: `"${fromName}" <${fromAddress}>`,
         to: options.to,
         subject: options.subject,
         text: options.text,
