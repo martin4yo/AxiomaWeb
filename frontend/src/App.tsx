@@ -31,10 +31,12 @@ import PurchasesPage from '@/pages/purchases/PurchasesPage'
 import NewPurchasePage from '@/pages/purchases/NewPurchasePage'
 import PurchaseDetailPage from '@/pages/purchases/PurchaseDetailPage'
 import RegisterPaymentPage from '@/pages/purchases/RegisterPaymentPage'
-import SupplierAccountsPage from '@/pages/purchases/SupplierAccountsPage'
+import OldSupplierAccountsPage from '@/pages/purchases/SupplierAccountsPage'
 import SupplierAccountDetailPage from '@/pages/purchases/SupplierAccountDetailPage'
 import SuppliersPage from '@/pages/suppliers/SuppliersPage'
 import EntityAccountPage from '@/pages/entity-accounts/EntityAccountPage'
+import CustomerAccountsPage from '@/pages/entity-accounts/CustomerAccountsPage'
+import SupplierAccountsPage from '@/pages/entity-accounts/SupplierAccountsPage'
 import ReportsPage from '@/pages/reports/ReportsPage'
 import CashMovementsPage from '@/pages/cash/CashMovementsPage'
 import CashAccountsPage from '@/pages/cash/CashAccountsPage'
@@ -89,7 +91,9 @@ function App() {
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="inventory/alerts" element={<StockAlertsPage />} />
         <Route path="sales" element={<SalesPage />} />
+        <Route path="customer-accounts" element={<CustomerAccountsPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
+        <Route path="purchases/supplier-accounts" element={<OldSupplierAccountsPage />} />
         <Route path="suppliers" element={<SuppliersPage />} />
         <Route path="supplier-accounts" element={<SupplierAccountsPage />} />
         <Route path="reports" element={<ReportsPage />} />

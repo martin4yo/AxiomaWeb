@@ -59,6 +59,7 @@ const navigation: NavigationItem[] = [
       { name: 'Listado', href: '/sales', icon: ShoppingCart },
       { name: 'Clientes', href: '/customers', icon: Users },
       { name: 'Categorías', href: '/customer-categories', icon: LayoutGrid },
+      { name: 'Cuentas Corrientes', href: '/customer-accounts', icon: Wallet },
     ]
   },
   {
