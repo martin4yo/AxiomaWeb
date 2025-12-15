@@ -9,9 +9,6 @@ import { AlertDialog } from '../../components/ui/AlertDialog'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
 import { SaleSearchModal } from '../../components/sales/SaleSearchModal'
-import { printService } from '../../services/printService'
-import { getTemplate, TicketData } from '../../services/printTemplates'
-import { generateAfipQRUrl, AFIP_DOC_TYPES } from '../../utils/afipQR'
 
 interface Product {
   id: string
@@ -842,117 +839,17 @@ export default function NewSalePage() {
   const handlePrintTicket = async (saleResponse: any) => {
     try {
       const sale = saleResponse.sale
-      const caeInfo = saleResponse.caeInfo || sale.caeInfo
 
-      // Obtener CAE (puede venir de caeInfo o directamente del sale)
-      const cae = caeInfo?.cae || sale.afipCae || sale.cae
-      const caeExpiration = caeInfo?.caeExpiration || sale.caeExpiration || sale.afipCaeExpiry
+      // Usar el nuevo sistema de impresión que respeta printFormat
+      console.log('[NewSale] Iniciando impresión para venta:', sale.id)
+      const result = await salesApi.printThermal(sale.id)
 
-      // Generar QR de ARCA si hay CAE
-      let qrData: string | null = null
-      if (cae && currentTenant?.cuit && sale.voucherConfiguration?.voucherType?.afipCode) {
-        // Determinar tipo de documento del cliente
-        let customerDocType: number = AFIP_DOC_TYPES.SIN_IDENTIFICAR
-        let customerDocNumber = '0'
-        if (sale.customer?.cuit) {
-          customerDocType = AFIP_DOC_TYPES.CUIT
-          customerDocNumber = sale.customer.cuit
-        } else if (sale.customer?.taxId) {
-          customerDocType = AFIP_DOC_TYPES.DNI
-          customerDocNumber = sale.customer.taxId
-        }
-
-        qrData = generateAfipQRUrl({
-          cuit: currentTenant.cuit,
-          voucherTypeCode: sale.voucherConfiguration.voucherType.afipCode,
-          salesPointNumber: sale.salesPointNumber || sale.voucherConfiguration.salesPoint?.number || 1,
-          voucherNumber: sale.voucherNumber || 1,
-          amount: parseFloat(sale.totalAmount),
-          documentDate: new Date(sale.saleDate),
-          customerDocType,
-          customerDocNumber,
-          cae
-        })
-      }
-
-      // Formatear fecha de vencimiento CAE
-      const caeExpirationFormatted = caeExpiration
-        ? new Date(caeExpiration).toLocaleDateString('es-AR')
-        : undefined
-
-      // Formatear fecha de inicio de actividades
-      const activityStartFormatted = currentTenant?.activityStartDate
-        ? new Date(currentTenant.activityStartDate).toLocaleDateString('es-AR')
-        : undefined
-
-      // Obtener condición IVA del tenant
-      const tenantVatCondition = currentTenant?.tenantVatCondition?.name ||
-        currentTenant?.tenantVatCondition?.description ||
-        'IVA Responsable Inscripto'
-
-      // Preparar datos del ticket
-      const ticketData: TicketData = {
-        business: {
-          name: currentTenant?.businessName || currentTenant?.name || 'MI NEGOCIO',
-          cuit: currentTenant?.cuit || '',
-          address: currentTenant?.address || '',
-          phone: currentTenant?.phone || '',
-          email: currentTenant?.email,
-          grossIncomeNumber: currentTenant?.grossIncomeNumber,
-          activityStartDate: activityStartFormatted,
-          vatCondition: tenantVatCondition
-        },
-        sale: {
-          number: sale.saleNumber,
-          date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
-          time: new Date(sale.createdAt).toLocaleTimeString('es-AR'),
-          customer: sale.customerName || 'Consumidor Final',
-          items: sale.items.map((item: any) => ({
-            productName: item.productName,
-            productSku: item.productSku,
-            description: item.description,
-            quantity: parseFloat(item.quantity),
-            unitPrice: parseFloat(item.unitPrice),
-            discountPercent: parseFloat(item.discountPercent || 0),
-            lineTotal: parseFloat(item.lineTotal)
-          })),
-          subtotal: parseFloat(sale.subtotal),
-          discountAmount: parseFloat(sale.discountAmount || 0),
-          taxAmount: parseFloat(sale.taxAmount || 0),
-          totalAmount: parseFloat(sale.totalAmount),
-          payments: sale.payments?.map((p: any) => ({
-            name: p.paymentMethodName || p.paymentMethod?.name || 'Efectivo',
-            amount: parseFloat(p.amount)
-          })),
-          notes: sale.notes,
-          // Datos fiscales del comprobante
-          voucherType: sale.voucherConfiguration?.voucherType?.name,
-          voucherLetter: sale.voucherConfiguration?.voucherType?.letter,
-          salesPointNumber: sale.salesPointNumber || sale.voucherConfiguration?.salesPoint?.number,
-          voucherNumber: sale.voucherNumber,
-          fullVoucherNumber: sale.fullVoucherNumber,
-          caeNumber: cae,
-          caeExpiration: caeExpirationFormatted,
-          qrData: qrData || undefined,
-          // Datos del cliente (para Factura A)
-          customerCuit: sale.customer?.cuit,
-          customerVatCondition: sale.customer?.vatCondition?.name || sale.customer?.ivaCondition,
-          customerAddress: sale.customer?.address
-        }
-      }
-
-      // Usar el template configurado en el voucher, o fallback a ticket estándar
-      const templateId = sale.voucherConfiguration?.printTemplateId || 'ticket-venta-80mm'
-      const template = getTemplate(templateId)
-
-      // Imprimir
-      const success = await printService.printTicket(template, ticketData)
-
-      if (success) {
-        console.log('Ticket enviado a impresora')
+      console.log('[NewSale] Resultado de impresión:', result)
+      if (result.success) {
+        console.log(`[NewSale] ✓ Impreso exitosamente con método: ${result.method}`)
       }
     } catch (error) {
-      console.error('Error al imprimir ticket:', error)
+      console.error('[NewSale] Error al imprimir:', error)
       showAlert('Error de Impresión', 'No se pudo imprimir el ticket. Verifique su impresora.', 'error')
     }
   }
