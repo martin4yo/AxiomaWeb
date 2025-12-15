@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { PlusIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Wallet } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -13,6 +14,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../services/api'
 
 export default function EntitiesPage() {
+  const navigate = useNavigate()
   const { currentTenant } = useAuthStore()
   const [searchParams, setSearchParams] = useSearchParams()
   const [search, setSearch] = useState('')
@@ -60,6 +62,10 @@ export default function EntitiesPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setSelectedEntity(null)
+  }
+
+  const handleViewAccount = (entityId: string) => {
+    navigate(`/entity-accounts/${entityId}`)
   }
 
   const getEntityTypes = (entity: any) => {
@@ -245,7 +251,16 @@ export default function EntitiesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              onClick={() => handleViewAccount(entity.id)}
+                              title="Ver cuenta corriente"
+                            >
+                              <Wallet className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleEdit(entity)}
+                              title="Editar entidad"
                             >
                               <PencilIcon className="h-4 w-4" />
                             </Button>

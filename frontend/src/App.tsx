@@ -34,6 +34,7 @@ import RegisterPaymentPage from '@/pages/purchases/RegisterPaymentPage'
 import SupplierAccountsPage from '@/pages/purchases/SupplierAccountsPage'
 import SupplierAccountDetailPage from '@/pages/purchases/SupplierAccountDetailPage'
 import SuppliersPage from '@/pages/suppliers/SuppliersPage'
+import EntityAccountPage from '@/pages/entity-accounts/EntityAccountPage'
 import ReportsPage from '@/pages/reports/ReportsPage'
 import CashMovementsPage from '@/pages/cash/CashMovementsPage'
 import CashAccountsPage from '@/pages/cash/CashAccountsPage'
@@ -108,6 +109,7 @@ function App() {
         <Route path="cash/movements" element={<CashMovementsPage />} />
         <Route path="cash/accounts" element={<CashAccountsPage />} />
         <Route path="supplier-accounts/:supplierId" element={<SupplierAccountDetailPage />} />
+        <Route path="entity-accounts/:entityId" element={<EntityAccountPage />} />
         <Route path="purchases/:id" element={<PurchaseDetailPage />} />
         <Route path="purchases/:id/payment" element={<RegisterPaymentPage />} />
       </Route>
