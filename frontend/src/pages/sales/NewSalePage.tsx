@@ -35,6 +35,7 @@ interface Customer {
   id: string
   name: string
   ivaCondition: string
+  email?: string
   isDefaultCustomer?: boolean
 }
 
@@ -1769,6 +1770,7 @@ export default function NewSalePage() {
         isOpen={afipProgressModal.show}
         steps={afipProgressModal.steps}
         canClose={afipProgressModal.canClose}
+        customerEmail={selectedCustomer?.email}
         saleResult={afipProgressModal.saleResult}
         onClose={() => {
           setAfipProgressModal({ show: false, steps: [], canClose: false, pendingSaleData: null, saleResult: undefined })

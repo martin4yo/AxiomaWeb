@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw, Printer, FileText, Receipt, Loader2 } from 'lucide-react'
+import { RefreshCw, Printer, FileText, Receipt, Loader2, Mail } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -26,6 +26,21 @@ export default function SalesPage() {
 
   // Estado para mostrar spinner mientras prepara impresión
   const [printingId, setPrintingId] = useState<string | null>(null)
+
+  // Estado para modal de envío de email
+  const [emailModal, setEmailModal] = useState<{
+    show: boolean
+    saleId: string | null
+    email: string
+    sending: boolean
+    message: { type: 'success' | 'error'; text: string } | null
+  }>({
+    show: false,
+    saleId: null,
+    email: '',
+    sending: false,
+    message: null
+  })
 
   // AFIP Progress Modal
   const [afipProgressModal, setAfipProgressModal] = useState<{
@@ -175,6 +190,58 @@ export default function SalesPage() {
     } finally {
       // Quitar spinner después de un pequeño delay para que se vea el diálogo de impresión
       setTimeout(() => setPrintingId(null), 500)
+    }
+  }
+
+  const handleOpenEmailModal = (saleId: string, customerEmail?: string) => {
+    setEmailModal({
+      show: true,
+      saleId,
+      email: customerEmail || '',
+      sending: false,
+      message: null
+    })
+  }
+
+  const handleSendEmail = async () => {
+    if (!emailModal.email.trim() || !emailModal.saleId) {
+      setEmailModal(prev => ({
+        ...prev,
+        message: { type: 'error', text: 'Por favor ingrese un email válido' }
+      }))
+      return
+    }
+
+    setEmailModal(prev => ({ ...prev, sending: true, message: null }))
+
+    try {
+      const result = await salesApi.sendEmail(emailModal.saleId, emailModal.email.trim())
+
+      setEmailModal(prev => ({
+        ...prev,
+        sending: false,
+        message: { type: 'success', text: result.message || 'Email enviado correctamente' }
+      }))
+
+      // Cerrar modal después de 2 segundos si fue exitoso
+      setTimeout(() => {
+        setEmailModal({
+          show: false,
+          saleId: null,
+          email: '',
+          sending: false,
+          message: null
+        })
+      }, 2000)
+    } catch (error: any) {
+      setEmailModal(prev => ({
+        ...prev,
+        sending: false,
+        message: {
+          type: 'error',
+          text: error.response?.data?.error || error.message || 'Error al enviar email'
+        }
+      }))
     }
   }
 
@@ -431,6 +498,15 @@ export default function SalesPage() {
                           <FileText className="w-4 h-4" />
                         </button>
 
+                        {/* Botón de enviar por email */}
+                        <button
+                          onClick={() => handleOpenEmailModal(sale.id, sale.customer?.email)}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-600 hover:text-green-800"
+                          title="Enviar por email"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </button>
+
                         {/* Botón de reintentar CAE - solo si aplica */}
                         {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
                          (sale.voucherType || sale.voucherTypeRelation) &&
@@ -515,6 +591,69 @@ export default function SalesPage() {
           queryClient.invalidateQueries({ queryKey: ['sales'] })
         }}
       />
+
+      {/* Email Modal */}
+      {emailModal.show && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => !emailModal.sending && setEmailModal({ show: false, saleId: null, email: '', sending: false, message: null })} />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Enviar Comprobante por Email</h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Email del Cliente
+                </label>
+                <input
+                  type="email"
+                  value={emailModal.email}
+                  onChange={(e) => setEmailModal(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="cliente@ejemplo.com"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  disabled={emailModal.sending}
+                />
+              </div>
+
+              {emailModal.message && (
+                <div className={`p-2 rounded-md flex items-center space-x-2 ${
+                  emailModal.message.type === 'success'
+                    ? 'bg-green-50 border border-green-200 text-green-700'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  <span className="text-xs font-medium">{emailModal.message.text}</span>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setEmailModal({ show: false, saleId: null, email: '', sending: false, message: null })}
+                  disabled={emailModal.sending}
+                  className="flex-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleSendEmail}
+                  disabled={emailModal.sending || !emailModal.email.trim()}
+                  className="flex-1 px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-1"
+                >
+                  {emailModal.sending ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Enviando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="w-3 h-3" />
+                      <span>Enviar</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

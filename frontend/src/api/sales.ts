@@ -283,5 +283,11 @@ export const salesApi = {
       responseType: 'blob'
     })
     return response.data
+  },
+
+  // Enviar PDF por email
+  sendEmail: async (id: string, email: string) => {
+    const response = await api.post(`/sales/${id}/send-email`, { email })
+    return response.data
   }
 }

@@ -5,6 +5,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js'
 import { SalesService } from '../services/salesService.js'
 import { PDFService } from '../services/pdfService.js'
 import { AfipQRService } from '../services/afipQRService.js'
+import { EmailService } from '../services/emailService.js'
 
 const router = Router({ mergeParams: true })
 
@@ -356,6 +357,67 @@ router.get('/:id/pdf/preview', authMiddleware, async (req, res, next) => {
     res.setHeader('Content-Length', pdfBuffer.length)
 
     res.send(pdfBuffer)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// POST /api/:tenantSlug/sales/:id/send-email - Enviar comprobante por email
+router.post('/:id/send-email', authMiddleware, async (req, res, next) => {
+  try {
+    const { email } = req.body
+
+    if (!email || !email.trim()) {
+      return res.status(400).json({ error: 'El email es requerido' })
+    }
+
+    const salesService = new SalesService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    // Obtener venta
+    const sale = await salesService.getSaleById(req.params.id)
+
+    // Determinar tipo de plantilla (similar a PDF preview)
+    let template: 'legal' | 'quote' = 'quote'
+    const configTemplate = sale.voucherConfiguration?.printTemplate?.toLowerCase()
+
+    if (configTemplate === 'legal') {
+      template = 'legal'
+    } else if (configTemplate === 'simple' || !configTemplate) {
+      template = 'quote'
+    }
+
+    // Generar PDF
+    const pdfService = new PDFService()
+    const pdfBuffer = await pdfService.generateInvoicePDF(sale, template)
+
+    // Preparar datos del email
+    const docType = template === 'legal' ? 'Factura' : 'Presupuesto'
+    const filename = `${docType}-${sale.fullVoucherNumber || sale.saleNumber}.pdf`
+
+    // Enviar email con el PDF adjunto
+    const emailService = new EmailService()
+
+    await emailService.sendSaleVoucher(
+      email.trim(),
+      sale.fullVoucherNumber || sale.saleNumber || '',
+      docType,
+      Number(sale.totalAmount) || 0,
+      pdfBuffer,
+      filename
+    )
+
+    console.log(`[Email] ✓ Comprobante enviado a ${email}`)
+    console.log(`[Email] PDF: ${filename} (${pdfBuffer.length} bytes)`)
+    console.log(`[Email] Tenant: ${req.tenant!.name}`)
+
+    res.json({
+      success: true,
+      message: `Comprobante enviado a ${email}`
+    })
   } catch (error) {
     next(error)
   }
