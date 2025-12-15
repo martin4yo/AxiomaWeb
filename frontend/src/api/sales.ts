@@ -178,14 +178,19 @@ export const salesApi = {
 
     // Si el formato es THERMAL o tiene impresora configurada, intentar impresión térmica
     if (printFormat === 'THERMAL' || printData.printerName) {
+      console.log('[Print] Intentando impresión térmica...')
+
       // 2.1. Intentar con servicio local (localhost:5555) - PRIORIDAD 1
       try {
+        console.log('[Print] Verificando servicio local (localhost:5555)...')
         const printService = await import('../services/print-service')
 
         // Verificar si el servicio está disponible
         const isAvailable = await printService.isServiceRunning()
+        console.log('[Print] Servicio local disponible:', isAvailable)
 
         if (isAvailable && printData.printerName) {
+          console.log('[Print] Imprimiendo en:', printData.printerName)
           // Generar comandos ESC/POS
           const { qzTrayService } = await import('../services/qz-tray')
           const commands = qzTrayService.generateESCPOS(
@@ -197,18 +202,24 @@ export const salesApi = {
           const result = await printService.printRaw(printData.printerName, commands)
 
           if (result.success) {
+            console.log('[Print] ✓ Impreso con servicio local')
             return {
               success: true,
               message: 'Impreso correctamente con servicio local',
               method: 'local-service'
             }
+          } else {
+            console.warn('[Print] ✗ Error con servicio local:', result.error)
           }
+        } else if (!printData.printerName) {
+          console.warn('[Print] ✗ No hay impresora configurada')
         }
       } catch (localError) {
-        console.warn('Servicio local no disponible:', localError)
+        console.warn('[Print] ✗ Error con servicio local:', localError)
       }
 
       // 2.2. Fallback: QZ Tray - PRIORIDAD 2
+      console.log('[Print] Intentando con QZ Tray...')
       try {
         const { qzTrayService } = await import('../services/qz-tray')
 
@@ -218,27 +229,30 @@ export const salesApi = {
           printData.template as 'simple' | 'legal'
         )
 
+        console.log('[Print] ✓ Impreso con QZ Tray')
         return {
           success: true,
           message: 'Impreso correctamente con QZ Tray',
           method: 'qz-tray'
         }
       } catch (qzError) {
-        console.warn('QZ Tray no disponible:', qzError)
+        console.warn('[Print] ✗ QZ Tray no disponible:', qzError)
       }
     }
 
     // 3. Último recurso: Impresión HTML (window.print) - PRIORIDAD 3
+    console.log('[Print] Usando fallback HTML (window.print)...')
     try {
       await salesApi.printThermalHTML(printData)
 
+      console.log('[Print] ✓ Diálogo de impresión HTML abierto')
       return {
         success: true,
         message: 'Abriendo diálogo de impresión del navegador',
         method: 'html'
       }
     } catch (htmlError) {
-      console.error('Error en fallback HTML:', htmlError)
+      console.error('[Print] ✗ Error en fallback HTML:', htmlError)
       throw new Error('No se pudo imprimir el ticket. Ningún método de impresión disponible.')
     }
   },
