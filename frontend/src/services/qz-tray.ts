@@ -122,6 +122,7 @@ interface SaleData {
   caeExpiration?: string;
   voucherName?: string;         // "Factura", "Nota de Crédito", etc.
   voucherLetter?: string;       // "A", "B", "C"
+  afipCode?: number;            // Código ARCA/AFIP del comprobante (ej: 11 para FC C)
   salesPointNumber?: number;
   customer?: string;
   customerCuit?: string;
@@ -354,6 +355,7 @@ class QZTrayService {
 
   /**
    * Generar comandos ESC/POS para ticket térmico
+   * Optimizado para impresoras de 80mm (48 caracteres por línea)
    */
   generateESCPOS(
     business: BusinessInfo,
@@ -362,7 +364,7 @@ class QZTrayService {
   ): Array<{ type: string; data: string }> {
     const ESC = '\x1B';
     const GS = '\x1D';
-    const WIDTH = 42; // Caracteres por línea en impresora de 80mm
+    const WIDTH = 48; // Caracteres por línea en impresora de 80mm (font A)
 
     const commands: Array<{ type: string; data: string }> = [];
 
@@ -374,8 +376,20 @@ class QZTrayService {
     const doubleHeight = () => commands.push({ type: 'raw', data: `${GS}!${String.fromCharCode(16)}` });
     const normalSize = () => commands.push({ type: 'raw', data: `${GS}!${String.fromCharCode(0)}` });
     const print = (text: string) => commands.push({ type: 'raw', data: text });
-    const divider = () => print(`${'='.repeat(WIDTH)}\n`);
-    const dividerDash = () => print(`${'-'.repeat(WIDTH)}\n`);
+    const divider = () => { center(); print(`${'='.repeat(WIDTH)}\n`); };
+    const dividerDash = () => { center(); print(`${'-'.repeat(WIDTH)}\n`); };
+
+    // Helper para truncar texto largo (para direcciones, etc.)
+    const truncate = (text: string, maxLen: number): string => {
+      if (text.length <= maxLen) return text;
+      return text.substring(0, maxLen - 2) + '..';
+    };
+
+    // Helper para línea de total alineada
+    const formatTotal = (label: string, value: string): string => {
+      const spaces = WIDTH - label.length - value.length;
+      return `${label}${' '.repeat(Math.max(1, spaces))}${value}\n`;
+    };
 
     // Inicializar impresora
     commands.push({ type: 'raw', data: `${ESC}@` });
@@ -383,16 +397,12 @@ class QZTrayService {
     // ============ HEADER DEL NEGOCIO ============
     center();
     boldOn();
-    doubleHeight();
     print(`${business.name}\n`);
-    normalSize();
     boldOff();
 
     // Datos fiscales del negocio (template legal)
-    if (template === 'legal') {
-      if (business.vatCondition) {
-        print(`${business.vatCondition}\n`);
-      }
+    if (template === 'legal' && business.vatCondition) {
+      print(`${business.vatCondition}\n`);
     }
 
     if (business.cuit) {
@@ -421,40 +431,39 @@ class QZTrayService {
 
     divider();
 
-    // ============ TIPO DE COMPROBANTE (template legal) ============
+    // ============ TIPO DE COMPROBANTE ============
+    center();
     if (template === 'legal' && sale.voucherLetter) {
-      center();
       boldOn();
       doubleHeight();
-      // Recuadro con la letra
-      print(`[ ${sale.voucherLetter} ]\n`);
-      normalSize();
-
-      // Tipo de comprobante
+      // Tipo de comprobante con letra en una sola línea
       const voucherType = sale.voucherName || 'FACTURA';
-      print(`${voucherType}\n`);
+      print(`${voucherType} ${sale.voucherLetter}\n`);
+      normalSize();
       boldOff();
+      // Código ARCA (código AFIP del comprobante)
+      if (sale.afipCode) {
+        print(`Cod. ARCA: ${sale.afipCode}\n`);
+      }
     } else {
-      center();
       boldOn();
       print(`TICKET DE VENTA\n`);
       boldOff();
     }
 
-    // Número de comprobante
-    center();
+    // Número y fecha
     boldOn();
-    print(`Nro: ${sale.number}\n`);
+    print(`N° ${sale.number}\n`);
     boldOff();
     print(`Fecha: ${sale.date}\n`);
 
     dividerDash();
 
-    // ============ DATOS DEL CLIENTE (template legal) ============
+    // ============ DATOS DEL CLIENTE ============
     if (template === 'legal') {
       left();
       const customerName = sale.customer || 'Consumidor Final';
-      print(`Cliente: ${customerName}\n`);
+      print(`Cliente: ${truncate(customerName, 35)}\n`);
 
       if (sale.customerCuit) {
         print(`CUIT: ${sale.customerCuit}\n`);
@@ -463,7 +472,7 @@ class QZTrayService {
         print(`Cond. IVA: ${sale.customerVatCondition}\n`);
       }
       if (sale.customerAddress) {
-        print(`Dom.: ${sale.customerAddress}\n`);
+        print(`Dom.: ${truncate(sale.customerAddress, 38)}\n`);
       }
       dividerDash();
     }
@@ -471,15 +480,18 @@ class QZTrayService {
     // ============ ITEMS ============
     left();
     sale.items.forEach((item) => {
-      const desc = item.description || item.productName || item.name || 'Sin descripción';
-      print(`${desc}\n`);
-
+      const desc = item.description || item.productName || item.name || 'Sin descripcion';
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.price || item.unitPrice) || 0;
       const total = Number(item.total) || 0;
 
-      const line = `  ${quantity} x $${price.toFixed(2)} = $${total.toFixed(2)}`;
-      print(`${line}\n`);
+      // Descripción completa (hace wrap automático si es larga)
+      print(`${desc}\n`);
+      // Números en línea siguiente, alineados a la derecha
+      const numLine = `  ${quantity} x $${price.toFixed(2)}`;
+      const totalStr = `$${total.toFixed(2)}`;
+      const spaces = WIDTH - numLine.length - totalStr.length;
+      print(`${numLine}${' '.repeat(Math.max(1, spaces))}${totalStr}\n`);
     });
 
     dividerDash();
@@ -489,39 +501,32 @@ class QZTrayService {
 
     // Subtotal y descuentos (si aplica)
     if (sale.subtotal && sale.subtotal !== sale.total) {
-      print(`Subtotal: $${Number(sale.subtotal).toFixed(2)}\n`);
+      print(formatTotal('Subtotal:', `$${Number(sale.subtotal).toFixed(2)}`));
     }
     if (sale.discountAmount && Number(sale.discountAmount) > 0) {
-      print(`Descuento: -$${Number(sale.discountAmount).toFixed(2)}\n`);
+      print(formatTotal('Descuento:', `-$${Number(sale.discountAmount).toFixed(2)}`));
     }
-    // IVA discriminado (Factura A)
     if (template === 'legal' && sale.discriminatesVat && sale.taxAmount) {
-      print(`IVA 21%: $${Number(sale.taxAmount).toFixed(2)}\n`);
+      print(formatTotal('IVA 21%:', `$${Number(sale.taxAmount).toFixed(2)}`));
     }
-
-    dividerDash();
 
     // Total
     const saleTotal = Number(sale.totalAmount || sale.total) || 0;
-    center();
     boldOn();
-    doubleHeight();
-    print(`TOTAL: $${saleTotal.toFixed(2)}\n`);
-    normalSize();
+    print(formatTotal('TOTAL:', `$${saleTotal.toFixed(2)}`));
     boldOff();
 
     dividerDash();
 
     // ============ FORMAS DE PAGO ============
     if (sale.payments && sale.payments.length > 0) {
-      left();
       boldOn();
       print(`FORMAS DE PAGO:\n`);
       boldOff();
       sale.payments.forEach((payment) => {
         const paymentAmount = Number(payment.amount) || 0;
         const method = payment.name || payment.method || 'Sin especificar';
-        print(`  ${method}: $${paymentAmount.toFixed(2)}\n`);
+        print(formatTotal(method, `$${paymentAmount.toFixed(2)}`));
       });
       dividerDash();
     }
@@ -538,24 +543,22 @@ class QZTrayService {
           print(`Vto. CAE: ${caeExpiration}\n`);
         }
 
-        // QR de AFIP (si la impresora lo soporta)
+        // QR de AFIP
         if (sale.qrData) {
           print(`\n`);
-          // Comando para QR en ESC/POS (GS ( k)
-          // Modelo QR: Model 2, Tamaño: 4, Error correction: M
           const qrContent = sale.qrData;
 
-          // Función de QR (GS ( k)
-          // 1. Seleccionar modelo QR (Model 2)
-          commands.push({ type: 'raw', data: `${GS}(k\x04\x00\x31\x41\x32\x00` });
+          // Centrar QR
+          center();
 
+          // Comandos QR ESC/POS (GS ( k)
+          // 1. Modelo QR (Model 2)
+          commands.push({ type: 'raw', data: `${GS}(k\x04\x00\x31\x41\x32\x00` });
           // 2. Tamaño del módulo (4 puntos)
           commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x43\x04` });
-
-          // 3. Error correction level (M = 49)
+          // 3. Error correction (M)
           commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x45\x31` });
-
-          // 4. Almacenar datos del QR
+          // 4. Almacenar datos
           const qrLen = qrContent.length + 3;
           const pL = qrLen % 256;
           const pH = Math.floor(qrLen / 256);
@@ -563,7 +566,6 @@ class QZTrayService {
             type: 'raw',
             data: `${GS}(k${String.fromCharCode(pL)}${String.fromCharCode(pH)}\x31\x50\x30${qrContent}`
           });
-
           // 5. Imprimir QR
           commands.push({ type: 'raw', data: `${GS}(k\x03\x00\x31\x51\x30` });
 
@@ -575,16 +577,13 @@ class QZTrayService {
     }
 
     // ============ FOOTER ============
-    dividerDash();
-    center();
-    if (template === 'legal') {
-      print(`Gracias por su compra!\n`);
-    } else {
+    if (template !== 'legal') {
+      dividerDash();
+      center();
       print(`TICKET NO VALIDO COMO FACTURA\n`);
-      print(`Gracias por su compra!\n`);
     }
 
-    // Cortar papel (con avance)
+    // Cortar papel
     print(`\n\n\n`);
     commands.push({ type: 'raw', data: `${GS}V${String.fromCharCode(66)}${String.fromCharCode(0)}` });
 
