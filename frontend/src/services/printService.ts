@@ -595,21 +595,31 @@ export class PrintService {
   }
 
   /**
-   * Formatea un número con decimales
+   * Formatea un número con decimales y separadores de miles
    */
   private formatNumber(value: any, decimals: number = 2): string {
     const num = parseFloat(value)
     if (isNaN(num)) return '0.00'
-    return num.toFixed(decimals)
+
+    // Formatear con separadores de miles
+    return num.toLocaleString('es-AR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    })
   }
 
   /**
-   * Formatea un valor como moneda
+   * Formatea un valor como moneda con separadores de miles
    */
   private formatCurrency(value: any): string {
     const num = parseFloat(value)
-    if (isNaN(num)) return '$0.00'
-    return `$${num.toFixed(2)}`
+    if (isNaN(num)) return '$0,00'
+
+    // Formatear con separadores de miles
+    return `$${num.toLocaleString('es-AR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })}`
   }
 }
 

@@ -43,6 +43,7 @@ import CashAccountsPage from '@/pages/cash/CashAccountsPage'
 import { TenantsPage } from '@/pages/tenants/TenantsPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import ErrorPage from '@/pages/ErrorPage'
+import OnboardingWizardPage from '@/pages/onboarding/OnboardingWizardPage'
 
 function App() {
   const { isAuthenticated, currentTenant, _hasHydrated } = useAuthStore()
@@ -76,9 +77,26 @@ function App() {
     return <Navigate to="/login" replace />
   }
 
+  // Check if wizard needs to be completed
+  const needsOnboarding = !currentTenant.wizardCompleted
+
+  // Debug logging
+  console.log('🔍 [App.tsx] Current tenant:', currentTenant)
+  console.log('🔍 [App.tsx] wizardCompleted:', currentTenant.wizardCompleted)
+  console.log('🔍 [App.tsx] needsOnboarding:', needsOnboarding)
+
+  // If needs onboarding and not on onboarding page, redirect
+  if (needsOnboarding && window.location.pathname !== '/onboarding') {
+    console.log('🔀 [App.tsx] Redirecting to /onboarding')
+    return <Navigate to="/onboarding" replace />
+  }
+
   // Main app routes
   return (
     <Routes>
+      {/* Onboarding wizard route (outside DashboardLayout) */}
+      <Route path="/onboarding" element={<OnboardingWizardPage />} />
+
       <Route path="/" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="entities" element={<EntitiesPage />} />

@@ -33,6 +33,25 @@ export type PDFTemplateType = 'legal' | 'quote'
  */
 export class PDFTemplateService {
   /**
+   * Formatea un número con separadores de miles (locale es-AR)
+   */
+  private formatNumber(value: number | string, decimals: number = 2): string {
+    const num = typeof value === 'string' ? parseFloat(value) : value
+    if (isNaN(num)) return '0,00'
+
+    return num.toLocaleString('es-AR', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals
+    })
+  }
+
+  /**
+   * Formatea un valor como moneda con separadores de miles
+   */
+  private formatCurrency(value: number | string): string {
+    return `$${this.formatNumber(value, 2)}`
+  }
+  /**
    * Genera un PDF según el tipo de plantilla
    */
   async generatePDF(sale: SaleWithRelations, template: PDFTemplateType = 'legal'): Promise<Buffer> {
@@ -103,9 +122,25 @@ export class PDFTemplateService {
     // Datos del emisor (izquierda) + Letra (centro) + Datos del comprobante (derecha)
     const headerTop = currentY
 
-    // IZQUIERDA: Datos del negocio
-    doc.fontSize(14).font('Helvetica-Bold').text(businessName, 50, currentY, { width: 200 })
-    currentY += 20
+    // IZQUIERDA: Datos del negocio (con logo si existe)
+    const logoUrl = sale.tenant.logo
+
+    if (logoUrl) {
+      try {
+        // Intentar cargar el logo
+        doc.image(logoUrl, 50, currentY, { width: 80, height: 80, fit: [80, 80] })
+        currentY += 85
+      } catch (error) {
+        console.error('[PDF] Error cargando logo:', error)
+        // Si falla, mostrar nombre de empresa
+        doc.fontSize(14).font('Helvetica-Bold').text(businessName, 50, currentY, { width: 200 })
+        currentY += 20
+      }
+    } else {
+      // Sin logo, mostrar nombre de empresa
+      doc.fontSize(14).font('Helvetica-Bold').text(businessName, 50, currentY, { width: 200 })
+      currentY += 20
+    }
 
     doc.fontSize(8).font('Helvetica')
 
@@ -225,20 +260,20 @@ export class PDFTemplateService {
         currentY = 50
       }
 
-      doc.text(item.quantity.toString(), 50, currentY, { width: 40, align: 'center' })
+      doc.text(this.formatNumber(item.quantity, 2), 50, currentY, { width: 40, align: 'center' })
       doc.text(productText, 95, currentY, { width: 200 })
-      doc.text(`$${Number(item.unitPrice).toFixed(2)}`, 300, currentY, { width: 60, align: 'right' })
+      doc.text(this.formatCurrency(item.unitPrice), 300, currentY, { width: 60, align: 'right' })
 
       const discountText = Number(item.discountPercent) > 0
-        ? `${Number(item.discountPercent).toFixed(0)}%`
+        ? `${this.formatNumber(item.discountPercent, 0)}%`
         : '-'
       doc.text(discountText, 365, currentY, { width: 40, align: 'right' })
 
       if (discriminatesVat) {
-        doc.text(`$${Number(item.taxAmount).toFixed(2)}`, 410, currentY, { width: 40, align: 'right' })
-        doc.text(`$${Number(item.lineTotal).toFixed(2)}`, 455, currentY, { width: 90, align: 'right' })
+        doc.text(this.formatCurrency(item.taxAmount), 410, currentY, { width: 40, align: 'right' })
+        doc.text(this.formatCurrency(item.lineTotal), 455, currentY, { width: 90, align: 'right' })
       } else {
-        doc.text(`$${Number(item.lineTotal).toFixed(2)}`, 410, currentY, { width: 135, align: 'right' })
+        doc.text(this.formatCurrency(item.lineTotal), 410, currentY, { width: 135, align: 'right' })
       }
 
       currentY += rowHeight
@@ -343,7 +378,7 @@ export class PDFTemplateService {
 
     // Subtotal
     doc.text('Subtotal:', totalsX, rightY, { width: labelWidth, align: 'right' })
-    doc.text(`$${Number(sale.subtotal).toFixed(2)}`, totalsX + labelWidth, rightY, {
+    doc.text(this.formatCurrency(sale.subtotal), totalsX + labelWidth, rightY, {
       width: valueWidth,
       align: 'right'
     })
@@ -352,7 +387,7 @@ export class PDFTemplateService {
     // Descuento (si existe)
     if (Number(sale.discountAmount) > 0) {
       doc.text('Descuento:', totalsX, rightY, { width: labelWidth, align: 'right' })
-      doc.text(`-$${Number(sale.discountAmount).toFixed(2)}`, totalsX + labelWidth, rightY, {
+      doc.text(`-${this.formatCurrency(sale.discountAmount)}`, totalsX + labelWidth, rightY, {
         width: valueWidth,
         align: 'right'
       })
@@ -362,7 +397,7 @@ export class PDFTemplateService {
     // IVA (si discrimina)
     if (discriminatesVat && Number(sale.taxAmount) > 0) {
       doc.text('IVA 21%:', totalsX, rightY, { width: labelWidth, align: 'right' })
-      doc.text(`$${Number(sale.taxAmount).toFixed(2)}`, totalsX + labelWidth, rightY, {
+      doc.text(this.formatCurrency(sale.taxAmount), totalsX + labelWidth, rightY, {
         width: valueWidth,
         align: 'right'
       })
@@ -376,7 +411,7 @@ export class PDFTemplateService {
     // TOTAL
     doc.fontSize(12).font('Helvetica-Bold')
     doc.text('TOTAL:', totalsX, rightY, { width: labelWidth, align: 'right' })
-    doc.text(`$${Number(sale.totalAmount).toFixed(2)}`, totalsX + labelWidth, rightY, {
+    doc.text(this.formatCurrency(sale.totalAmount), totalsX + labelWidth, rightY, {
       width: valueWidth,
       align: 'right'
     })
@@ -391,10 +426,10 @@ export class PDFTemplateService {
       doc.font('Helvetica').fontSize(8)
       for (const payment of sale.payments) {
         const method = payment.paymentMethodName
-        const amount = Number(payment.amount).toFixed(2)
+        const amount = this.formatCurrency(payment.amount)
         const reference = payment.reference ? ` - Ref: ${payment.reference}` : ''
 
-        doc.text(`${method}: $${amount}${reference}`, totalsX, rightY, {
+        doc.text(`${method}: ${amount}${reference}`, totalsX, rightY, {
           width: labelWidth + valueWidth,
           align: 'left'
         })
@@ -435,12 +470,29 @@ export class PDFTemplateService {
     let currentY = doc.y
 
     // ==================== HEADER ====================
-    doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50')
-    doc.text(businessName, 50, currentY, { width: 300 })
-    currentY += 35
+    const logoUrl = sale.tenant.logo
+
+    if (logoUrl) {
+      try {
+        // Intentar cargar el logo
+        doc.image(logoUrl, 50, currentY, { width: 100, height: 100, fit: [100, 100] })
+        currentY += 105
+      } catch (error) {
+        console.error('[PDF] Error cargando logo:', error)
+        // Si falla, mostrar nombre de empresa
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50')
+        doc.text(businessName, 50, currentY, { width: 300 })
+        currentY += 35
+      }
+    } else {
+      // Sin logo, mostrar nombre de empresa
+      doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50')
+      doc.text(businessName, 50, currentY, { width: 300 })
+      currentY += 35
+    }
 
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#e74c3c')
-    doc.text('PRESUPUESTO', 350, doc.y - 35, { width: 195, align: 'right' })
+    doc.text('PRESUPUESTO', 350, doc.y - (logoUrl ? 105 : 35), { width: 195, align: 'right' })
 
     doc.fontSize(10).font('Helvetica').fillColor('#000')
     if (address) {
@@ -529,13 +581,13 @@ export class PDFTemplateService {
       }
 
       doc.fillColor('#000')
-      doc.text(item.quantity.toString(), 55, currentY + 5, { width: 40, align: 'center' })
+      doc.text(this.formatNumber(item.quantity, 2), 55, currentY + 5, { width: 40, align: 'center' })
       doc.text(productText, 100, currentY + 5, { width: 250 })
-      doc.text(`$${Number(item.unitPrice).toFixed(2)}`, 355, currentY + 5, {
+      doc.text(this.formatCurrency(item.unitPrice), 355, currentY + 5, {
         width: 70,
         align: 'right'
       })
-      doc.text(`$${Number(item.lineTotal).toFixed(2)}`, 430, currentY + 5, {
+      doc.text(this.formatCurrency(item.lineTotal), 430, currentY + 5, {
         width: 110,
         align: 'right'
       })
@@ -556,14 +608,14 @@ export class PDFTemplateService {
     // Subtotal
     if (Number(sale.discountAmount) > 0) {
       doc.text('Subtotal:', totalsX, currentY, { width: labelWidth, align: 'right' })
-      doc.text(`$${Number(sale.subtotal).toFixed(2)}`, totalsX + labelWidth, currentY, {
+      doc.text(this.formatCurrency(sale.subtotal), totalsX + labelWidth, currentY, {
         width: valueWidth,
         align: 'right'
       })
       currentY += 15
 
       doc.text('Descuento:', totalsX, currentY, { width: labelWidth, align: 'right' })
-      doc.text(`-$${Number(sale.discountAmount).toFixed(2)}`, totalsX + labelWidth, currentY, {
+      doc.text(`-${this.formatCurrency(sale.discountAmount)}`, totalsX + labelWidth, currentY, {
         width: valueWidth,
         align: 'right'
       })
@@ -574,7 +626,7 @@ export class PDFTemplateService {
     doc.rect(totalsX, currentY, labelWidth + valueWidth, 35).fillAndStroke('#3498db', '#2980b9')
     doc.fontSize(14).font('Helvetica-Bold').fillColor('#fff')
     doc.text('TOTAL', totalsX + 10, currentY + 10, { width: labelWidth - 10, align: 'left' })
-    doc.text(`$${Number(sale.totalAmount).toFixed(2)}`, totalsX + labelWidth, currentY + 10, {
+    doc.text(this.formatCurrency(sale.totalAmount), totalsX + labelWidth, currentY + 10, {
       width: valueWidth - 10,
       align: 'right'
     })
@@ -590,7 +642,7 @@ export class PDFTemplateService {
 
       doc.font('Helvetica').fontSize(9)
       for (const payment of sale.payments) {
-        doc.text(`• ${payment.paymentMethodName}: $${Number(payment.amount).toFixed(2)}`, 70, currentY)
+        doc.text(`• ${payment.paymentMethodName}: ${this.formatCurrency(payment.amount)}`, 70, currentY)
         currentY += 12
       }
     }

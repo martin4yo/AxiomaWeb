@@ -16,6 +16,7 @@ export interface Tenant {
   address?: string
   phone?: string
   email?: string
+  logo?: string
   // Datos fiscales
   grossIncomeNumber?: string
   activityStartDate?: string
@@ -42,6 +43,7 @@ export interface CreateTenantData {
   address?: string | null
   phone?: string | null
   email?: string | null
+  logo?: string | null
   grossIncomeNumber?: string | null
   activityStartDate?: string | null
   vatConditionId?: string | null
@@ -62,6 +64,7 @@ export interface UpdateTenantData {
   address?: string | null
   phone?: string | null
   email?: string | null
+  logo?: string | null
   grossIncomeNumber?: string | null
   activityStartDate?: string | null
   vatConditionId?: string | null

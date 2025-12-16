@@ -97,6 +97,74 @@ router.post('/register', async (req, res, next) => {
         }
       })
 
+      // Create default VAT conditions
+      const defaultVatConditions = [
+        {
+          tenantId: tenant.id,
+          code: 'RI',
+          name: 'Responsable Inscripto',
+          description: 'Responsable Inscripto en IVA',
+          taxRate: 21,
+          isExempt: false,
+          afipCode: 1,
+          canIssueA: true,
+          issuesOnlyC: false,
+          allowedVoucherTypes: ['FA', 'NCA', 'NDA', 'FB', 'NCB', 'NDB', 'FC', 'NCC']
+        },
+        {
+          tenantId: tenant.id,
+          code: 'MT',
+          name: 'Monotributo',
+          description: 'Régimen Simplificado (Monotributo)',
+          taxRate: 0,
+          isExempt: true,
+          afipCode: 6,
+          canIssueA: false,
+          issuesOnlyC: true,
+          allowedVoucherTypes: ['FC', 'NCC']
+        },
+        {
+          tenantId: tenant.id,
+          code: 'CF',
+          name: 'Consumidor Final',
+          description: 'Consumidor Final',
+          taxRate: 21,
+          isExempt: false,
+          afipCode: 5,
+          canIssueA: false,
+          issuesOnlyC: true,
+          allowedVoucherTypes: ['FB', 'NCB', 'NDB', 'FC', 'NCC']
+        },
+        {
+          tenantId: tenant.id,
+          code: 'EX',
+          name: 'Exento',
+          description: 'Sujeto Exento',
+          taxRate: 0,
+          isExempt: true,
+          afipCode: 4,
+          canIssueA: false,
+          issuesOnlyC: false,
+          allowedVoucherTypes: ['FB', 'NCB', 'FC', 'NCC']
+        },
+        {
+          tenantId: tenant.id,
+          code: 'NR',
+          name: 'No Responsable',
+          description: 'No Responsable',
+          taxRate: 0,
+          isExempt: false,
+          afipCode: 7,
+          canIssueA: false,
+          issuesOnlyC: true,
+          allowedVoucherTypes: ['FC', 'NCC']
+        }
+      ]
+
+      await tx.vatCondition.createMany({
+        data: defaultVatConditions
+      })
+
       return { user, tenant }
     })
 
@@ -115,7 +183,9 @@ router.post('/register', async (req, res, next) => {
       tenant: {
         id: result.tenant.id,
         slug: result.tenant.slug,
-        name: result.tenant.name
+        name: result.tenant.name,
+        wizardCompleted: result.tenant.wizardCompleted,
+        wizardStep: result.tenant.wizardStep
       }
     })
   } catch (error) {
@@ -140,7 +210,9 @@ router.post('/login', async (req, res, next) => {
                 id: true,
                 slug: true,
                 name: true,
-                status: true
+                status: true,
+                wizardCompleted: true,
+                wizardStep: true
               }
             }
           }
@@ -174,7 +246,9 @@ router.post('/login', async (req, res, next) => {
         id: tu.tenant.id,
         slug: tu.tenant.slug,
         name: tu.tenant.name,
-        role: tu.role
+        role: tu.role,
+        wizardCompleted: tu.tenant.wizardCompleted,
+        wizardStep: tu.tenant.wizardStep
       }))
 
     res.json({
@@ -207,7 +281,9 @@ router.get('/profile', authMiddleware, async (req, res, next) => {
                 id: true,
                 slug: true,
                 name: true,
-                status: true
+                status: true,
+                wizardCompleted: true,
+                wizardStep: true
               }
             }
           }
@@ -225,7 +301,9 @@ router.get('/profile', authMiddleware, async (req, res, next) => {
         id: tu.tenant.id,
         slug: tu.tenant.slug,
         name: tu.tenant.name,
-        role: tu.role
+        role: tu.role,
+        wizardCompleted: tu.tenant.wizardCompleted,
+        wizardStep: tu.tenant.wizardStep
       }))
 
     res.json({

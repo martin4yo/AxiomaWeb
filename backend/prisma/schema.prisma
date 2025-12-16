@@ -31,10 +31,15 @@ model Tenant {
   address      String? // Dirección del negocio
   phone        String? // Teléfono de contacto
   email        String? // Email de contacto
+  logo         String? // URL o path del logo de la empresa (para impresión PDF)
 
   // Datos fiscales adicionales para facturas legales
   grossIncomeNumber String?   @map("gross_income_number") // Número de Ingresos Brutos
   activityStartDate DateTime? @map("activity_start_date") @db.Date // Fecha de inicio de actividades
+
+  // Wizard de configuración inicial
+  wizardCompleted Boolean @default(false) @map("wizard_completed")
+  wizardStep      Int     @default(0) @map("wizard_step") // Último paso completado (0-11)
 
   // Relations
   tenantUsers           TenantUser[]

@@ -35,6 +35,7 @@ const schema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
+  logo: z.string().url('URL inválida').optional().or(z.literal('')),
   // Datos fiscales
   grossIncomeNumber: z.string().optional(),
   activityStartDate: z.string().optional(),
@@ -97,6 +98,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       setValue('address', tenant.address || '')
       setValue('phone', tenant.phone || '')
       setValue('email', tenant.email || '')
+      setValue('logo', tenant.logo || '')
       setValue('grossIncomeNumber', tenant.grossIncomeNumber || '')
       // Formatear fecha para input date
       if (tenant.activityStartDate) {
@@ -136,6 +138,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
         address: data.address || null,
         phone: data.phone || null,
         email: data.email || null,
+        logo: data.logo || null,
         grossIncomeNumber: data.grossIncomeNumber || null,
         activityStartDate: data.activityStartDate || null,
         vatConditionId: data.vatConditionId || null,
@@ -164,6 +167,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
         address: data.address || null,
         phone: data.phone || null,
         email: data.email || null,
+        logo: data.logo || null,
         grossIncomeNumber: data.grossIncomeNumber || null,
         activityStartDate: data.activityStartDate || null,
         vatConditionId: data.vatConditionId || null,
@@ -396,6 +400,15 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
               placeholder="contacto@negocio.com"
               error={errors.email?.message}
               {...register('email')}
+            />
+
+            <Input
+              label="Logo (URL)"
+              type="url"
+              placeholder="https://ejemplo.com/logo.png"
+              error={errors.logo?.message}
+              helperText="URL de la imagen del logo (se mostrará en PDFs A4)"
+              {...register('logo')}
             />
             </div>
           )}

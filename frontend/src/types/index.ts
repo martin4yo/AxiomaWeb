@@ -27,6 +27,9 @@ export interface Tenant {
     name: string
     description?: string
   }
+  // Wizard de onboarding
+  wizardCompleted?: boolean            // Si completó el wizard inicial
+  wizardStep?: number                  // Último paso completado (0-11)
 }
 
 export interface AuthState {
