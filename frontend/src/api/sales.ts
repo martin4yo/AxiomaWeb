@@ -31,7 +31,8 @@ const convertToTicketData = (printData: any): TicketData => {
       voucherLetter: sale.voucherLetter || '',
       fullVoucherNumber: sale.number || '',
       items: (sale.items || []).map((item: any) => ({
-        productName: item.productName || item.name || item.description || '',
+        // Si hay descripción personalizada, usarla; sino usar productName
+        productName: item.description || item.productName || item.name || '',
         description: item.description !== item.productName ? item.description : undefined,
         quantity: Number(item.quantity) || 0,
         unitPrice: Number(item.unitPrice || item.price) || 0,

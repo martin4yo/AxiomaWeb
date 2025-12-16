@@ -24,7 +24,8 @@
       "Read(//home/martin/**)",
       "Bash(npx tsc:*)",
       "Bash(xargs kill:*)",
-      "Bash(PGPASSWORD=postgres psql:*)"
+      "Bash(PGPASSWORD=postgres psql:*)",
+      "Bash(git log:*)"
     ]
   }
 }
