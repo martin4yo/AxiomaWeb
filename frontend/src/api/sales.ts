@@ -198,11 +198,17 @@ export const salesApi = {
           console.log('[Print] Imprimiendo en:', printData.printerName)
           // Generar comandos ESC/POS
           const { qzTrayService } = await import('../services/qz-tray')
+          console.log('[Print] Datos del negocio:', printData.business)
+          console.log('[Print] Datos de la venta:', printData.sale)
+          console.log('[Print] Template:', printData.template)
+
           const commands = qzTrayService.generateESCPOS(
             printData.business,
             printData.sale,
             printData.template as 'simple' | 'legal'
           )
+
+          console.log('[Print] Comandos ESC/POS generados:', commands.length, 'comandos')
 
           const result = await printService.printRaw(printData.printerName, commands)
 
