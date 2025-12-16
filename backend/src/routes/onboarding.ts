@@ -93,27 +93,33 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
 
     // Crear formas de pago si fueron seleccionadas
     if (data.paymentMethods && data.paymentMethods.length > 0) {
-      const paymentMethodMap: Record<string, string> = {
-        CASH: 'Efectivo',
-        DEBIT: 'Tarjeta de Débito',
-        CREDIT: 'Tarjeta de Crédito',
-        TRANSFER: 'Transferencia',
-        CHECK: 'Cheque',
-        MP: 'Mercado Pago',
-        CC: 'Cuenta Corriente'
+      const paymentMethodMap: Record<string, { name: string, paymentType: string }> = {
+        CASH: { name: 'Efectivo', paymentType: 'CASH' },
+        DEBIT: { name: 'Tarjeta de Débito', paymentType: 'CARD' },
+        CREDIT: { name: 'Tarjeta de Crédito', paymentType: 'CARD' },
+        TRANSFER: { name: 'Transferencia', paymentType: 'TRANSFER' },
+        CHECK: { name: 'Cheque', paymentType: 'CHECK' },
+        MP: { name: 'Mercado Pago', paymentType: 'TRANSFER' },
+        CC: { name: 'Cuenta Corriente', paymentType: 'OTHER' }
       }
 
       for (const code of data.paymentMethods) {
+        const pmData = paymentMethodMap[code]
+        if (!pmData) continue
+
         const existing = await prisma.paymentMethod.findFirst({
-          where: { tenantId: tenant.id, code }
+          where: {
+            tenantId: tenant.id,
+            name: pmData.name
+          }
         })
 
         if (!existing) {
           await prisma.paymentMethod.create({
             data: {
               tenantId: tenant.id,
-              code,
-              name: paymentMethodMap[code] || code,
+              name: pmData.name,
+              paymentType: pmData.paymentType,
               isActive: true
             }
           })
@@ -132,16 +138,21 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       }
 
       for (const code of data.categories) {
+        const categoryName = categoryMap[code]
+        if (!categoryName) continue
+
         const existing = await prisma.productCategory.findFirst({
-          where: { tenantId: tenant.id, code }
+          where: {
+            tenantId: tenant.id,
+            name: categoryName
+          }
         })
 
         if (!existing) {
           await prisma.productCategory.create({
             data: {
               tenantId: tenant.id,
-              code,
-              name: categoryMap[code] || code,
+              name: categoryName,
               isActive: true
             }
           })
@@ -167,6 +178,23 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
             }
           })
         }
+      }
+    } else {
+      // Crear almacén por defecto si no se proporcionó ninguno
+      const existingWarehouse = await prisma.warehouse.findFirst({
+        where: { tenantId: tenant.id }
+      })
+
+      if (!existingWarehouse) {
+        await prisma.warehouse.create({
+          data: {
+            tenantId: tenant.id,
+            code: 'MAIN',
+            name: 'Almacén Principal',
+            address: null,
+            isActive: true
+          }
+        })
       }
     }
 
@@ -210,38 +238,30 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
 
     // Crear configuraciones de comprobantes (siempre, no solo si hay AFIP)
     if (data.voucherTypes && data.voucherTypes.length > 0) {
-      // Mapeo de códigos internos a IDs de VoucherType
-      const voucherTypeMap: Record<string, string> = {
-        FA: '1', // Factura A
-        FB: '6', // Factura B
-        FC: '11', // Factura C
-        NCA: '3', // Nota de Crédito A
-        NCB: '8', // Nota de Crédito B
-        NCC: '13', // Nota de Crédito C
-        NDA: '2', // Nota de Débito A
-        NDB: '7', // Nota de Débito B
-        NDC: '12', // Nota de Débito C
-        PRE: 'PRE' // Presupuesto
-      }
+      // Obtener todos los tipos de comprobantes de la base de datos
+      const voucherTypes = await prisma.voucherType.findMany({
+        where: {
+          code: {
+            in: data.voucherTypes
+          }
+        }
+      })
 
-      for (const typeCode of data.voucherTypes) {
-        const voucherTypeId = voucherTypeMap[typeCode]
-        if (!voucherTypeId) continue
-
+      for (const voucherType of voucherTypes) {
         const existing = await prisma.voucherConfiguration.findFirst({
           where: {
             tenantId: tenant.id,
-            voucherTypeId: voucherTypeId
+            voucherTypeId: voucherType.id
           }
         })
 
         if (!existing) {
-          const printTemplate = data.printConfigs?.[typeCode] || 'thermal-80mm'
+          const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
 
           await prisma.voucherConfiguration.create({
             data: {
               tenantId: tenant.id,
-              voucherTypeId: voucherTypeId,
+              voucherTypeId: voucherType.id,
               branchId: branch.id,
               afipConnectionId: afipConnection?.id || null,
               salesPointId: salesPoint.id,
@@ -276,13 +296,16 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
           tenantId: tenant.id,
           code: 'CF001',
           name: 'Consumidor Final',
-          entityType: 'CLIENT',
+          isCustomer: true,
+          isSupplier: false,
+          isEmployee: false,
           country: 'AR',
           currency: 'ARS',
-          vatConditionId: cfVatCondition?.id || null,
-          isActive: true,
-          paymentTermsDays: 0,
-          creditLimit: 0
+          cuit: cfVatCondition?.code || null,
+          ivaCondition: cfVatCondition?.code || null,
+          isDefaultCustomer: true,
+          customerPaymentTerms: 0,
+          customerCreditLimit: 0
         }
       })
     }

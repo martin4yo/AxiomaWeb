@@ -1,6 +1,6 @@
 import { api } from '../services/api'
 import { printService } from '../services/printService'
-import { TICKET_VENTA_80MM, FACTURA_B_80MM, FACTURA_A_80MM, TicketData } from '../services/printTemplates'
+import { TICKET_VENTA_80MM, FACTURA_A_80MM, FACTURA_B_80MM, FACTURA_C_80MM, TicketData } from '../services/printTemplates'
 
 /**
  * Convierte los datos del backend al formato TicketData que usa printService
@@ -63,8 +63,12 @@ const selectTemplate = (templateType: string, saleData: any) => {
     const letter = saleData?.voucherLetter?.toUpperCase()
     if (letter === 'A') {
       return FACTURA_A_80MM
+    } else if (letter === 'B') {
+      return FACTURA_B_80MM
+    } else if (letter === 'C') {
+      return FACTURA_C_80MM
     }
-    // Por defecto usar Factura B (también para C y otros)
+    // Por defecto usar Factura B para cualquier otro caso
     return FACTURA_B_80MM
   }
 

@@ -551,6 +551,116 @@ export const FACTURA_B_80MM: TicketTemplate = {
 }
 
 /**
+ * Template para Factura C (80mm)
+ * Comprobante fiscal con IVA incluido para operaciones exentas
+ */
+export const FACTURA_C_80MM: TicketTemplate = {
+  name: 'Factura C 80mm',
+  description: 'Factura C con IVA incluido (operaciones exentas)',
+  paperWidth: 80,
+  fontSize: 11,
+  sections: [
+    // HEADER - Datos del emisor
+    {
+      type: 'header',
+      items: [
+        { content: '{{business.name}}', bold: true, size: 'large', align: 'center' },
+        { content: '{{business.vatCondition}}', size: 'small', align: 'center' },
+        { content: 'CUIT: {{business.cuit}}', bold: true, align: 'center' },
+        { content: '{{business.address}}', size: 'small', align: 'center' },
+        { content: 'IIBB: {{business.grossIncomeNumber}}', size: 'small', align: 'center' },
+        { content: 'Inicio Act.: {{business.activityStartDate}}', size: 'small', align: 'center' },
+      ]
+    },
+    { type: 'divider-solid' },
+
+    // Letra del comprobante
+    {
+      type: 'text',
+      content: '<div style="text-align: center; font-size: 24px; font-weight: bold; border: 3px solid #000; padding: 5px; margin: 5px 0;">C</div>',
+    },
+
+    // INFO FACTURA
+    {
+      type: 'info',
+      items: [
+        { content: 'FACTURA', bold: true, align: 'center', size: 'large' },
+        { content: 'Nº {{sale.fullVoucherNumber}}', bold: true, align: 'center' },
+        { content: 'Fecha: {{sale.date}}', align: 'center' },
+      ]
+    },
+    { type: 'divider' },
+
+    // INFO CLIENTE
+    {
+      type: 'info',
+      items: [
+        { content: 'Cliente: {{sale.customer}}', bold: true },
+        { content: 'CUIT/DNI: {{sale.customerCuit}}' },
+        { content: 'Cond. IVA: {{sale.customerVatCondition}}' },
+        { content: 'Domicilio: {{sale.customerAddress}}' },
+      ]
+    },
+    { type: 'divider' },
+
+    // ITEMS
+    {
+      type: 'table',
+      columns: [
+        { header: 'Descripción', field: 'productName', align: 'left' },
+        { header: 'Cant.', field: 'quantity', align: 'right', decimals: 2 },
+        { header: 'P.Unit', field: 'unitPrice', align: 'right', decimals: 2 },
+        { header: 'Total', field: 'lineTotal', align: 'right', decimals: 2 }
+      ]
+    },
+
+    // TOTALES
+    {
+      type: 'totals',
+      items: [
+        { type: 'divider' },
+        { label: 'TOTAL:', value: '{{sale.totalAmount}}', bold: true, align: 'right', size: 'large' },
+        { type: 'divider' },
+      ]
+    },
+
+    // FORMAS DE PAGO
+    {
+      type: 'payments',
+      items: [
+        { content: 'FORMAS DE PAGO:', bold: true }
+      ]
+    },
+
+    { type: 'divider' },
+
+    // DATOS AFIP - CAE
+    {
+      type: 'info',
+      items: [
+        { content: 'CAE: {{sale.caeNumber}}', align: 'center', size: 'small' },
+        { content: 'Vto. CAE: {{sale.caeExpiration}}', align: 'center', size: 'small' },
+      ]
+    },
+
+    // QR ARCA
+    {
+      type: 'qrcode',
+      data: '{{sale.qrData}}',
+      align: 'center'
+    },
+
+    // FOOTER
+    {
+      type: 'footer',
+      items: [
+        { content: 'Comprobante Autorizado', align: 'center', bold: true },
+      ]
+    }
+  ]
+}
+
+/**
  * Template para Nota de Crédito (80mm)
  * Comprobante fiscal para anulaciones/devoluciones
  */
@@ -830,6 +940,7 @@ export const TEMPLATE_MAP: Record<string, TicketTemplate> = {
   'ticket-venta-58mm': TICKET_VENTA_58MM,
   'factura-a-80mm': FACTURA_A_80MM,
   'factura-b-80mm': FACTURA_B_80MM,
+  'factura-c-80mm': FACTURA_C_80MM,
   'nota-credito-80mm': NOTA_CREDITO_80MM,
   'nota-debito-80mm': NOTA_DEBITO_80MM,
   'presupuesto-80mm': PRESUPUESTO_80MM,

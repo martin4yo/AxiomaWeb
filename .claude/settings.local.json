@@ -21,7 +21,10 @@
       "Bash(node test-email.js)",
       "Bash(node:*)",
       "Bash(PGPASSWORD=Q27G4B98 psql:*)",
-      "Read(//home/martin/**)"
+      "Read(//home/martin/**)",
+      "Bash(npx tsc:*)",
+      "Bash(xargs kill:*)",
+      "Bash(PGPASSWORD=postgres psql:*)"
     ]
   }
 }
