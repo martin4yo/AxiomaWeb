@@ -446,8 +446,10 @@ class QZTrayService {
         print(`Cod. ARCA: ${sale.afipCode}\n`);
       }
     } else {
+      // Template simple: usar nombre del comprobante
       boldOn();
-      print(`TICKET DE VENTA\n`);
+      const voucherType = sale.voucherName || 'TICKET DE VENTA';
+      print(`${voucherType}\n`);
       boldOff();
     }
 

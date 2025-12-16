@@ -20,6 +20,7 @@ const createTenantSchema = z.object({
     timezone: z.string().default('America/Argentina/Buenos_Aires'),
     dateFormat: z.string().default('DD/MM/YYYY'),
   }).optional(),
+  defaultDocumentClass: z.enum(['invoice', 'quote', 'credit_note', 'debit_note']).default('invoice'),
   // Datos del negocio
   businessName: z.string().optional(),
   cuit: z.string().optional(),
@@ -45,6 +46,7 @@ const updateTenantSchema = z.object({
     timezone: z.string().optional(),
     dateFormat: z.string().optional(),
   }).optional(),
+  defaultDocumentClass: z.enum(['invoice', 'quote', 'credit_note', 'debit_note']).optional(),
   // Datos del negocio
   businessName: z.string().optional(),
   cuit: z.string().optional(),

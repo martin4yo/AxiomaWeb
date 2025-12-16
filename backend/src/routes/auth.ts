@@ -212,7 +212,8 @@ router.post('/login', async (req, res, next) => {
                 name: true,
                 status: true,
                 wizardCompleted: true,
-                wizardStep: true
+                wizardStep: true,
+                defaultDocumentClass: true
               }
             }
           }
@@ -248,7 +249,8 @@ router.post('/login', async (req, res, next) => {
         name: tu.tenant.name,
         role: tu.role,
         wizardCompleted: tu.tenant.wizardCompleted,
-        wizardStep: tu.tenant.wizardStep
+        wizardStep: tu.tenant.wizardStep,
+        defaultDocumentClass: tu.tenant.defaultDocumentClass
       }))
 
     res.json({
@@ -283,7 +285,8 @@ router.get('/profile', authMiddleware, async (req, res, next) => {
                 name: true,
                 status: true,
                 wizardCompleted: true,
-                wizardStep: true
+                wizardStep: true,
+                defaultDocumentClass: true
               }
             }
           }
@@ -303,7 +306,8 @@ router.get('/profile', authMiddleware, async (req, res, next) => {
         name: tu.tenant.name,
         role: tu.role,
         wizardCompleted: tu.tenant.wizardCompleted,
-        wizardStep: tu.tenant.wizardStep
+        wizardStep: tu.tenant.wizardStep,
+        defaultDocumentClass: tu.tenant.defaultDocumentClass
       }))
 
     res.json({

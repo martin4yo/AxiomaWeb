@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw, Printer, FileText, Receipt, Loader2, Mail } from 'lucide-react'
+import { RefreshCw, Printer, FileText, Receipt, Loader2, Mail, XCircle } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -42,6 +42,15 @@ export default function SalesPage() {
     message: null
   })
 
+  // Estado para modal de confirmación de anulación
+  const [cancelModal, setCancelModal] = useState<{
+    show: boolean
+    sale: any | null
+  }>({
+    show: false,
+    sale: null
+  })
+
   // AFIP Progress Modal
   const [afipProgressModal, setAfipProgressModal] = useState<{
     show: boolean
@@ -72,6 +81,19 @@ export default function SalesPage() {
       orderBy,
       orderDirection
     })
+  })
+
+  // Mutation para anular venta
+  const cancelSaleMutation = useMutation({
+    mutationFn: (saleId: string) => salesApi.cancelSale(saleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sales'] })
+      setCancelModal({ show: false, sale: null })
+      alert('Venta anulada correctamente')
+    },
+    onError: (error: any) => {
+      alert(`Error al anular venta: ${error.response?.data?.error || error.message}`)
+    }
   })
 
   // Mutation para reintentar CAE
@@ -242,6 +264,16 @@ export default function SalesPage() {
           text: error.response?.data?.error || error.message || 'Error al enviar email'
         }
       }))
+    }
+  }
+
+  const handleOpenCancelModal = (sale: any) => {
+    setCancelModal({ show: true, sale })
+  }
+
+  const handleConfirmCancel = () => {
+    if (cancelModal.sale) {
+      cancelSaleMutation.mutate(cancelModal.sale.id)
     }
   }
 
@@ -520,6 +552,18 @@ export default function SalesPage() {
                             <RefreshCw className="w-4 h-4" />
                           </button>
                         )}
+
+                        {/* Botón de anular venta - solo si no está cancelada */}
+                        {sale.status !== 'cancelled' && (
+                          <button
+                            onClick={() => handleOpenCancelModal(sale)}
+                            disabled={cancelSaleMutation.isPending}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            title="Anular venta"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -650,6 +694,73 @@ export default function SalesPage() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelModal.show && cancelModal.sale && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => !cancelSaleMutation.isPending && setCancelModal({ show: false, sale: null })} />
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0">
+                <XCircle className="h-10 w-10 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmar Anulación de Venta</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Se va a anular la venta por el importe de <span className="font-bold">${formatNumber(cancelModal.sale.totalAmount)}</span>
+                  {cancelModal.sale.afipStatus === 'authorized' && (
+                    <> generando una <span className="font-bold">Nota de Crédito {cancelModal.sale.voucherConfiguration?.voucherType?.letter || 'C'}</span> con número de comprobante fiscal</>
+                  )}
+                  .
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  <span className="font-semibold">Comprobante:</span> {cancelModal.sale.voucherTypeRelation?.name || cancelModal.sale.voucherType || 'Ticket'} {cancelModal.sale.saleNumber}
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  <span className="font-semibold">Cliente:</span> {cancelModal.sale.customerName}
+                </p>
+                {cancelModal.sale.afipStatus === 'authorized' && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                    <p className="text-xs text-yellow-800">
+                      <strong>Importante:</strong> Esta venta tiene un CAE autorizado. Se generará automáticamente una Nota de Crédito {cancelModal.sale.voucherConfiguration?.voucherType?.letter || 'C'} que será enviada a AFIP.
+                    </p>
+                  </div>
+                )}
+                <p className="text-sm text-red-600 font-medium">
+                  Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setCancelModal({ show: false, sale: null })}
+                disabled={cancelSaleMutation.isPending}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={cancelSaleMutation.isPending}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {cancelSaleMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Anulando...</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    <span>Anular Venta</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

@@ -1146,7 +1146,10 @@ export class SalesService {
   }
 
   /**
-   * Cancela una venta y revierte el stock
+   * Cancela una venta generando automáticamente una nota de crédito
+   * - Para ventas sin CAE: marca la venta como cancelada y revierte stock
+   * - Para ventas con CAE: genera una NC automática del mismo tipo de comprobante
+   * - Revierte movimientos de caja
    */
   async cancelSale(id: string) {
     const sale = await this.prisma.sale.findFirst({
@@ -1165,7 +1168,18 @@ export class SalesService {
             product: true
           }
         },
-        warehouse: true
+        warehouse: true,
+        payments: {
+          include: {
+            paymentMethod: true
+          }
+        },
+        customer: true,
+        voucherConfiguration: {
+          include: {
+            voucherType: true
+          }
+        }
       }
     })
 
@@ -1177,10 +1191,6 @@ export class SalesService {
       throw new AppError('La venta ya está cancelada', 400)
     }
 
-    if (sale.afipStatus === 'authorized') {
-      throw new AppError('No se puede cancelar una venta con factura AFIP autorizada', 400)
-    }
-
     // Validar que no tenga NC/ND asociadas
     if (sale.creditDebitNotes && sale.creditDebitNotes.length > 0) {
       throw new AppError(
@@ -1189,7 +1199,57 @@ export class SalesService {
       )
     }
 
-    // Cancelar en transacción
+    // Si la venta tiene CAE autorizado, generar NC automática
+    if (sale.afipStatus === 'authorized') {
+      console.log(`[CancelSale] Venta ${sale.saleNumber} tiene CAE, generando NC automática...`)
+
+      // Crear NC con los mismos items y montos que la venta original
+      const creditNoteItems = sale.items.map(item => ({
+        productId: item.productId!,
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        discountPercent: Number(item.discountPercent),
+        taxRate: Number(item.taxRate),
+        description: item.description || undefined
+      }))
+
+      const creditNotePayments = sale.payments.map(payment => ({
+        paymentMethodId: payment.paymentMethodId,
+        amount: Number(payment.amount),
+        reference: payment.reference || undefined
+      }))
+
+      // Crear la NC usando createSale
+      const creditNote = await this.createSale({
+        customerId: sale.customerId!,
+        warehouseId: sale.warehouseId!,
+        items: creditNoteItems,
+        payments: creditNotePayments,
+        notes: `Anulación de ${sale.voucherConfiguration?.voucherType?.name || 'venta'} ${sale.fullVoucherNumber || sale.saleNumber}`,
+        documentClass: 'credit_note',
+        originSaleId: sale.id
+      })
+
+      console.log(`[CancelSale] NC creada: ${creditNote.saleNumber}`)
+
+      // Marcar la venta original como cancelada
+      const updatedSale = await this.prisma.sale.update({
+        where: { id },
+        data: {
+          status: 'cancelled',
+          updatedAt: new Date()
+        }
+      })
+
+      return {
+        ...updatedSale,
+        creditNote: creditNote
+      }
+    }
+
+    // Si NO tiene CAE, cancelar directamente y revertir stock manualmente
+    console.log(`[CancelSale] Venta ${sale.saleNumber} sin CAE, cancelando directamente...`)
+
     return await this.prisma.$transaction(async (tx) => {
       // Actualizar estado de venta
       const updatedSale = await tx.sale.update({
@@ -1248,6 +1308,45 @@ export class SalesService {
         where: { saleId: id },
         data: { status: 'cancelled' }
       })
+
+      return updatedSale
+    }).then(async (updatedSale) => {
+      // Revertir movimientos de caja SOLO si la venta generó movimientos de caja
+      // (es decir, si tiene paymentMethodId con cashAccountId asociada)
+      // Si es cuenta corriente, no se revierten movimientos de caja
+      for (const payment of sale.payments) {
+        try {
+          const paymentMethod = await this.prisma.paymentMethod.findUnique({
+            where: { id: payment.paymentMethodId },
+            select: { cashAccountId: true }
+          })
+
+          // Solo registrar movimiento si el método de pago tiene cuenta de caja asociada
+          // Si es cuenta corriente (cashAccountId null), no se crea movimiento
+          if (paymentMethod?.cashAccountId) {
+            // Registrar SALIDA de dinero (devolución) para revertir el cobro original
+            await cashMovementService.registerExpense({
+              tenantId: this.tenantId,
+              cashAccountId: paymentMethod.cashAccountId,
+              amount: payment.amount.toNumber(),
+              category: 'sale_cancellation',
+              description: `Devolución por anulación de venta ${sale.saleNumber} - ${sale.customer?.name || 'Cliente Final'}`,
+              reference: sale.fullVoucherNumber || sale.saleNumber,
+              saleId: sale.id,
+              salePaymentId: payment.id,
+              paymentMethodId: payment.paymentMethodId,
+              movementDate: new Date(),
+              userId: this.userId
+            })
+            console.log(`[CancelSale] Movimiento de caja revertido para pago ${payment.id}`)
+          } else {
+            console.log(`[CancelSale] Pago ${payment.id} es cuenta corriente, no se revierte movimiento de caja`)
+          }
+        } catch (error) {
+          console.error('Error registering reverse cash movement:', error)
+          // No fallar la cancelación si falla el registro del movimiento
+        }
+      }
 
       return updatedSale
     })

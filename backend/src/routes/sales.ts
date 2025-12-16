@@ -9,6 +9,16 @@ import { EmailService } from '../services/emailService.js'
 
 const router = Router({ mergeParams: true })
 
+// Helper: Formatear fecha sin conversión de timezone
+const formatDateLocal = (date: Date | string): string => {
+  const d = typeof date === 'string' ? new Date(date) : date
+  // Usar las partes locales de la fecha sin conversión UTC
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${day}/${month}/${year}`
+}
+
 // Validation schemas
 const createSaleItemSchema = z.object({
   productId: z.string(),
@@ -524,14 +534,14 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
         // Datos fiscales adicionales para facturas legales
         grossIncomeNumber: sale.tenant.grossIncomeNumber || null,
         activityStartDate: sale.tenant.activityStartDate
-          ? new Date(sale.tenant.activityStartDate).toLocaleDateString('es-AR')
+          ? formatDateLocal(sale.tenant.activityStartDate)
           : null,
         vatCondition: sale.tenant.tenantVatCondition?.name || 'IVA Responsable Inscripto'
       },
       sale: {
         // Info del comprobante
         number: sale.fullVoucherNumber || sale.saleNumber,
-        date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
+        date: formatDateLocal(sale.saleDate),
         voucherName: voucherBaseName,
         voucherLetter: voucherLetter,
         afipCode: sale.voucherConfiguration?.voucherType?.afipCode || null,
@@ -575,13 +585,13 @@ router.get('/:id/print/thermal-data', authMiddleware, async (req, res, next) => 
         cae: (sale.cae || sale.afipCae) ? {
           number: sale.cae || sale.afipCae,
           expirationDate: sale.caeExpiration || sale.afipCaeExpiry
-            ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+            ? formatDateLocal(sale.caeExpiration || sale.afipCaeExpiry!)
             : null
         } : null,
         // También mantener campos planos para compatibilidad
         caeNumber: sale.cae || sale.afipCae || null,
         caeExpiration: sale.caeExpiration || sale.afipCaeExpiry
-          ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+          ? formatDateLocal(sale.caeExpiration || sale.afipCaeExpiry!)
           : null,
 
         // QR de AFIP
@@ -662,7 +672,7 @@ router.post('/:id/print/thermal', authMiddleware, async (req, res, next) => {
       sale: {
         // Info del comprobante
         number: sale.fullVoucherNumber || sale.saleNumber,
-        date: new Date(sale.saleDate).toLocaleDateString('es-AR'),
+        date: formatDateLocal(sale.saleDate),
         voucherName: voucherBaseName,
         voucherLetter: voucherLetter,
         afipCode: sale.voucherConfiguration?.voucherType?.afipCode || null,
@@ -706,13 +716,13 @@ router.post('/:id/print/thermal', authMiddleware, async (req, res, next) => {
         cae: (sale.cae || sale.afipCae) ? {
           number: sale.cae || sale.afipCae,
           expirationDate: sale.caeExpiration || sale.afipCaeExpiry
-            ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+            ? formatDateLocal(sale.caeExpiration || sale.afipCaeExpiry!)
             : null
         } : null,
         // También mantener campos planos para compatibilidad
         caeNumber: sale.cae || sale.afipCae || null,
         caeExpiration: sale.caeExpiration || sale.afipCaeExpiry
-          ? new Date(sale.caeExpiration || sale.afipCaeExpiry!).toLocaleDateString('es-AR')
+          ? formatDateLocal(sale.caeExpiration || sale.afipCaeExpiry!)
           : null,
 
         // Notas

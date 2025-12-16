@@ -11,6 +11,7 @@ export interface Tenant {
     timezone: string
     dateFormat: string
   }
+  defaultDocumentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
   businessName?: string
   cuit?: string
   address?: string
@@ -38,6 +39,7 @@ export interface CreateTenantData {
     timezone?: string
     dateFormat?: string
   }
+  defaultDocumentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
   businessName?: string | null
   cuit?: string | null
   address?: string | null
@@ -59,6 +61,7 @@ export interface UpdateTenantData {
     timezone?: string
     dateFormat?: string
   }
+  defaultDocumentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
   businessName?: string | null
   cuit?: string | null
   address?: string | null

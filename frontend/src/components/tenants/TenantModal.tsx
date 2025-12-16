@@ -29,6 +29,7 @@ const schema = z.object({
   currency: z.string().default('ARS'),
   timezone: z.string().default('America/Argentina/Buenos_Aires'),
   dateFormat: z.string().default('DD/MM/YYYY'),
+  defaultDocumentClass: z.enum(['invoice', 'quote', 'credit_note', 'debit_note']).default('invoice'),
   // Datos del negocio para impresión
   businessName: z.string().optional(),
   cuit: z.string().optional(),
@@ -51,7 +52,7 @@ interface TenantModalProps {
 }
 
 export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
-  const { currentTenant } = useAuthStore()
+  const { currentTenant, updateCurrentTenant } = useAuthStore()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState<'general' | 'config' | 'business'>('general')
 
@@ -81,6 +82,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       currency: 'ARS',
       timezone: 'America/Argentina/Buenos_Aires',
       dateFormat: 'DD/MM/YYYY',
+      defaultDocumentClass: 'invoice',
     },
   })
 
@@ -93,6 +95,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
       setValue('currency', tenant.settings.currency)
       setValue('timezone', tenant.settings.timezone)
       setValue('dateFormat', tenant.settings.dateFormat)
+      setValue('defaultDocumentClass', tenant.defaultDocumentClass || 'invoice')
       setValue('businessName', tenant.businessName || '')
       setValue('cuit', tenant.cuit || '')
       setValue('address', tenant.address || '')
@@ -133,6 +136,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
           timezone: data.timezone,
           dateFormat: data.dateFormat,
         },
+        defaultDocumentClass: data.defaultDocumentClass,
         businessName: data.businessName || null,
         cuit: data.cuit || null,
         address: data.address || null,
@@ -162,6 +166,7 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
           timezone: data.timezone,
           dateFormat: data.dateFormat,
         },
+        defaultDocumentClass: data.defaultDocumentClass,
         businessName: data.businessName || null,
         cuit: data.cuit || null,
         address: data.address || null,
@@ -172,8 +177,14 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
         activityStartDate: data.activityStartDate || null,
         vatConditionId: data.vatConditionId || null,
       }),
-    onSuccess: () => {
+    onSuccess: (_response, data) => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      // Si estamos editando el tenant actual, actualizar el store
+      if (tenant?.id === currentTenant?.id) {
+        updateCurrentTenant({
+          defaultDocumentClass: data.defaultDocumentClass as any
+        })
+      }
       reset()
       onClose()
     },
@@ -324,6 +335,17 @@ export function TenantModal({ isOpen, onClose, tenant }: TenantModalProps) {
               <option value="DD/MM/YYYY">DD/MM/YYYY</option>
               <option value="MM/DD/YYYY">MM/DD/YYYY</option>
               <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+            </Select>
+
+            <Select
+              label="Tipo de Comprobante por Defecto"
+              error={errors.defaultDocumentClass?.message}
+              {...register('defaultDocumentClass')}
+            >
+              <option value="invoice">Factura</option>
+              <option value="quote">Presupuesto</option>
+              <option value="credit_note">Nota de Crédito</option>
+              <option value="debit_note">Nota de Débito</option>
             </Select>
             </div>
           )}
