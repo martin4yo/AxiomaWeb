@@ -35,6 +35,8 @@ import supplierAccountRoutes from './routes/supplier-accounts.js'
 import entityAccountRoutes from './routes/entity-accounts.js'
 import cashRoutes from './routes/cash.js'
 import onboardingRoutes from './routes/onboarding.js'
+import quotesRoutes from './routes/quotes.js'
+import taxesRoutes from './routes/taxes.js'
 
 // Load environment variables
 config()
@@ -106,6 +108,8 @@ app.use('/api/:tenantSlug/supplier-accounts', supplierAccountRoutes)
 app.use('/api/:tenantSlug/entity-accounts', entityAccountRoutes)
 app.use('/api/:tenantSlug/cash', cashRoutes)
 app.use('/api/:tenantSlug/dashboard', dashboardRoutes)
+app.use('/api/:tenantSlug/quotes', quotesRoutes)
+app.use('/api/:tenantSlug/taxes', taxesRoutes)
 app.use('/api', onboardingRoutes)
 
 // Error handling

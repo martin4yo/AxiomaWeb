@@ -163,22 +163,21 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Actualizar
-          </button>
-        </div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
+        <button
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Actualizar
+        </button>
+      </div>
 
-        {/* Date Filter */}
-        <div className="bg-white rounded-lg shadow p-4">
+      {/* Date Filter */}
+      <div className="bg-white rounded-lg shadow p-4">
           <div className="flex flex-wrap gap-4 items-end">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -276,10 +275,9 @@ export default function ReportsPage() {
             )}
           </div>
 
-          <div className="mt-3 text-sm text-gray-600">
-            Mostrando datos desde <strong>{dateFrom.split('-').reverse().join('/')}</strong> hasta{' '}
-            <strong>{dateTo.split('-').reverse().join('/')}</strong>
-          </div>
+        <div className="mt-3 text-sm text-gray-600">
+          Mostrando datos desde <strong>{dateFrom.split('-').reverse().join('/')}</strong> hasta{' '}
+          <strong>{dateTo.split('-').reverse().join('/')}</strong>
         </div>
       </div>
 

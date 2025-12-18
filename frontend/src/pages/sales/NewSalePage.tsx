@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Trash2, ChevronDown, ChevronUp, Edit3 } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
+import { quotesApi } from '../../api/quotes'
 import { useAuthStore } from '../../stores/authStore'
 import { AlertDialog } from '../../components/ui/AlertDialog'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -89,6 +90,8 @@ export default function NewSalePage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { currentTenant } = useAuthStore()
+  const [searchParams] = useSearchParams()
+  const fromQuoteId = searchParams.get('fromQuote')
   const inputRef = useRef<HTMLInputElement>(null)
   const quantityRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   const priceRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
@@ -115,6 +118,7 @@ export default function NewSalePage() {
   const [invalidItems, setInvalidItems] = useState<Set<string>>(new Set())
   const [alertDialog, setAlertDialog] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' | 'info' | 'success' }>({ show: false, title: '', message: '', type: 'info' })
   const [originSale, setOriginSale] = useState<any>(null)
+  const [originQuoteId, setOriginQuoteId] = useState<string | null>(null)
   const [showSaleSearchModal, setShowSaleSearchModal] = useState(false)
 
   // AFIP Progress Modal
@@ -275,10 +279,32 @@ export default function NewSalePage() {
 
       return salesApi.createSale(currentTenant!.slug, data)
     },
-    onSuccess: (response: any) => {
+    onSuccess: async (response: any) => {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
       queryClient.invalidateQueries({ queryKey: ['cash-movements'] })
       queryClient.invalidateQueries({ queryKey: ['cash-accounts'] })
+
+      // Si viene de un presupuesto, registrar la conversión
+      if (originQuoteId) {
+        try {
+          console.log('[QuoteConversion] Registering conversion for quote:', originQuoteId)
+          // Construir array de items convertidos desde el carrito
+          const itemsConverted = cart.map(item => ({
+            quoteItemId: item.lineId, // Necesitamos guardar el quoteItemId original
+            quantityConverted: item.quantity
+          }))
+
+          // Registrar conversión en el backend
+          await quotesApi.recordSaleConversion(originQuoteId, itemsConverted)
+          console.log('[QuoteConversion] Conversion registered successfully')
+
+          // Invalidar queries de presupuestos
+          queryClient.invalidateQueries({ queryKey: ['quotes'] })
+        } catch (error: any) {
+          console.error('[QuoteConversion] Error registering conversion:', error)
+          // No bloquear el flujo por error en conversión, solo logear
+        }
+      }
 
       // Actualizar progreso si el modal está abierto
       if (afipProgressModal.show) {
@@ -432,6 +458,58 @@ export default function NewSalePage() {
     setVoucherInfo(null)
     setProductSearchTerm('')
   }, [currentTenant?.slug])
+
+  // Load data from quote if fromQuote parameter is present
+  useEffect(() => {
+    const loadFromQuote = async () => {
+      if (!fromQuoteId || !currentTenant || !customersData) return
+
+      try {
+        console.log('[LoadFromQuote] Loading quote data:', fromQuoteId)
+        const conversionData = await quotesApi.getConversionData(fromQuoteId)
+        console.log('[LoadFromQuote] Quote data loaded:', conversionData)
+
+        // Set customer
+        if (conversionData.customerId) {
+          const customer = customersData.find((c: Customer) => c.id === conversionData.customerId)
+          if (customer) {
+            setSelectedCustomer(customer)
+          }
+        }
+
+        // Set notes
+        if (conversionData.notes) {
+          setNotes(conversionData.notes)
+        }
+
+        // Set cart items
+        if (conversionData.items && conversionData.items.length > 0) {
+          const cartItems: SaleItem[] = conversionData.items.map((item: any) => ({
+            lineId: item.quoteItemId, // Use quoteItemId as lineId to track conversion
+            productId: item.productId,
+            productSku: '', // Will be filled when product data is available
+            productName: item.productName,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || 0,
+            lineTotal: item.quantity * item.unitPrice * (1 - (item.discountPercent || 0) / 100)
+          }))
+          setCart(cartItems)
+          console.log('[LoadFromQuote] Cart loaded with', cartItems.length, 'items')
+        }
+
+        // Store quote ID for later use when creating the sale
+        setOriginQuoteId(fromQuoteId)
+
+      } catch (error: any) {
+        console.error('[LoadFromQuote] Error loading quote:', error)
+        alert(`Error al cargar presupuesto: ${error.response?.data?.error || error.message}`)
+      }
+    }
+
+    loadFromQuote()
+  }, [fromQuoteId, currentTenant, customersData])
 
   // Auto-select default warehouse when data changes or warehouse is null
   useEffect(() => {

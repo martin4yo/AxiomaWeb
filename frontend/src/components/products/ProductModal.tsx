@@ -65,9 +65,10 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
 
-  // Selected categories and brands state
+  // Selected categories, brands and taxes state
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedBrands, setSelectedBrands] = useState<string[]>([])
+  const [selectedTaxes, setSelectedTaxes] = useState<string[]>([])
 
   // Fetch available categories
   const { data: categories = [] } = useQuery({
@@ -83,6 +84,16 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
     queryKey: ['product-brands', currentTenant?.slug],
     queryFn: async () => {
       return await productBrandsApi.getAll(currentTenant!.slug)
+    },
+    enabled: !!currentTenant
+  })
+
+  // Fetch available taxes
+  const { data: taxes = [] } = useQuery({
+    queryKey: ['taxes', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant!.slug}/taxes`)
+      return response.data.taxes || []
     },
     enabled: !!currentTenant
   })
@@ -137,11 +148,13 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
         showInQuickAccess: product.showInQuickAccess ?? false,
         abbreviation: product.abbreviation || ''
       })
-      // Map productCategories and productBrands from backend structure
+      // Map productCategories, productBrands and productTaxes from backend structure
       const categoryIds = product.productCategories?.map((pc: any) => pc.categoryId) || []
       const brandIds = product.productBrands?.map((pb: any) => pb.brandId) || []
+      const taxIds = product.productTaxes?.map((pt: any) => pt.taxId) || []
       setSelectedCategories(categoryIds)
       setSelectedBrands(brandIds)
+      setSelectedTaxes(taxIds)
     } else {
       // Reset to default values for create mode
       reset({
@@ -157,6 +170,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
       })
       setSelectedCategories([])
       setSelectedBrands([])
+      setSelectedTaxes([])
     }
   }, [product, mode, reset])
 
@@ -182,12 +196,24 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
     setSelectedBrands(selectedBrands.filter(id => id !== brandId))
   }
 
+  // Tax management functions
+  const addTax = (taxId: string) => {
+    if (!selectedTaxes.includes(taxId)) {
+      setSelectedTaxes([...selectedTaxes, taxId])
+    }
+  }
+
+  const removeTax = (taxId: string) => {
+    setSelectedTaxes(selectedTaxes.filter(id => id !== taxId))
+  }
+
   const createProduct = useMutation({
     mutationFn: async (data: FormData) => {
       const productData = {
         ...data,
         categories: selectedCategories,
-        brands: selectedBrands
+        brands: selectedBrands,
+        taxes: selectedTaxes
       }
       const response = await api.post(`/${currentTenant!.slug}/products`, productData)
       return response.data
@@ -197,6 +223,7 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
       reset()
       setSelectedCategories([])
       setSelectedBrands([])
+      setSelectedTaxes([])
       onClose()
     }
   })
@@ -206,7 +233,8 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
       const productData = {
         ...data,
         categories: selectedCategories,
-        brands: selectedBrands
+        brands: selectedBrands,
+        taxes: selectedTaxes
       }
       const response = await api.put(`/${currentTenant!.slug}/products/${product.id}`, productData)
       return response.data
@@ -581,10 +609,81 @@ export function ProductModal({ isOpen, onClose, product, mode }: ProductModalPro
     </div>
   )
 
+  const TaxesTab = (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-gray-900">Impuestos del Producto</h3>
+        <span className="text-sm text-gray-500">
+          {selectedTaxes.length} de {taxes.length} seleccionados
+        </span>
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <p className="text-sm text-blue-800">
+          Los impuestos que se calcularán en una venta son la <strong>intersección</strong> entre los impuestos del producto y los del cliente.
+        </p>
+      </div>
+
+      {/* Lista de todos los impuestos con checkboxes */}
+      {taxes.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {taxes.filter((tax: any) => tax.isActive).map((tax: any) => (
+            <label
+              key={tax.id}
+              className="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                checked={selectedTaxes.includes(tax.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    addTax(tax.id)
+                  } else {
+                    removeTax(tax.id)
+                  }
+                }}
+                className="mt-1 rounded border-gray-300 text-green-600 shadow-sm focus:border-green-300 focus:ring focus:ring-green-200 focus:ring-opacity-50"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-900">
+                    {tax.name}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-700">
+                    {tax.rate}%
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
+                    {tax.code}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                    {tax.taxType}
+                  </span>
+                </div>
+                {tax.description && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {tax.description}
+                  </p>
+                )}
+              </div>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8 text-gray-500">
+          <p>No hay impuestos disponibles.</p>
+          <p className="text-sm">Crea impuestos primero en la sección de Configuración.</p>
+        </div>
+      )}
+    </div>
+  )
+
   const tabs = [
     { id: 'product', label: 'Producto', content: ProductTab },
     { id: 'categories', label: 'Categorías', content: CategoriesTab },
-    { id: 'brands', label: 'Marcas', content: BrandsTab }
+    { id: 'brands', label: 'Marcas', content: BrandsTab },
+    { id: 'taxes', label: 'Impuestos', content: TaxesTab }
   ]
 
   return (

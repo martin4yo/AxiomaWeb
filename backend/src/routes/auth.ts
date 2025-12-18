@@ -253,6 +253,13 @@ router.post('/login', async (req, res, next) => {
         defaultDocumentClass: tu.tenant.defaultDocumentClass
       }))
 
+    console.log('[LOGIN DEBUG] Tenant data from DB:', user.tenantUsers.map(tu => ({
+      slug: tu.tenant.slug,
+      wizardCompleted: tu.tenant.wizardCompleted,
+      wizardStep: tu.tenant.wizardStep
+    })))
+    console.log('[LOGIN DEBUG] Mapped tenants:', tenants)
+
     res.json({
       message: 'Login successful',
       token,

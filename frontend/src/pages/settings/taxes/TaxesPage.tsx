@@ -14,12 +14,19 @@ import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
 
 const taxSchema = z.object({
+  code: z.string().min(1, 'El código es requerido').max(20),
   name: z.string().min(1, 'El nombre es requerido'),
   description: z.string().optional(),
   rate: z.number().min(0).max(100, 'La tasa debe ser entre 0 y 100%'),
-  taxType: z.enum(['VAT', 'INCOME', 'GROSS_INCOME', 'OTHER'], {
+  taxType: z.enum(['IVA', 'PERCEPTION', 'INTERNAL', 'OTHER'], {
     errorMap: () => ({ message: 'Selecciona un tipo de impuesto válido' })
-  })
+  }),
+  applicableToRI: z.boolean().default(true),
+  applicableToMT: z.boolean().default(false),
+  applicableToEX: z.boolean().default(false),
+  calculationBase: z.enum(['NET', 'GROSS']).default('NET'),
+  displayInInvoice: z.boolean().default(true),
+  isActive: z.boolean().default(true)
 })
 
 type TaxForm = z.infer<typeof taxSchema>
@@ -137,9 +144,9 @@ export default function TaxesPage() {
 
   const getTaxTypeLabel = (type: string) => {
     const labels = {
-      VAT: 'IVA',
-      INCOME: 'Ganancias',
-      GROSS_INCOME: 'Ingresos Brutos',
+      IVA: 'IVA',
+      PERCEPTION: 'Percepción',
+      INTERNAL: 'Impuesto Interno',
       OTHER: 'Otro'
     }
     return labels[type as keyof typeof labels] || type
@@ -221,6 +228,9 @@ export default function TaxesPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Código
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Impuesto
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -228,6 +238,9 @@ export default function TaxesPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tasa
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Aplicable a
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Estado
@@ -240,6 +253,11 @@ export default function TaxesPage() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {taxes.map((tax: any) => (
                     <tr key={tax.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-mono font-medium text-gray-900">
+                          {tax.code}
+                        </div>
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -260,6 +278,13 @@ export default function TaxesPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {tax.rate}%
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs text-gray-600 space-x-1">
+                          {tax.applicableToRI && <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">RI</span>}
+                          {tax.applicableToMT && <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">MT</span>}
+                          {tax.applicableToEX && <span className="bg-gray-100 text-gray-800 px-2 py-0.5 rounded">EX</span>}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -302,20 +327,31 @@ export default function TaxesPage() {
         size="md"
       >
         <form onSubmit={handleSubmit(onSubmit)} className="h-full flex flex-col">
-          <div className="flex-1 space-y-4">
-            <Input
-              label="Nombre *"
-              placeholder="Nombre del impuesto"
-              error={errors.name?.message}
-              {...register('name')}
-            />
+          <div className="flex-1 space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Código *"
+                placeholder="IVA21"
+                error={errors.code?.message}
+                {...register('code')}
+                maxLength={20}
+              />
+              <Input
+                label="Nombre *"
+                placeholder="IVA 21%"
+                error={errors.name?.message}
+                {...register('name')}
+              />
+            </div>
+
             <TextArea
               label="Descripción"
-              rows={3}
+              rows={2}
               placeholder="Descripción opcional del impuesto"
               error={errors.description?.message}
               {...register('description')}
             />
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -326,9 +362,9 @@ export default function TaxesPage() {
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                 >
                   <option value="">Selecciona un tipo</option>
-                  <option value="VAT">IVA</option>
-                  <option value="INCOME">Ganancias</option>
-                  <option value="GROSS_INCOME">Ingresos Brutos</option>
+                  <option value="IVA">IVA</option>
+                  <option value="PERCEPTION">Percepción</option>
+                  <option value="INTERNAL">Impuesto Interno</option>
                   <option value="OTHER">Otro</option>
                 </select>
                 {errors.taxType && (
@@ -345,6 +381,74 @@ export default function TaxesPage() {
                 error={errors.rate?.message}
                 {...register('rate', { valueAsNumber: true })}
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Aplicable a condiciones IVA
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('applicableToRI')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Responsable Inscripto (RI)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('applicableToMT')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Monotributo (MT)</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('applicableToEX')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Exento (EX)</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Base de Cálculo
+                </label>
+                <select
+                  {...register('calculationBase')}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  <option value="NET">Neto (sin IVA)</option>
+                  <option value="GROSS">Bruto (con IVA)</option>
+                </select>
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    {...register('displayInInvoice')}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">Mostrar en factura</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register('isActive')}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">Activo</span>
+              </label>
             </div>
           </div>
 
