@@ -31,6 +31,7 @@ const RegisterPage = () => {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -47,17 +48,22 @@ const RegisterPage = () => {
       .replace(/-+/g, '-')
       .trim()
 
-    // Update the slug field if it hasn't been manually modified
-    if (document.querySelector('[name="tenantSlug"]') as HTMLInputElement) {
-      (document.querySelector('[name="tenantSlug"]') as HTMLInputElement).value = slug
-    }
+    // Update the slug field using react-hook-form setValue
+    setValue('tenantSlug', slug, { shouldValidate: true })
   }
 
   const registerMutation = useMutation({
     mutationFn: authService.register,
     onSuccess: (data) => {
       login(data.token, data.user, [data.tenant])
-      navigate('/', { replace: true })
+
+      // Los tenants recién creados siempre necesitan onboarding
+      // wizardCompleted será false por defecto
+      if (!data.tenant.wizardCompleted) {
+        navigate('/onboarding', { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     },
     onError: (error: any) => {
       setError(error.response?.data?.error || 'Error al registrarse')

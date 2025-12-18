@@ -69,6 +69,7 @@ model Tenant {
   cashMovements         CashMovement[]         @relation("CashMovementTenant")
   entityMovements       EntityMovement[]
   entityPayments        EntityPayment[]
+  quotes                Quote[]
 
   @@map("tenants")
 }
@@ -97,6 +98,7 @@ model User {
   createdCashAccounts     CashAccount[]     @relation("CashAccountCreatedBy")
   createdCashMovements    CashMovement[]    @relation("CashMovementCreatedBy")
   createdEntityPayments   EntityPayment[]   @relation("EntityPaymentCreatedBy")
+  createdQuotes           Quote[]
 
   @@map("users")
 }
@@ -191,12 +193,14 @@ model Entity {
   // Relations
   tenant             Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customerCategories EntityCustomerCategory[]
+  entityTaxes        EntityTax[]
   documents          Document[]
   deliveryAddresses  EntityDeliveryAddress[]
   sales              Sale[]
   purchases          Purchase[]               @relation("PurchaseSupplier")
   accountMovements   EntityMovement[]
   accountPayments    EntityPayment[]
+  quotes             Quote[]
 
   @@unique([tenantId, code])
   @@map("entities")
@@ -278,25 +282,6 @@ model CustomerCategory {
   @@map("customer_categories")
 }
 
-// 🧾 IMPUESTOS
-model Tax {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  name        String
-  description String?
-  rate        Decimal  @db.Decimal(5, 2)
-  taxType     String   @map("tax_type") // VAT, INCOME, GROSS_INCOME, OTHER
-  isActive    Boolean  @default(true) @map("is_active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, name])
-  @@map("taxes")
-}
-
 // 💳 FORMAS DE PAGO
 model PaymentMethod {
   id                String   @id @default(cuid())
@@ -342,11 +327,74 @@ model VatCondition {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantsUsingThis Tenant[] @relation("TenantVatCondition")
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantsUsingThis      Tenant[]               @relation("TenantVatCondition")
+  voucherConfigurations VoucherConfiguration[]
 
   @@unique([tenantId, code])
   @@map("vat_conditions")
+}
+
+// 💰 IMPUESTOS
+model Tax {
+  id                String   @id @default(cuid())
+  tenantId          String   @map("tenant_id")
+  code              String   // Código corto: IVA21, IVA105, IIBB, etc
+  name              String   // Nombre descriptivo: "IVA 21%", "Percepción IIBB"
+  description       String?
+  rate              Decimal  @db.Decimal(5, 2) // Alícuota: 21.00, 10.50, 3.00, etc
+  taxType           String   @map("tax_type") // Tipo: IVA, PERCEPTION, INTERNAL, OTHER
+  isActive          Boolean  @default(true) @map("is_active")
+
+  // Control de aplicabilidad según condición IVA del tenant
+  applicableToRI    Boolean  @default(true) @map("applicable_to_ri") // Se aplica si el tenant es Responsable Inscripto
+  applicableToMT    Boolean  @default(false) @map("applicable_to_mt") // Se aplica si el tenant es Monotributista
+  applicableToEX    Boolean  @default(false) @map("applicable_to_ex") // Se aplica si el tenant es Exento
+
+  // Configuración de cálculo
+  calculationBase   String   @default("NET") @map("calculation_base") // NET, GROSS, SUBTOTAL
+  displayInInvoice  Boolean  @default(true) @map("display_in_invoice") // Si se muestra separado en la factura
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  productTaxes ProductTax[]
+  entityTaxes  EntityTax[]
+
+  @@unique([tenantId, code])
+  @@map("taxes")
+}
+
+// Relación muchos a muchos: Productos <-> Impuestos
+model ProductTax {
+  id        String   @id @default(cuid())
+  productId String   @map("product_id")
+  taxId     String   @map("tax_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tax     Tax     @relation(fields: [taxId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, taxId])
+  @@map("product_taxes")
+}
+
+// Relación muchos a muchos: Entities (Clientes) <-> Impuestos
+model EntityTax {
+  id        String   @id @default(cuid())
+  entityId  String   @map("entity_id")
+  taxId     String   @map("tax_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  tax    Tax    @relation(fields: [taxId], references: [id], onDelete: Cascade)
+
+  @@unique([entityId, taxId])
+  @@map("entity_taxes")
 }
 
 // 📦 PRODUCTOS
@@ -380,11 +428,13 @@ model Product {
   tenant            Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   productCategories ProductCategoryProduct[]
   productBrands     ProductBrandProduct[]
+  productTaxes      ProductTax[]
   documentItems     DocumentItem[]
   warehouseStocks   WarehouseStock[]
   stockMovements    StockMovement[]
   saleItems         SaleItem[]
   purchaseItems     PurchaseItem[]           @relation("PurchaseItemProduct")
+  quoteItems        QuoteItem[]
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -701,6 +751,8 @@ model Sale {
   payments             SalePayment[]
   cashMovements        CashMovement[]        @relation("CashMovementSale")
   entityMovements      EntityMovement[]
+  originQuote          Quote?                @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  quoteId              String?               @map("quote_id")
 
   @@unique([tenantId, branchId, salesPointNumber, voucherNumber], name: "sale_unique_voucher")
   @@unique([tenantId, saleNumber])
@@ -709,6 +761,7 @@ model Sale {
   @@index([branchId])
   @@index([voucherTypeId])
   @@index([fullVoucherNumber])
+  @@index([quoteId])
   @@map("sales")
 }
 
@@ -932,6 +985,7 @@ model VoucherConfiguration {
   branchId          String?  @map("branch_id")
   afipConnectionId  String?  @map("afip_connection_id")
   salesPointId      String?  @map("sales_point_id")
+  vatConditionId    String?  @map("vat_condition_id") // Condición de IVA para la cual aplica este comprobante (null = aplica para todas)
   nextVoucherNumber Int      @default(1) @map("next_voucher_number")
   isActive          Boolean  @default(true) @map("is_active")
   isDefault         Boolean  @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
@@ -948,9 +1002,10 @@ model VoucherConfiguration {
   branch         Branch?         @relation(fields: [branchId], references: [id])
   afipConnection AfipConnection? @relation(fields: [afipConnectionId], references: [id])
   salesPoint     SalesPoint?     @relation(fields: [salesPointId], references: [id])
+  vatCondition   VatCondition?   @relation(fields: [vatConditionId], references: [id])
   sales          Sale[]
 
-  @@unique([tenantId, voucherTypeId, branchId])
+  @@unique([tenantId, voucherTypeId, branchId, vatConditionId])
   @@map("voucher_configurations")
 }
 
@@ -1260,4 +1315,105 @@ model EntityPayment {
   @@index([tenantId, entityId, date])
   @@index([paymentMethodId])
   @@map("entity_payments")
+}
+
+// ===============================================
+// 📋 PRESUPUESTOS (QUOTES)
+// ===============================================
+
+model Quote {
+  id                String      @id @default(cuid())
+  tenantId          String      @map("tenant_id")
+  quoteNumber       String      @map("quote_number") // PRE-00001
+  quoteDate         DateTime    @default(now()) @map("quote_date")
+  validUntil        DateTime?   @map("valid_until") @db.Date // Fecha de vencimiento del presupuesto
+
+  // Cliente
+  customerId        String?     @map("customer_id")
+  customer          Entity?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName      String      @map("customer_name") // Denormalizado para histórico
+
+  // Montos
+  subtotal          Decimal     @db.Decimal(15, 2)
+  discountAmount    Decimal     @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountPercent   Decimal     @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  taxAmount         Decimal     @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount       Decimal     @map("total_amount") @db.Decimal(15, 2)
+
+  // Datos adicionales
+  notes             String?     @db.Text
+  termsAndConditions String?   @map("terms_and_conditions") @db.Text
+  internalNotes     String?     @map("internal_notes") @db.Text // Notas internas no visibles en PDF
+
+  // Estado
+  status            QuoteStatus @default(PENDING)
+
+  // Conversión (puede haber múltiples conversiones parciales)
+  convertedToSales   Sale[]
+  // convertedToOrders  CustomerOrder[] // TODO: Implementar en FASE 2
+
+  // Relaciones
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items             QuoteItem[]
+
+  // Auditoría
+  createdBy         String      @map("created_by")
+  creator           User        @relation(fields: [createdBy], references: [id])
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  @@unique([tenantId, quoteNumber])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([status])
+  @@index([quoteDate])
+  @@map("quotes")
+}
+
+enum QuoteStatus {
+  PENDING               // Pendiente de respuesta del cliente
+  APPROVED              // Cliente aprobó
+  REJECTED              // Cliente rechazó
+  EXPIRED               // Venció la validez
+  PARTIALLY_CONVERTED   // Conversión parcial en progreso
+  FULLY_CONVERTED       // Totalmente convertido
+  CANCELLED             // Cancelado por el negocio
+}
+
+model QuoteItem {
+  id              String   @id @default(cuid())
+  quoteId         String   @map("quote_id")
+  quote           Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  lineNumber      Int      @map("line_number")
+
+  // Producto
+  productId       String?  @map("product_id")
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku      String?  @map("product_sku")
+  productName     String   @map("product_name")
+  description     String?  @db.Text
+
+  // Cantidades y precios
+  quantity        Decimal  @db.Decimal(15, 3)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(15, 2)
+
+  // Control de conversión parcial
+  quantityConverted Decimal @default(0) @map("quantity_converted") @db.Decimal(15, 3) // Cantidad ya convertida a pedidos/ventas
+  quantityPending   Decimal @map("quantity_pending") @db.Decimal(15, 3) // Calculado: quantity - quantityConverted
+
+  // Descuentos
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(15, 2)
+
+  // Impuestos
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount       Decimal  @default(0) @map("tax_amount") @db.Decimal(15, 2)
+
+  // Totales
+  subtotal        Decimal  @db.Decimal(15, 2) // quantity * unitPrice
+  lineTotal       Decimal  @map("line_total") @db.Decimal(15, 2) // subtotal - discount + tax
+
+  @@index([quoteId])
+  @@map("quote_items")
 }

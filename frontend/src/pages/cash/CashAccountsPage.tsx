@@ -44,7 +44,7 @@ export default function CashAccountsPage() {
   const [formData, setFormData] = useState<AccountFormData>({
     name: '',
     description: '',
-    accountType: 'cash',
+    accountType: 'CASH',
     initialBalance: 0,
     isDefault: false,
   })
@@ -108,7 +108,7 @@ export default function CashAccountsPage() {
     setFormData({
       name: '',
       description: '',
-      accountType: 'cash',
+      accountType: 'CASH',
       initialBalance: 0,
       isDefault: false,
     })
@@ -156,10 +156,11 @@ export default function CashAccountsPage() {
 
   const getAccountTypeLabel = (type: string) => {
     const labels: { [key: string]: string } = {
-      cash: 'Efectivo',
-      bank: 'Banco',
-      mercadopago: 'Mercado Pago',
-      other: 'Otro',
+      CASH: 'Efectivo',
+      CARD: 'Tarjeta',
+      TRANSFER: 'Transferencia',
+      CHECK: 'Cheque',
+      OTHER: 'Otro',
     }
     return labels[type] || type
   }
@@ -413,10 +414,11 @@ export default function CashAccountsPage() {
                   onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
-                  <option value="cash">Efectivo</option>
-                  <option value="bank">Banco</option>
-                  <option value="mercadopago">Mercado Pago</option>
-                  <option value="other">Otro</option>
+                  <option value="CASH">Efectivo</option>
+                  <option value="CARD">Tarjeta</option>
+                  <option value="TRANSFER">Transferencia</option>
+                  <option value="CHECK">Cheque</option>
+                  <option value="OTHER">Otro</option>
                 </select>
               </div>
 
@@ -526,10 +528,11 @@ export default function CashAccountsPage() {
                   onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
                   className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 >
-                  <option value="cash">Efectivo</option>
-                  <option value="bank">Banco</option>
-                  <option value="mercadopago">Mercado Pago</option>
-                  <option value="other">Otro</option>
+                  <option value="CASH">Efectivo</option>
+                  <option value="CARD">Tarjeta</option>
+                  <option value="TRANSFER">Transferencia</option>
+                  <option value="CHECK">Cheque</option>
+                  <option value="OTHER">Otro</option>
                 </select>
               </div>
 

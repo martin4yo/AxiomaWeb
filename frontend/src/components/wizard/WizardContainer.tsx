@@ -8,7 +8,7 @@ interface WizardContainerProps {
 }
 
 export function WizardContainer({ children, className = '' }: WizardContainerProps) {
-  const { logout } = useAuthStore()
+  const { logout, currentTenant } = useAuthStore()
   const navigate = useNavigate()
 
   const handleLogout = () => {
@@ -27,7 +27,12 @@ export function WizardContainer({ children, className = '' }: WizardContainerPro
             </div>
             <div>
               <h1 className="text-xl font-bold text-gray-900">Axioma ERP</h1>
-              <p className="text-sm text-gray-500">Configuración inicial</p>
+              <p className="text-sm text-gray-500">
+                Configuración inicial
+                {currentTenant && (
+                  <span className="font-medium text-gray-700"> • {currentTenant.name}</span>
+                )}
+              </p>
             </div>
           </div>
 

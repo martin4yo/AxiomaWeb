@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
 
@@ -21,7 +22,15 @@ const voucherOptions = [
 
 export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
   // Inicializar con todos los tipos seleccionados por defecto si no hay selección
-  const selectedTypes = wizardData.voucherTypes || voucherOptions.map(v => v.code)
+  const selectedTypes = wizardData.voucherTypes || []
+
+  // useEffect para inicializar los valores por defecto al montar el componente
+  useEffect(() => {
+    if (!wizardData.voucherTypes || wizardData.voucherTypes.length === 0) {
+      const allCodes = voucherOptions.map(v => v.code)
+      onUpdate({ voucherTypes: allCodes })
+    }
+  }, [])
 
   const toggleVoucherType = (code: string) => {
     const newTypes = selectedTypes.includes(code)

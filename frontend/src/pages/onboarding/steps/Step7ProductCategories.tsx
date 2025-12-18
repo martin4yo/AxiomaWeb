@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
 
@@ -16,9 +17,15 @@ const defaultCategories = [
 
 export function Step7ProductCategories({ wizardData, onUpdate }: Step7Props) {
   // Inicializar con todas las categorías seleccionadas por defecto si no hay selección
-  const selectedCategories = wizardData.categories?.length
-    ? wizardData.categories
-    : defaultCategories.map((c) => c.code)
+  const selectedCategories = wizardData.categories || []
+
+  // useEffect para inicializar los valores por defecto al montar el componente
+  useEffect(() => {
+    if (!wizardData.categories || wizardData.categories.length === 0) {
+      const allCodes = defaultCategories.map((c) => c.code)
+      onUpdate({ categories: allCodes })
+    }
+  }, [])
 
   const toggleCategory = (code: string) => {
     const newCategories = selectedCategories.includes(code)

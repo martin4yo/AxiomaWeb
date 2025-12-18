@@ -34,7 +34,14 @@ const LoginPage = () => {
     mutationFn: authService.login,
     onSuccess: (data) => {
       login(data.token, data.user, data.tenants)
-      navigate('/', { replace: true })
+
+      // Check if the first tenant needs onboarding
+      const firstTenant = data.tenants[0]
+      if (firstTenant && !firstTenant.wizardCompleted) {
+        navigate('/onboarding', { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     },
     onError: (error: any) => {
       setError(error.response?.data?.error || 'Error al iniciar sesión')

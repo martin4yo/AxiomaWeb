@@ -93,14 +93,14 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
 
     // Crear formas de pago si fueron seleccionadas
     if (data.paymentMethods && data.paymentMethods.length > 0) {
-      const paymentMethodMap: Record<string, { name: string, paymentType: string }> = {
-        CASH: { name: 'Efectivo', paymentType: 'CASH' },
-        DEBIT: { name: 'Tarjeta de Débito', paymentType: 'CARD' },
-        CREDIT: { name: 'Tarjeta de Crédito', paymentType: 'CARD' },
-        TRANSFER: { name: 'Transferencia', paymentType: 'TRANSFER' },
-        CHECK: { name: 'Cheque', paymentType: 'CHECK' },
-        MP: { name: 'Mercado Pago', paymentType: 'TRANSFER' },
-        CC: { name: 'Cuenta Corriente', paymentType: 'OTHER' }
+      const paymentMethodMap: Record<string, { name: string, paymentType: string, createCashAccount: boolean }> = {
+        CASH: { name: 'Efectivo', paymentType: 'CASH', createCashAccount: true },
+        DEBIT: { name: 'Tarjeta de Débito', paymentType: 'CARD', createCashAccount: true },
+        CREDIT: { name: 'Tarjeta de Crédito', paymentType: 'CARD', createCashAccount: true },
+        TRANSFER: { name: 'Transferencia', paymentType: 'TRANSFER', createCashAccount: true },
+        CHECK: { name: 'Cheque', paymentType: 'CHECK', createCashAccount: true },
+        MP: { name: 'Mercado Pago', paymentType: 'TRANSFER', createCashAccount: true },
+        CC: { name: 'Cuenta Corriente', paymentType: 'OTHER', createCashAccount: false } // No crear cuenta para CC
       }
 
       for (const code of data.paymentMethods) {
@@ -123,6 +123,29 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
               isActive: true
             }
           })
+        }
+
+        // Crear cuenta de fondos para esta forma de pago (excepto Cuenta Corriente)
+        if (pmData.createCashAccount) {
+          const existingAccount = await prisma.cashAccount.findFirst({
+            where: {
+              tenantId: tenant.id,
+              name: pmData.name
+            }
+          })
+
+          if (!existingAccount) {
+            await prisma.cashAccount.create({
+              data: {
+                tenantId: tenant.id,
+                name: pmData.name,
+                accountType: pmData.paymentType,
+                initialBalance: 0,
+                isActive: true,
+                createdBy: user.id
+              }
+            })
+          }
         }
       }
     }
@@ -236,40 +259,113 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       }
     }
 
-    // Crear configuraciones de comprobantes (siempre, no solo si hay AFIP)
+    // Crear configuraciones de comprobantes según la condición IVA del tenant
     if (data.voucherTypes && data.voucherTypes.length > 0) {
-      // Obtener todos los tipos de comprobantes de la base de datos
+      // Obtener la condición IVA del tenant
+      const tenantVatCondition = await prisma.vatCondition.findUnique({
+        where: { id: data.vatConditionId }
+      })
+
+      // Obtener todas las condiciones de IVA
+      const allVatConditions = await prisma.vatCondition.findMany({
+        where: { tenantId: tenant.id }
+      })
+
+      // Determinar los códigos de comprobantes a habilitar según lógica de negocio
+      let voucherCodesToEnable: string[] = []
+
+      if (tenantVatCondition?.code === 'MT') {
+        // Si el tenant es MONOTRIBUTISTA: Solo Factura C y Presupuesto para TODAS las condiciones
+        voucherCodesToEnable = ['FC', 'PRE', 'NCC', 'NDC']
+      } else if (tenantVatCondition?.code === 'RI') {
+        // Si el tenant es RESPONSABLE INSCRIPTO: Depende de cada condición de IVA
+        // Se crearán configuraciones específicas por condición
+        voucherCodesToEnable = data.voucherTypes // Usar los seleccionados
+      } else {
+        // Para otros casos, usar los seleccionados
+        voucherCodesToEnable = data.voucherTypes
+      }
+
+      // Obtener los tipos de comprobantes
       const voucherTypes = await prisma.voucherType.findMany({
         where: {
           code: {
-            in: data.voucherTypes
+            in: voucherCodesToEnable
           }
         }
       })
 
-      for (const voucherType of voucherTypes) {
-        const existing = await prisma.voucherConfiguration.findFirst({
-          where: {
-            tenantId: tenant.id,
-            voucherTypeId: voucherType.id
+      // Si el tenant es RI, crear configuraciones específicas por condición de IVA
+      if (tenantVatCondition?.code === 'RI') {
+        for (const vatCond of allVatConditions) {
+          let voucherTypesToCreate: typeof voucherTypes = []
+
+          if (vatCond.code === 'RI') {
+            // Para clientes RI: Factura A y Presupuesto (+ NC y ND tipo A)
+            voucherTypesToCreate = voucherTypes.filter(vt =>
+              ['FA', 'PRE', 'NCA', 'NDA'].includes(vt.code)
+            )
+          } else {
+            // Para otros (CF, MT, EX): Factura B y Presupuesto (+ NC y ND tipo B)
+            voucherTypesToCreate = voucherTypes.filter(vt =>
+              ['FB', 'PRE', 'NCB', 'NDB'].includes(vt.code)
+            )
           }
-        })
 
-        if (!existing) {
-          const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
+          for (const voucherType of voucherTypesToCreate) {
+            const existing = await prisma.voucherConfiguration.findFirst({
+              where: {
+                tenantId: tenant.id,
+                voucherTypeId: voucherType.id,
+                vatConditionId: vatCond.id
+              }
+            })
 
-          await prisma.voucherConfiguration.create({
-            data: {
+            if (!existing) {
+              const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
+
+              await prisma.voucherConfiguration.create({
+                data: {
+                  tenantId: tenant.id,
+                  voucherTypeId: voucherType.id,
+                  branchId: branch.id,
+                  afipConnectionId: afipConnection?.id || null,
+                  salesPointId: salesPoint.id,
+                  vatConditionId: vatCond.id,
+                  nextVoucherNumber: 1,
+                  printTemplate: printTemplate,
+                  isActive: true
+                }
+              })
+            }
+          }
+        }
+      } else {
+        // Para Monotributistas u otros, crear configuración general
+        for (const voucherType of voucherTypes) {
+          const existing = await prisma.voucherConfiguration.findFirst({
+            where: {
               tenantId: tenant.id,
-              voucherTypeId: voucherType.id,
-              branchId: branch.id,
-              afipConnectionId: afipConnection?.id || null,
-              salesPointId: salesPoint.id,
-              nextVoucherNumber: 1,
-              printTemplate: printTemplate,
-              isActive: true
+              voucherTypeId: voucherType.id
             }
           })
+
+          if (!existing) {
+            const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
+
+            await prisma.voucherConfiguration.create({
+              data: {
+                tenantId: tenant.id,
+                voucherTypeId: voucherType.id,
+                branchId: branch.id,
+                afipConnectionId: afipConnection?.id || null,
+                salesPointId: salesPoint.id,
+                nextVoucherNumber: 1,
+                printTemplate: printTemplate,
+                isActive: true
+              }
+            })
+          }
         }
       }
     }

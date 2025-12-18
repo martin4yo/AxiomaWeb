@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
 
@@ -18,9 +19,15 @@ const defaultMethods = [
 
 export function Step6PaymentMethods({ wizardData, onUpdate }: Step6Props) {
   // Inicializar con todos los métodos seleccionados por defecto si no hay selección
-  const selectedMethods = wizardData.paymentMethods?.length
-    ? wizardData.paymentMethods
-    : defaultMethods.map((m) => m.code)
+  const selectedMethods = wizardData.paymentMethods || []
+
+  // useEffect para inicializar los valores por defecto al montar el componente
+  useEffect(() => {
+    if (!wizardData.paymentMethods || wizardData.paymentMethods.length === 0) {
+      const allCodes = defaultMethods.map((m) => m.code)
+      onUpdate({ paymentMethods: allCodes })
+    }
+  }, [])
 
   const toggleMethod = (code: string) => {
     const newMethods = selectedMethods.includes(code)
