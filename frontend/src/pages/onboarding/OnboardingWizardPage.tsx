@@ -48,7 +48,9 @@ export default function OnboardingWizardPage() {
       // Último paso - completar wizard
       const success = await completeWizard()
       if (success) {
-        navigate(`/${currentTenant?.slug}/dashboard`)
+        // Hacer logout para que vuelva a hacer login con el tenant configurado
+        useAuthStore.getState().logout()
+        navigate('/login')
       }
     } else {
       await nextStep()

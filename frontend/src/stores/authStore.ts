@@ -25,6 +25,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
       // Actions
       login: (token: string, user: User, tenants: Tenant[]) => {
+        // Limpiar estado anterior completamente antes de setear el nuevo
         set({
           token,
           user,
@@ -32,9 +33,24 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           isAuthenticated: true,
           currentTenant: tenants[0] || null, // Default to first tenant
         })
+
+        // Forzar persistencia inmediata
+        localStorage.setItem('axioma-auth-storage', JSON.stringify({
+          state: {
+            token,
+            user,
+            tenants,
+            currentTenant: tenants[0] || null,
+            isAuthenticated: true,
+          },
+          version: 0
+        }))
       },
 
       logout: () => {
+        // Limpiar localStorage completamente
+        localStorage.removeItem('axioma-auth-storage')
+
         set({
           user: null,
           tenants: [],

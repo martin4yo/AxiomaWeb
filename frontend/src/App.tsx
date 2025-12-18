@@ -27,6 +27,9 @@ import EditVoucherConfigurationPage from '@/pages/settings/EditVoucherConfigurat
 import GeneralSettingsPage from '@/pages/settings/GeneralSettingsPage'
 import SalesPage from '@/pages/sales/SalesPage'
 import NewSalePage from '@/pages/sales/NewSalePage'
+import QuotesPage from '@/pages/quotes/QuotesPage'
+import NewQuotePage from '@/pages/quotes/NewQuotePage'
+import QuoteDetailPage from '@/pages/quotes/QuoteDetailPage'
 import PurchasesPage from '@/pages/purchases/PurchasesPage'
 import NewPurchasePage from '@/pages/purchases/NewPurchasePage'
 import PurchaseDetailPage from '@/pages/purchases/PurchaseDetailPage'
@@ -109,6 +112,9 @@ function App() {
         <Route path="inventory/warehouses" element={<WarehousesPage />} />
         <Route path="inventory/alerts" element={<StockAlertsPage />} />
         <Route path="sales" element={<SalesPage />} />
+        <Route path="quotes" element={<QuotesPage />} />
+        <Route path="quotes/new" element={<NewQuotePage />} />
+        <Route path="quotes/:id" element={<QuoteDetailPage />} />
         <Route path="customer-accounts" element={<CustomerAccountsPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
         <Route path="purchases/supplier-accounts" element={<OldSupplierAccountsPage />} />
