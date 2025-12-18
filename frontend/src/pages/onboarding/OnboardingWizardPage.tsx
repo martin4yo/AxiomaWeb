@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWizard } from '../../hooks/useWizard'
-import { useAuthStore } from '../../stores/authStore'
+import { useAuthStore } from '../../stores/authStore' // Usado en handleNext para logout
 import { WizardContainer } from '../../components/wizard/WizardContainer'
 import { WizardProgress } from '../../components/wizard/WizardProgress'
 import { WizardNavigation } from '../../components/wizard/WizardNavigation'
@@ -19,7 +19,6 @@ import { Step11Summary } from './steps/Step11Summary'
 
 export default function OnboardingWizardPage() {
   const navigate = useNavigate()
-  const { currentTenant } = useAuthStore()
   const {
     currentStep,
     totalSteps,

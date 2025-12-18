@@ -9,9 +9,29 @@ interface Step3Props {
 
 export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  const [certFileName, setCertFileName] = useState<string>('')
+  const [keyFileName, setKeyFileName] = useState<string>('')
 
-  const handleFileChange = (field: 'afipCertificate' | 'afipPrivateKey', file: File | null) => {
-    onUpdate({ [field]: file })
+  const handleFileChange = async (field: 'afipCertificateContent' | 'afipPrivateKeyContent', file: File | null) => {
+    if (!file) {
+      onUpdate({ [field]: null })
+      return
+    }
+
+    // Guardar el nombre del archivo para mostrar
+    if (field === 'afipCertificateContent') {
+      setCertFileName(file.name)
+    } else {
+      setKeyFileName(file.name)
+    }
+
+    // Leer el contenido del archivo
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const content = e.target?.result as string
+      onUpdate({ [field]: content })
+    }
+    reader.readAsText(file)
   }
 
   const handleTestConnection = async () => {
@@ -72,38 +92,38 @@ export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Certificado (.crt)
+              Certificado (.crt, .pem)
             </label>
             <input
               type="file"
-              accept=".crt"
+              accept=".crt,.pem,.cer"
               onChange={(e) =>
-                handleFileChange('afipCertificate', e.target.files?.[0] || null)
+                handleFileChange('afipCertificateContent', e.target.files?.[0] || null)
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            {wizardData.afipCertificate && (
+            {(certFileName || wizardData.afipCertificateContent) && (
               <p className="text-xs text-green-600 mt-1">
-                ✓ {wizardData.afipCertificate.name}
+                ✓ {certFileName || 'Certificado cargado'}
               </p>
             )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Clave privada (.key)
+              Clave privada (.key, .pem)
             </label>
             <input
               type="file"
-              accept=".key"
+              accept=".key,.pem"
               onChange={(e) =>
-                handleFileChange('afipPrivateKey', e.target.files?.[0] || null)
+                handleFileChange('afipPrivateKeyContent', e.target.files?.[0] || null)
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            {wizardData.afipPrivateKey && (
+            {(keyFileName || wizardData.afipPrivateKeyContent) && (
               <p className="text-xs text-green-600 mt-1">
-                ✓ {wizardData.afipPrivateKey.name}
+                ✓ {keyFileName || 'Clave cargada'}
               </p>
             )}
           </div>
@@ -124,7 +144,7 @@ export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
           />
         </div>
 
-        {wizardData.afipCertificate && wizardData.afipPrivateKey && (
+        {wizardData.afipCertificateContent && wizardData.afipPrivateKeyContent && (
           <div>
             <button
               type="button"

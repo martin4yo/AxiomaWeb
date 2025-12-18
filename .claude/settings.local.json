@@ -25,7 +25,8 @@
       "Bash(npx tsc:*)",
       "Bash(xargs kill:*)",
       "Bash(PGPASSWORD=postgres psql:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(cat:*)"
     ]
   }
 }

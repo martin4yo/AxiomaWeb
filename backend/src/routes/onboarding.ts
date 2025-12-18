@@ -221,7 +221,7 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       }
     }
 
-    // Crear punto de venta por defecto
+    // Crear punto de venta por defecto (asociado a la sucursal)
     let salesPoint = await prisma.salesPoint.findFirst({
       where: { tenantId: tenant.id }
     })
@@ -230,6 +230,7 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       salesPoint = await prisma.salesPoint.create({
         data: {
           tenantId: tenant.id,
+          branchId: branch.id, // Asociar a la sucursal creada
           number: data.afipSalesPoint || 1,
           name: `Punto de Venta ${data.afipSalesPoint || 1}`,
           isActive: true
@@ -237,9 +238,9 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       })
     }
 
-    // Crear configuración AFIP si fue configurada
+    // Crear configuración AFIP si fue configurada (con certificado y clave)
     let afipConnection = null
-    if (data.afipCertificate && data.afipPrivateKey) {
+    if (data.afipCertificateContent && data.afipPrivateKeyContent) {
       const existingAfipConnection = await prisma.afipConnection.findFirst({
         where: { tenantId: tenant.id }
       })
@@ -251,11 +252,21 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
             name: data.afipEnvironment === 'production' ? 'Producción AFIP' : 'Testing AFIP',
             cuit: data.cuit,
             environment: data.afipEnvironment || 'testing',
+            certificate: data.afipCertificateContent, // Contenido del certificado PEM
+            privateKey: data.afipPrivateKeyContent,   // Contenido de la clave privada PEM
             isActive: true
           }
         })
       } else {
-        afipConnection = existingAfipConnection
+        // Actualizar conexión existente con los nuevos certificados
+        afipConnection = await prisma.afipConnection.update({
+          where: { id: existingAfipConnection.id },
+          data: {
+            certificate: data.afipCertificateContent,
+            privateKey: data.afipPrivateKeyContent,
+            environment: data.afipEnvironment || existingAfipConnection.environment
+          }
+        })
       }
     }
 
@@ -266,53 +277,64 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
         where: { id: data.vatConditionId }
       })
 
-      // Obtener todas las condiciones de IVA
+      // Obtener todas las condiciones de IVA del tenant
       const allVatConditions = await prisma.vatCondition.findMany({
         where: { tenantId: tenant.id }
       })
 
-      // Determinar los códigos de comprobantes a habilitar según lógica de negocio
-      let voucherCodesToEnable: string[] = []
+      // Determinar los códigos de comprobantes según condición IVA del TENANT
+      let allowedVoucherCodes: string[] = []
 
       if (tenantVatCondition?.code === 'MT') {
-        // Si el tenant es MONOTRIBUTISTA: Solo Factura C y Presupuesto para TODAS las condiciones
-        voucherCodesToEnable = ['FC', 'PRE', 'NCC', 'NDC']
+        // MONOTRIBUTISTA: Solo puede emitir Factura C, NC C, ND C y Presupuesto
+        // NO puede emitir A ni B
+        allowedVoucherCodes = ['FC', 'NCC', 'NDC', 'PRE']
       } else if (tenantVatCondition?.code === 'RI') {
-        // Si el tenant es RESPONSABLE INSCRIPTO: Depende de cada condición de IVA
-        // Se crearán configuraciones específicas por condición
-        voucherCodesToEnable = data.voucherTypes // Usar los seleccionados
+        // RESPONSABLE INSCRIPTO: Puede emitir A (para RI) y B (para otros)
+        allowedVoucherCodes = ['FA', 'FB', 'NCA', 'NCB', 'NDA', 'NDB', 'PRE']
+      } else if (tenantVatCondition?.code === 'EX') {
+        // EXENTO: Solo puede emitir B y Presupuesto
+        allowedVoucherCodes = ['FB', 'NCB', 'NDB', 'PRE']
       } else {
-        // Para otros casos, usar los seleccionados
-        voucherCodesToEnable = data.voucherTypes
+        // Otros casos: usar los seleccionados
+        allowedVoucherCodes = data.voucherTypes
       }
 
-      // Obtener los tipos de comprobantes
+      // Filtrar los tipos seleccionados con los permitidos
+      const finalVoucherCodes = data.voucherTypes.filter((code: string) => allowedVoucherCodes.includes(code))
+
+      // Obtener los tipos de comprobantes de la BD
       const voucherTypes = await prisma.voucherType.findMany({
         where: {
-          code: {
-            in: voucherCodesToEnable
-          }
+          code: { in: finalVoucherCodes }
         }
       })
 
-      // Si el tenant es RI, crear configuraciones específicas por condición de IVA
+      // Configuración especial para Presupuesto (NO LEGAL, PDF)
+      const presupuestoConfig = {
+        printFormat: 'PDF',
+        printTemplate: 'NO_LEGAL'
+      }
+
+      // Si el tenant es RI, crear configuraciones por condición de IVA del cliente
       if (tenantVatCondition?.code === 'RI') {
         for (const vatCond of allVatConditions) {
-          let voucherTypesToCreate: typeof voucherTypes = []
+          // Determinar qué comprobantes corresponden a cada condición de cliente
+          let voucherTypesForCondition: typeof voucherTypes = []
 
           if (vatCond.code === 'RI') {
-            // Para clientes RI: Factura A y Presupuesto (+ NC y ND tipo A)
-            voucherTypesToCreate = voucherTypes.filter(vt =>
-              ['FA', 'PRE', 'NCA', 'NDA'].includes(vt.code)
+            // Cliente RI recibe Factura A
+            voucherTypesForCondition = voucherTypes.filter(vt =>
+              ['FA', 'NCA', 'NDA', 'PRE'].includes(vt.code)
             )
           } else {
-            // Para otros (CF, MT, EX): Factura B y Presupuesto (+ NC y ND tipo B)
-            voucherTypesToCreate = voucherTypes.filter(vt =>
-              ['FB', 'PRE', 'NCB', 'NDB'].includes(vt.code)
+            // Cliente no-RI (CF, MT, EX, NR) recibe Factura B
+            voucherTypesForCondition = voucherTypes.filter(vt =>
+              ['FB', 'NCB', 'NDB', 'PRE'].includes(vt.code)
             )
           }
 
-          for (const voucherType of voucherTypesToCreate) {
+          for (const voucherType of voucherTypesForCondition) {
             const existing = await prisma.voucherConfiguration.findFirst({
               where: {
                 tenantId: tenant.id,
@@ -322,17 +344,25 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
             })
 
             if (!existing) {
-              const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
+              // Presupuesto tiene configuración especial
+              const isPresupuesto = voucherType.code === 'PRE'
+              const printTemplate = isPresupuesto
+                ? presupuestoConfig.printTemplate
+                : (data.printConfigs?.[voucherType.code] || 'LEGAL')
+              const printFormat = isPresupuesto
+                ? presupuestoConfig.printFormat
+                : (data.printConfigs?.[voucherType.code] ? 'THERMAL' : 'PDF')
 
               await prisma.voucherConfiguration.create({
                 data: {
                   tenantId: tenant.id,
                   voucherTypeId: voucherType.id,
                   branchId: branch.id,
-                  afipConnectionId: afipConnection?.id || null,
+                  afipConnectionId: voucherType.requiresCae ? (afipConnection?.id || null) : null,
                   salesPointId: salesPoint.id,
                   vatConditionId: vatCond.id,
                   nextVoucherNumber: 1,
+                  printFormat: printFormat,
                   printTemplate: printTemplate,
                   isActive: true
                 }
@@ -341,26 +371,37 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
           }
         }
       } else {
-        // Para Monotributistas u otros, crear configuración general
+        // Para Monotributistas, Exentos u otros: crear configuración sin vatConditionId
+        // Ya que todos los clientes reciben el mismo tipo de comprobante
         for (const voucherType of voucherTypes) {
           const existing = await prisma.voucherConfiguration.findFirst({
             where: {
               tenantId: tenant.id,
-              voucherTypeId: voucherType.id
+              voucherTypeId: voucherType.id,
+              vatConditionId: null
             }
           })
 
           if (!existing) {
-            const printTemplate = data.printConfigs?.[voucherType.code] || 'thermal-80mm'
+            // Presupuesto tiene configuración especial
+            const isPresupuesto = voucherType.code === 'PRE'
+            const printTemplate = isPresupuesto
+              ? presupuestoConfig.printTemplate
+              : (data.printConfigs?.[voucherType.code] || 'LEGAL')
+            const printFormat = isPresupuesto
+              ? presupuestoConfig.printFormat
+              : (data.printConfigs?.[voucherType.code] ? 'THERMAL' : 'PDF')
 
             await prisma.voucherConfiguration.create({
               data: {
                 tenantId: tenant.id,
                 voucherTypeId: voucherType.id,
                 branchId: branch.id,
-                afipConnectionId: afipConnection?.id || null,
+                afipConnectionId: voucherType.requiresCae ? (afipConnection?.id || null) : null,
                 salesPointId: salesPoint.id,
+                vatConditionId: null, // Sin condición específica - aplica para todos
                 nextVoucherNumber: 1,
+                printFormat: printFormat,
                 printTemplate: printTemplate,
                 isActive: true
               }

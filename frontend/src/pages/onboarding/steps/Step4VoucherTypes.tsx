@@ -1,36 +1,83 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
+import { useAuthStore } from '../../../stores/authStore'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '../../../services/api'
 
 interface Step4Props {
   wizardData: WizardData
   onUpdate: (data: Partial<WizardData>) => void
 }
 
-const voucherOptions = [
-  { code: 'FA', name: 'Factura A', description: 'Para Responsables Inscriptos' },
-  { code: 'FB', name: 'Factura B', description: 'Para Monotributo o Consumidor Final' },
-  { code: 'FC', name: 'Factura C', description: 'Para operaciones exentas' },
-  { code: 'NCA', name: 'Nota de Crédito A', description: 'Anula o corrige Factura A' },
-  { code: 'NCB', name: 'Nota de Crédito B', description: 'Anula o corrige Factura B' },
-  { code: 'NCC', name: 'Nota de Crédito C', description: 'Anula o corrige Factura C' },
-  { code: 'NDA', name: 'Nota de Débito A', description: 'Adicional a Factura A' },
-  { code: 'NDB', name: 'Nota de Débito B', description: 'Adicional a Factura B' },
-  { code: 'NDC', name: 'Nota de Débito C', description: 'Adicional a Factura C' },
-  { code: 'PRE', name: 'Presupuesto', description: 'Cotización o presupuesto' }
+const allVoucherOptions = [
+  { code: 'FA', name: 'Factura A', description: 'Para clientes Responsables Inscriptos', group: 'A' },
+  { code: 'FB', name: 'Factura B', description: 'Para clientes Consumidor Final, Monotributo, Exento', group: 'B' },
+  { code: 'FC', name: 'Factura C', description: 'Para todos los clientes (Monotributistas)', group: 'C' },
+  { code: 'NCA', name: 'Nota de Crédito A', description: 'Anula o corrige Factura A', group: 'A' },
+  { code: 'NCB', name: 'Nota de Crédito B', description: 'Anula o corrige Factura B', group: 'B' },
+  { code: 'NCC', name: 'Nota de Crédito C', description: 'Anula o corrige Factura C', group: 'C' },
+  { code: 'NDA', name: 'Nota de Débito A', description: 'Adicional a Factura A', group: 'A' },
+  { code: 'NDB', name: 'Nota de Débito B', description: 'Adicional a Factura B', group: 'B' },
+  { code: 'NDC', name: 'Nota de Débito C', description: 'Adicional a Factura C', group: 'C' },
+  { code: 'PRE', name: 'Presupuesto', description: 'Cotización o presupuesto (sin validez fiscal)', group: 'PRE' }
 ]
 
 export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
-  // Inicializar con todos los tipos seleccionados por defecto si no hay selección
+  const { currentTenant } = useAuthStore()
+
+  // Obtener condiciones de IVA para determinar cuál seleccionó el tenant
+  const { data: vatConditions } = useQuery({
+    queryKey: [currentTenant?.slug, 'vat-conditions'],
+    queryFn: async () => {
+      const response = await api.get(`/${currentTenant?.slug}/vat-conditions`)
+      return response.data
+    },
+    enabled: !!currentTenant?.slug
+  })
+
+  // Determinar la condición de IVA seleccionada en el paso 2
+  const selectedVatCondition = useMemo(() => {
+    if (!vatConditions || !wizardData.vatConditionId) return null
+    return vatConditions.find((vc: any) => vc.id === wizardData.vatConditionId)
+  }, [vatConditions, wizardData.vatConditionId])
+
+  // Filtrar comprobantes según condición de IVA del tenant
+  const voucherOptions = useMemo(() => {
+    if (!selectedVatCondition) return allVoucherOptions
+
+    const code = selectedVatCondition.code
+    if (code === 'MT') {
+      // Monotributista: Solo C y Presupuesto
+      return allVoucherOptions.filter(v => v.group === 'C' || v.group === 'PRE')
+    } else if (code === 'RI') {
+      // Responsable Inscripto: A, B y Presupuesto
+      return allVoucherOptions.filter(v => v.group === 'A' || v.group === 'B' || v.group === 'PRE')
+    } else if (code === 'EX') {
+      // Exento: Solo B y Presupuesto
+      return allVoucherOptions.filter(v => v.group === 'B' || v.group === 'PRE')
+    }
+    return allVoucherOptions
+  }, [selectedVatCondition])
+
   const selectedTypes = wizardData.voucherTypes || []
 
-  // useEffect para inicializar los valores por defecto al montar el componente
+  // useEffect para inicializar los valores por defecto al montar o cambiar las opciones
   useEffect(() => {
-    if (!wizardData.voucherTypes || wizardData.voucherTypes.length === 0) {
-      const allCodes = voucherOptions.map(v => v.code)
-      onUpdate({ voucherTypes: allCodes })
+    if (voucherOptions.length > 0) {
+      // Filtrar los seleccionados actuales para mantener solo los válidos
+      const validCodes = voucherOptions.map(v => v.code)
+      const currentValid = selectedTypes.filter(code => validCodes.includes(code))
+
+      // Si no hay selección o la selección actual no tiene comprobantes válidos, seleccionar todos
+      if (currentValid.length === 0) {
+        onUpdate({ voucherTypes: validCodes })
+      } else if (currentValid.length !== selectedTypes.length) {
+        // Si hay diferencia, actualizar para quitar los inválidos
+        onUpdate({ voucherTypes: currentValid })
+      }
     }
-  }, [])
+  }, [voucherOptions])
 
   const toggleVoucherType = (code: string) => {
     const newTypes = selectedTypes.includes(code)
@@ -93,7 +140,23 @@ export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
         {!hasFacturaSelected && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
-              ⚠️ Debes seleccionar al menos un tipo de factura (A, B o C)
+              ⚠️ Debes seleccionar al menos un tipo de factura
+            </p>
+          </div>
+        )}
+
+        {selectedVatCondition?.code === 'MT' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Monotributista:</strong> Solo puedes emitir comprobantes tipo C (Factura C, NC C, ND C) y Presupuestos.
+            </p>
+          </div>
+        )}
+
+        {selectedVatCondition?.code === 'RI' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Responsable Inscripto:</strong> Emitirás Factura A para clientes RI, y Factura B para Consumidor Final, Monotributo y Exento.
             </p>
           </div>
         )}

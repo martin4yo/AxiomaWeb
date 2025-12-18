@@ -85,7 +85,7 @@ export function Step11Summary({ wizardData }: Step11Props) {
               <div>
                 <h4 className="font-medium text-gray-900">Configuración AFIP</h4>
                 <p className="text-sm text-gray-600">
-                  {wizardData.afipCertificate ? 'Configurada' : 'No configurada'}
+                  {wizardData.afipCertificateContent ? 'Configurada' : 'No configurada'}
                 </p>
               </div>
             </div>

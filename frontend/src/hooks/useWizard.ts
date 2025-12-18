@@ -16,8 +16,8 @@ export interface WizardData {
 
   // Paso 3: Config AFIP
   afipEnvironment?: 'testing' | 'production'
-  afipCertificate?: File | null
-  afipPrivateKey?: File | null
+  afipCertificateContent?: string | null  // Contenido del certificado (texto PEM)
+  afipPrivateKeyContent?: string | null   // Contenido de la clave privada (texto PEM)
   afipSalesPoint?: number
 
   // Paso 4: Tipos de Comprobantes
