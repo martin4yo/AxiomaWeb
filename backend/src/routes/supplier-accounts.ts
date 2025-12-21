@@ -9,7 +9,10 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { search, hasDebt } = req.query;
 
     const balances = await supplierAccountService.getAllSuppliersBalance(tenantId, {
@@ -30,7 +33,10 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:supplierId/balance', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { supplierId } = req.params;
 
     const balance = await supplierAccountService.getSupplierBalance(tenantId, supplierId);
@@ -47,7 +53,10 @@ router.get('/:supplierId/balance', async (req: Request, res: Response) => {
  */
 router.get('/:supplierId/movements', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { supplierId } = req.params;
     const { dateFrom, dateTo, page, limit } = req.query;
 
@@ -71,7 +80,10 @@ router.get('/:supplierId/movements', async (req: Request, res: Response) => {
  */
 router.get('/:supplierId/pending', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { supplierId } = req.params;
 
     const purchases = await supplierAccountService.getPendingPurchases(tenantId, supplierId);
@@ -88,7 +100,10 @@ router.get('/:supplierId/pending', async (req: Request, res: Response) => {
  */
 router.get('/summary', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
 
     const summary = await supplierAccountService.getAccountSummary(tenantId);
     res.json(summary);

@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { authMiddleware } from '../middleware/authMiddleware.js'
 import { QuoteService } from '../services/quoteService.js'
+import { PDFTemplateService } from '../services/pdfTemplateService.js'
+import { EmailService } from '../services/emailService.js'
 import { QuoteStatus } from '@prisma/client'
 
 const router = Router({ mergeParams: true })
@@ -110,6 +112,25 @@ router.get('/:id', authMiddleware, async (req, res, next) => {
   }
 })
 
+// GET /api/:tenantSlug/quotes/:id/order-conversion-data - Obtener datos para conversión a pedido
+router.get('/:id/order-conversion-data', authMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    const quoteService = new QuoteService(
+      req.tenantDb!,
+      req.tenant!.id,
+      req.user!.id
+    )
+
+    const conversionData = await quoteService.getDataForOrderConversion(id)
+
+    res.json(conversionData)
+  } catch (error) {
+    next(error)
+  }
+})
+
 // GET /api/:tenantSlug/quotes/:id/conversion-data - Obtener datos para conversión a venta
 router.get('/:id/conversion-data', authMiddleware, async (req, res, next) => {
   try {
@@ -190,6 +211,108 @@ router.post('/:id/record-conversion', authMiddleware, async (req, res, next) => 
 
     res.json({
       message: 'Conversión registrada exitosamente'
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// GET /api/:tenantSlug/quotes/:id/pdf - Generar PDF del presupuesto
+router.get('/:id/pdf', authMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params
+
+    // Obtener presupuesto con todas las relaciones necesarias
+    const quote = await req.tenantDb!.quote.findFirst({
+      where: {
+        id,
+        tenantId: req.tenant!.id
+      },
+      include: {
+        customer: true,
+        items: true,
+        tenant: true,
+        creator: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    if (!quote) {
+      return res.status(404).json({ error: 'Presupuesto no encontrado' })
+    }
+
+    // Generar PDF
+    const pdfService = new PDFTemplateService()
+    const pdfBuffer = await pdfService.generateQuotePDF(quote)
+
+    const filename = `Presupuesto-${quote.quoteNumber}.pdf`
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`)
+    res.send(pdfBuffer)
+  } catch (error) {
+    next(error)
+  }
+})
+
+// POST /api/:tenantSlug/quotes/:id/send-email - Enviar presupuesto por email
+router.post('/:id/send-email', authMiddleware, async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'El email es requerido' })
+    }
+
+    // Obtener presupuesto con todas las relaciones necesarias
+    const quote = await req.tenantDb!.quote.findFirst({
+      where: {
+        id,
+        tenantId: req.tenant!.id
+      },
+      include: {
+        customer: true,
+        items: true,
+        tenant: true,
+        creator: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    if (!quote) {
+      return res.status(404).json({ error: 'Presupuesto no encontrado' })
+    }
+
+    // Generar PDF
+    const pdfService = new PDFTemplateService()
+    const pdfBuffer = await pdfService.generateQuotePDF(quote)
+
+    // Enviar email
+    const emailService = new EmailService()
+    await emailService.sendQuote(
+      email,
+      quote.quoteNumber,
+      Number(quote.totalAmount),
+      pdfBuffer,
+      `Presupuesto-${quote.quoteNumber}.pdf`,
+      quote.tenant.businessName || quote.tenant.name,
+      quote.customerName,
+      quote.validUntil ? new Date(quote.validUntil).toLocaleDateString('es-AR') : null
+    )
+
+    res.json({
+      message: 'Presupuesto enviado exitosamente',
+      sentTo: email
     })
   } catch (error) {
     next(error)

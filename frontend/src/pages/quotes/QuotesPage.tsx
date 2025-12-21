@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { quotesApi } from '../../api/quotes'
-import { FileText, Loader2, XCircle, CheckCircle, Clock, Ban } from 'lucide-react'
+import { useDialog } from '../../hooks/useDialog'
+import { FileText, Loader2, XCircle, CheckCircle, Clock, Ban, Eye, ShoppingCart, X, Download, Mail, ClipboardList } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -73,6 +74,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
 export default function QuotesPage() {
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -87,6 +89,20 @@ export default function QuotesPage() {
     show: false,
     quote: null
   })
+
+  // Estado para modal de email
+  const [emailModal, setEmailModal] = useState<{
+    show: boolean
+    quote: any | null
+    email: string
+  }>({
+    show: false,
+    quote: null,
+    email: ''
+  })
+
+  // Estado para PDF en descarga
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['quotes', page, search, status, orderBy, orderDirection],
@@ -106,10 +122,23 @@ export default function QuotesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] })
       setCancelModal({ show: false, quote: null })
-      alert('Presupuesto cancelado correctamente')
+      dialog.success('Presupuesto cancelado correctamente')
     },
     onError: (error: any) => {
-      alert(`Error al cancelar presupuesto: ${error.response?.data?.error || error.message}`)
+      dialog.error(error.response?.data?.error || error.message)
+    }
+  })
+
+  // Mutation para enviar email
+  const sendEmailMutation = useMutation({
+    mutationFn: ({ quoteId, email }: { quoteId: string; email: string }) =>
+      quotesApi.sendEmail(quoteId, email),
+    onSuccess: () => {
+      dialog.success('Presupuesto enviado exitosamente')
+      setEmailModal({ show: false, quote: null, email: '' })
+    },
+    onError: (error: any) => {
+      dialog.error(error.response?.data?.error || error.message)
     }
   })
 
@@ -120,6 +149,35 @@ export default function QuotesPage() {
   const confirmCancelQuote = () => {
     if (cancelModal.quote) {
       cancelQuoteMutation.mutate(cancelModal.quote.id)
+    }
+  }
+
+  // Handler para descargar PDF
+  const handleDownloadPDF = async (quote: any) => {
+    setDownloadingPdfId(quote.id)
+    try {
+      await quotesApi.downloadPDF(quote.id, quote.quoteNumber)
+    } catch (error: any) {
+      dialog.error(error.message)
+    } finally {
+      setDownloadingPdfId(null)
+    }
+  }
+
+  // Handler para abrir modal de email
+  const handleOpenEmailModal = (quote: any) => {
+    const customerEmail = quote.customer?.email || ''
+    setEmailModal({ show: true, quote, email: customerEmail })
+  }
+
+  // Handler para enviar email
+  const handleSendEmail = () => {
+    if (!emailModal.email) {
+      dialog.warning('Ingrese un email válido')
+      return
+    }
+    if (emailModal.quote) {
+      sendEmailMutation.mutate({ quoteId: emailModal.quote.id, email: emailModal.email })
     }
   }
 
@@ -271,29 +329,62 @@ export default function QuotesPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <StatusBadge status={quote.status} />
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center space-x-2">
-                          <Link
-                            to={`/quotes/${quote.id}`}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Ver
-                          </Link>
-                          {quote.status !== 'FULLY_CONVERTED' && quote.status !== 'CANCELLED' && (
-                            <>
-                              <Link
-                                to={`/sales/new?fromQuote=${quote.id}`}
-                                className="text-green-600 hover:text-green-900"
-                              >
-                                Convertir
-                              </Link>
-                              <button
-                                onClick={() => handleCancelQuote(quote)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Cancelar
-                              </button>
-                            </>
-                          )}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <Link
+                              to={`/quotes/${quote.id}`}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                              title="Ver detalle"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </Link>
+                            {/* Botón PDF */}
+                            <button
+                              onClick={() => handleDownloadPDF(quote)}
+                              disabled={downloadingPdfId === quote.id}
+                              className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50 disabled:opacity-50"
+                              title="Descargar PDF"
+                            >
+                              {downloadingPdfId === quote.id ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                              ) : (
+                                <Download className="h-5 w-5" />
+                              )}
+                            </button>
+                            {/* Botón Email */}
+                            <button
+                              onClick={() => handleOpenEmailModal(quote)}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                              title="Enviar por email"
+                            >
+                              <Mail className="h-5 w-5" />
+                            </button>
+                            {quote.status !== 'FULLY_CONVERTED' && quote.status !== 'CANCELLED' && (
+                              <>
+                                <Link
+                                  to={`/orders/new?fromQuote=${quote.id}`}
+                                  className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                                  title="Convertir a pedido"
+                                >
+                                  <ClipboardList className="h-5 w-5" />
+                                </Link>
+                                <Link
+                                  to={`/sales/new?fromQuote=${quote.id}`}
+                                  className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50"
+                                  title="Convertir a venta"
+                                >
+                                  <ShoppingCart className="h-5 w-5" />
+                                </Link>
+                                <button
+                                  onClick={() => handleCancelQuote(quote)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50"
+                                  title="Cancelar presupuesto"
+                                >
+                                  <X className="h-5 w-5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -398,6 +489,61 @@ export default function QuotesPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de envío por email */}
+      {emailModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Enviar Presupuesto por Email</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email del destinatario
+              </label>
+              <input
+                type="email"
+                value={emailModal.email}
+                onChange={(e) => setEmailModal({ ...emailModal, email: e.target.value })}
+                placeholder="cliente@ejemplo.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Se enviará el presupuesto {emailModal.quote?.quoteNumber} en formato PDF al email indicado.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setEmailModal({ show: false, quote: null, email: '' })}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={sendEmailMutation.isPending}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sendEmailMutation.isPending || !emailModal.email}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {sendEmailMutation.isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Enviar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialogs personalizados */}
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

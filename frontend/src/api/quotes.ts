@@ -72,5 +72,35 @@ export const quotesApi = {
   recordSaleConversion: async (quoteId: string, itemsConverted: Array<{ quoteItemId: string; quantityConverted: number }>) => {
     const response = await api.post(`/quotes/${quoteId}/record-conversion`, { itemsConverted })
     return response.data
+  },
+
+  // Obtener PDF del presupuesto
+  getPDF: async (id: string) => {
+    const response = await api.get(`/quotes/${id}/pdf`, {
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Descargar PDF (abre en nueva pestaña o descarga)
+  downloadPDF: async (id: string, quoteNumber: string) => {
+    const response = await api.get(`/quotes/${id}/pdf`, {
+      responseType: 'blob'
+    })
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Presupuesto-${quoteNumber}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  },
+
+  // Enviar presupuesto por email
+  sendEmail: async (id: string, email: string) => {
+    const response = await api.post(`/quotes/${id}/send-email`, { email })
+    return response.data
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, ChevronDown, ChevronUp, Edit3, Calendar } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp, Edit3, Calendar, AlertTriangle, Check } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { purchasesApi } from '../../api/purchases'
 import { useAuthStore } from '../../stores/authStore'
@@ -549,8 +549,8 @@ export default function NewPurchasePage() {
               <div className="flex items-center gap-2">
                 <span className="text-lg font-semibold text-gray-900">1. Datos de Compra</span>
                 {purchaseDataComplete && (
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded">
-                    ✓ Completo
+                  <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Completo
                   </span>
                 )}
               </div>
@@ -821,8 +821,8 @@ export default function NewPurchasePage() {
                           </div>
                         )}
                         {hasError && (
-                          <div className="text-xs text-red-600 font-semibold mt-1">
-                            ⚠ Cantidad o precio no puede ser 0
+                          <div className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Cantidad o precio no puede ser 0
                           </div>
                         )}
                       </div>

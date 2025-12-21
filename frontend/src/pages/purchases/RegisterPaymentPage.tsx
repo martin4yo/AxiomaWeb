@@ -4,12 +4,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { purchasesApi } from '../../api/purchases';
 import { api as axios } from '../../services/api';
 import { useAuthStore } from '../../stores/authStore';
+import { useDialog } from '../../hooks/useDialog';
 
 export default function RegisterPaymentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentTenant } = useAuthStore();
   const queryClient = useQueryClient();
+  const dialog = useDialog();
 
   const [paymentMethodId, setPaymentMethodId] = useState('');
   const [amount, setAmount] = useState('');
@@ -38,11 +40,11 @@ export default function RegisterPaymentPage() {
       queryClient.invalidateQueries({ queryKey: ['purchase', currentTenant?.slug, id] });
       queryClient.invalidateQueries({ queryKey: ['purchases', currentTenant?.slug] });
       queryClient.invalidateQueries({ queryKey: ['supplier-balances', currentTenant?.slug] });
-      alert('Pago registrado exitosamente');
+      dialog.success('Pago registrado exitosamente');
       navigate(`/purchases/${id}`);
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al registrar el pago');
+      dialog.error(error.response?.data?.error || 'Error al registrar el pago');
     },
   });
 
@@ -50,18 +52,18 @@ export default function RegisterPaymentPage() {
     e.preventDefault();
 
     if (!paymentMethodId) {
-      alert('Selecciona un método de pago');
+      dialog.warning('Selecciona un método de pago');
       return;
     }
 
     const amountNum = parseFloat(amount);
     if (!amountNum || amountNum <= 0) {
-      alert('Ingresa un monto válido');
+      dialog.warning('Ingresa un monto válido');
       return;
     }
 
     if (purchase && amountNum > Number(purchase.balanceAmount)) {
-      alert('El monto no puede ser mayor al saldo pendiente');
+      dialog.warning('El monto no puede ser mayor al saldo pendiente');
       return;
     }
 
@@ -301,6 +303,9 @@ export default function RegisterPaymentPage() {
           </button>
         </div>
       </form>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   );
 }

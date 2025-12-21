@@ -24,6 +24,22 @@ export type SaleWithRelations = Prisma.SaleGetPayload<{
   }
 }>
 
+// Type para presupuesto con todas las relaciones necesarias
+export type QuoteWithRelations = Prisma.QuoteGetPayload<{
+  include: {
+    customer: true
+    items: true
+    tenant: true
+    creator: {
+      select: {
+        firstName: true
+        lastName: true
+        email: true
+      }
+    }
+  }
+}>
+
 export type PDFTemplateType = 'legal' | 'quote'
 
 /**
@@ -667,6 +683,267 @@ export class PDFTemplateService {
       currentY,
       { width: 495, align: 'center' }
     )
+    currentY += 12
+    doc.text('Gracias por su preferencia!', 50, currentY, { width: 495, align: 'center' })
+  }
+
+  /**
+   * Genera un PDF para un presupuesto (Quote)
+   */
+  async generateQuotePDF(quote: QuoteWithRelations): Promise<Buffer> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        })
+
+        const buffers: Buffer[] = []
+
+        doc.on('data', (chunk) => buffers.push(chunk))
+        doc.on('end', () => resolve(Buffer.concat(buffers)))
+        doc.on('error', reject)
+
+        await this.renderQuoteDocument(doc, quote)
+
+        doc.end()
+      } catch (error) {
+        reject(error)
+      }
+    })
+  }
+
+  /**
+   * Renderiza el documento de presupuesto
+   */
+  private async renderQuoteDocument(doc: PDFKit.PDFDocument, quote: QuoteWithRelations) {
+    const businessName = quote.tenant.businessName || quote.tenant.name
+    const cuit = quote.tenant.cuit || 'Sin CUIT'
+    const address = quote.tenant.address || ''
+    const phone = quote.tenant.phone || ''
+    const email = quote.tenant.email || ''
+
+    const customerName = quote.customerName || quote.customer?.name || 'Cliente'
+    const customerAddress = quote.customer?.addressLine1 || ''
+    const customerPhone = quote.customer?.phone || ''
+    const customerEmail = quote.customer?.email || ''
+    const quoteDate = new Date(quote.quoteDate).toLocaleDateString('es-AR')
+    const validUntilDate = quote.validUntil
+      ? new Date(quote.validUntil).toLocaleDateString('es-AR')
+      : null
+
+    let currentY = doc.y
+
+    // ==================== HEADER ====================
+    const logoUrl = quote.tenant.logo
+
+    if (logoUrl) {
+      try {
+        doc.image(logoUrl, 50, currentY, { width: 100, height: 100, fit: [100, 100] })
+        currentY += 105
+      } catch (error) {
+        console.error('[PDF] Error cargando logo:', error)
+        doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50')
+        doc.text(businessName, 50, currentY, { width: 300 })
+        currentY += 35
+      }
+    } else {
+      doc.fontSize(24).font('Helvetica-Bold').fillColor('#2c3e50')
+      doc.text(businessName, 50, currentY, { width: 300 })
+      currentY += 35
+    }
+
+    // Título PRESUPUESTO
+    doc.fontSize(22).font('Helvetica-Bold').fillColor('#3498db')
+    doc.text('PRESUPUESTO', 350, doc.y - (logoUrl ? 105 : 35), { width: 195, align: 'right' })
+
+    doc.fontSize(10).font('Helvetica').fillColor('#000')
+    if (address) {
+      doc.text(address, 50, currentY, { width: 300 })
+      currentY += 12
+    }
+    if (phone) {
+      doc.text(`Tel: ${phone}`, 50, currentY)
+      currentY += 12
+    }
+    if (email) {
+      doc.text(`Email: ${email}`, 50, currentY)
+      currentY += 12
+    }
+
+    // Número y fecha (derecha)
+    doc.fontSize(11).font('Helvetica-Bold')
+    doc.text(`Nº ${quote.quoteNumber}`, 350, doc.y - 36, { width: 195, align: 'right' })
+    doc.font('Helvetica').fontSize(10)
+    doc.text(`Fecha: ${quoteDate}`, 350, doc.y, { width: 195, align: 'right' })
+    if (validUntilDate) {
+      doc.text(`Válido hasta: ${validUntilDate}`, 350, doc.y + 2, { width: 195, align: 'right' })
+    }
+    doc.fontSize(9)
+    doc.text(`CUIT: ${cuit}`, 350, doc.y + 2, { width: 195, align: 'right' })
+
+    currentY += 20
+
+    // Línea divisoria
+    doc.rect(50, currentY, 495, 2).fill('#3498db')
+    currentY += 18
+
+    // ==================== DATOS DEL CLIENTE ====================
+    doc.fontSize(11).font('Helvetica-Bold').fillColor('#2c3e50')
+    doc.text('CLIENTE', 50, currentY)
+    currentY += 15
+
+    doc.fontSize(9).font('Helvetica').fillColor('#000')
+    doc.text(`Nombre: ${customerName}`, 50, currentY)
+    currentY += 12
+
+    if (customerAddress) {
+      doc.text(`Dirección: ${customerAddress}`, 50, currentY, { width: 495 })
+      currentY += 12
+    }
+
+    if (customerPhone) {
+      doc.text(`Teléfono: ${customerPhone}`, 50, currentY)
+      currentY += 12
+    }
+
+    if (customerEmail) {
+      doc.text(`Email: ${customerEmail}`, 50, currentY)
+      currentY += 12
+    }
+
+    currentY += 10
+
+    // ==================== TABLA DE ITEMS ====================
+    // Header de tabla con fondo
+    doc.rect(50, currentY, 495, 22).fill('#3498db')
+    currentY += 6
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#fff')
+    doc.text('Cant.', 55, currentY, { width: 45, align: 'center' })
+    doc.text('Descripción', 105, currentY, { width: 220 })
+    doc.text('P. Unitario', 330, currentY, { width: 70, align: 'right' })
+    doc.text('Desc.', 405, currentY, { width: 40, align: 'right' })
+    doc.text('Total', 450, currentY, { width: 90, align: 'right' })
+
+    currentY += 16
+    doc.fillColor('#000')
+
+    // Items
+    doc.font('Helvetica').fontSize(9)
+    let alternate = false
+
+    for (const item of quote.items) {
+      const productText = item.productName || item.description || 'Sin descripción'
+      const textHeight = doc.heightOfString(productText, { width: 220 })
+      const rowHeight = Math.max(22, textHeight + 10)
+
+      // Verificar si hay espacio
+      if (currentY + rowHeight > 680) {
+        doc.addPage()
+        currentY = 50
+        alternate = false
+      }
+
+      // Fila alternada
+      if (alternate) {
+        doc.rect(50, currentY, 495, rowHeight).fill('#f0f4f8')
+      }
+
+      doc.fillColor('#000')
+      doc.text(this.formatNumber(Number(item.quantity), 2), 55, currentY + 6, { width: 45, align: 'center' })
+      doc.text(productText, 105, currentY + 6, { width: 220 })
+      doc.text(this.formatCurrency(Number(item.unitPrice)), 330, currentY + 6, { width: 70, align: 'right' })
+
+      const discountText = Number(item.discountPercent) > 0
+        ? `${this.formatNumber(Number(item.discountPercent), 0)}%`
+        : '-'
+      doc.text(discountText, 405, currentY + 6, { width: 40, align: 'right' })
+
+      doc.text(this.formatCurrency(Number(item.lineTotal)), 450, currentY + 6, { width: 90, align: 'right' })
+
+      currentY += rowHeight
+      alternate = !alternate
+    }
+
+    currentY += 15
+
+    // ==================== TOTALES ====================
+    // Nota: Los presupuestos NO incluyen IVA, son montos netos
+    const totalsX = 350
+    const labelWidth = 90
+    const valueWidth = 100
+
+    doc.fontSize(10).font('Helvetica')
+
+    // Subtotal (solo si hay descuento, de lo contrario solo mostramos el total)
+    if (Number(quote.discountAmount) > 0) {
+      doc.text('Subtotal:', totalsX, currentY, { width: labelWidth, align: 'right' })
+      doc.text(this.formatCurrency(Number(quote.subtotal)), totalsX + labelWidth, currentY, {
+        width: valueWidth,
+        align: 'right'
+      })
+      currentY += 15
+
+      doc.text('Descuento:', totalsX, currentY, { width: labelWidth, align: 'right' })
+      doc.text(`-${this.formatCurrency(Number(quote.discountAmount))}`, totalsX + labelWidth, currentY, {
+        width: valueWidth,
+        align: 'right'
+      })
+      currentY += 15
+    }
+
+    // Rectángulo de total
+    doc.rect(totalsX, currentY, labelWidth + valueWidth, 35).fillAndStroke('#3498db', '#2980b9')
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#fff')
+    doc.text('TOTAL', totalsX + 10, currentY + 10, { width: labelWidth - 10, align: 'left' })
+    doc.text(this.formatCurrency(Number(quote.totalAmount)), totalsX + labelWidth, currentY + 10, {
+      width: valueWidth - 10,
+      align: 'right'
+    })
+
+    currentY += 55
+    doc.fillColor('#000')
+
+    // ==================== NOTAS ====================
+    if (quote.notes) {
+      doc.fontSize(10).font('Helvetica-Bold')
+      doc.text('Observaciones:', 50, currentY)
+      currentY += 12
+
+      doc.font('Helvetica').fontSize(9)
+      doc.text(quote.notes, 50, currentY, { width: 495 })
+      currentY += doc.heightOfString(quote.notes, { width: 495 }) + 10
+    }
+
+    // ==================== TÉRMINOS Y CONDICIONES ====================
+    if (quote.termsAndConditions) {
+      doc.fontSize(10).font('Helvetica-Bold')
+      doc.text('Términos y Condiciones:', 50, currentY)
+      currentY += 12
+
+      doc.font('Helvetica').fontSize(9)
+      doc.text(quote.termsAndConditions, 50, currentY, { width: 495 })
+      currentY += doc.heightOfString(quote.termsAndConditions, { width: 495 }) + 10
+    }
+
+    // ==================== FOOTER ====================
+    currentY = Math.max(currentY + 30, 750)
+
+    doc.fontSize(8).font('Helvetica-Oblique').fillColor('#7f8c8d')
+    if (validUntilDate) {
+      doc.text(
+        `Este presupuesto tiene validez hasta el ${validUntilDate}.`,
+        50, currentY,
+        { width: 495, align: 'center' }
+      )
+    } else {
+      doc.text(
+        'Este presupuesto tiene una validez de 15 días desde la fecha de emisión.',
+        50, currentY,
+        { width: 495, align: 'center' }
+      )
+    }
     currentY += 12
     doc.text('Gracias por su preferencia!', 50, currentY, { width: 495, align: 'center' })
   }

@@ -3,12 +3,14 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { AlertTriangle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
 import { useEffect, useState } from 'react'
 import { getPrinters, isServiceRunning } from '../../services/print-service'
+import { useDialog } from '../../hooks/useDialog'
 const schema = z.object({
   voucherTypeId: z.string().min(1, 'Seleccione un tipo de comprobante'),
   branchId: z.preprocess(val => val === '' ? null : val, z.string().nullable().optional()),
@@ -27,6 +29,7 @@ export default function NewVoucherConfigurationPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const dialog = useDialog()
   const [printers, setPrinters] = useState<string[]>([])
   const [loadingPrinters, setLoadingPrinters] = useState(false)
 
@@ -109,7 +112,7 @@ export default function NewVoucherConfigurationPage() {
       navigate('/settings/voucher-configurations')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al crear la configuración')
+      dialog.error(error.response?.data?.error || 'Error al crear la configuración')
     }
   })
 
@@ -303,8 +306,8 @@ export default function NewVoucherConfigurationPage() {
                   <p className="mt-1 text-sm text-blue-600">Cargando impresoras...</p>
                 )}
                 {!loadingPrinters && printers.length === 0 && (
-                  <p className="mt-1 text-sm text-amber-600">
-                    ⚠️ Servicio de impresión no disponible (localhost:5555)
+                  <p className="mt-1 text-sm text-amber-600 flex items-center gap-1">
+                    <AlertTriangle className="h-4 w-4" /> Servicio de impresión no disponible (localhost:5555)
                   </p>
                 )}
                 <p className="mt-1 text-sm text-gray-500">
@@ -340,6 +343,9 @@ export default function NewVoucherConfigurationPage() {
           </form>
         </div>
       </div>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

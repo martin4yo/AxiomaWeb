@@ -48,6 +48,23 @@ export function useDialog() {
     setAlertState({ show: true, title, message, type })
   }
 
+  // Shortcuts para diferentes tipos de alerta
+  const success = (message: string, title: string = 'Éxito') => {
+    showAlert(title, message, 'success')
+  }
+
+  const error = (message: string, title: string = 'Error') => {
+    showAlert(title, message, 'error')
+  }
+
+  const warning = (message: string, title: string = 'Advertencia') => {
+    showAlert(title, message, 'warning')
+  }
+
+  const info = (message: string, title: string = 'Información') => {
+    showAlert(title, message, 'info')
+  }
+
   const showConfirm = (
     title: string,
     message: string,
@@ -106,6 +123,10 @@ export function useDialog() {
   return {
     showAlert,
     showConfirm,
+    success,
+    error,
+    warning,
+    info,
     AlertComponent,
     ConfirmComponent
   }

@@ -10,10 +10,12 @@ import { TenantModal } from '../../components/tenants/TenantModal'
 import { ManageTenantUsersModal } from '../../components/tenants/ManageTenantUsersModal'
 import { tenantsApi, Tenant } from '../../api/tenants'
 import { useAuthStore } from '../../stores/authStore'
+import { useDialog } from '../../hooks/useDialog'
 
 export function TenantsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [showModal, setShowModal] = useState(false)
   const [showUsersModal, setShowUsersModal] = useState(false)
   const [selectedTenant, setSelectedTenant] = useState<Tenant | undefined>()
@@ -42,9 +44,11 @@ export function TenantsPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Esta seguro de desactivar este tenant?')) {
-      deleteMutation.mutate(id)
-    }
+    dialog.confirm(
+      '¿Está seguro de desactivar este tenant?',
+      () => deleteMutation.mutate(id),
+      'Desactivar Tenant'
+    )
   }
 
   const handleCloseModal = () => {
@@ -265,6 +269,9 @@ export function TenantsPage() {
         onClose={handleCloseUsersModal}
         tenant={selectedTenant || null}
       />
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

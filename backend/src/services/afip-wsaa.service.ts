@@ -34,11 +34,20 @@ export class AfipWSAAService {
    * Genera el TRA (Ticket de Requerimiento de Acceso)
    */
   private generateTRA(service: string, cuit: string): string {
-    const now = new Date()
+    // Restar 2 segundos al tiempo actual para evitar problemas de sincronización
+    // AFIP rechaza timestamps "en el futuro" si hay diferencias mínimas de reloj
+    const now = new Date(Date.now() - 2000)
 
-    // AFIP requiere formato: YYYY-MM-DDTHH:MM:SS sin timezone
-    // Y debe estar en hora de Argentina
+    // AFIP requiere formato ISO 8601 con offset de zona horaria
+    // Formato: YYYY-MM-DDTHH:MM:SS-03:00 (Argentina)
     const formatForAfip = (date: Date): string => {
+      // Obtener el offset en minutos y convertir a formato ±HH:MM
+      const offsetMinutes = date.getTimezoneOffset()
+      const offsetHours = Math.floor(Math.abs(offsetMinutes) / 60)
+      const offsetMins = Math.abs(offsetMinutes) % 60
+      const offsetSign = offsetMinutes <= 0 ? '+' : '-'
+      const tzOffset = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`
+
       const year = date.getFullYear()
       const month = String(date.getMonth() + 1).padStart(2, '0')
       const day = String(date.getDate()).padStart(2, '0')
@@ -46,7 +55,7 @@ export class AfipWSAAService {
       const minutes = String(date.getMinutes()).padStart(2, '0')
       const seconds = String(date.getSeconds()).padStart(2, '0')
 
-      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+      return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${tzOffset}`
     }
 
     const generationTime = formatForAfip(now)

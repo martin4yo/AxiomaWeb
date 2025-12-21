@@ -11,6 +11,7 @@ export interface WizardData {
   email?: string
   logo?: string
   vatConditionId?: string
+  vatConditionCode?: string | null  // Código de la condición IVA (MT, RI, EX, CF, NR)
   grossIncomeNumber?: string
   activityStartDate?: string
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+import { X, Lightbulb } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { Input } from '../ui/Input'
 import { Select } from '../ui/Select'
@@ -8,6 +8,7 @@ import { useAuthStore } from '../../stores/authStore'
 import { entityAccountService, PendingDocument } from '../../services/entityAccountService'
 import { api } from '../../services/api'
 import { format } from 'date-fns'
+import { useDialog } from '../../hooks/useDialog'
 
 interface PaymentModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ interface PaymentModalProps {
 export function PaymentModal({ isOpen, onClose, entityId, entityName, type }: PaymentModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
 
   const [amount, setAmount] = useState('')
   const [paymentMethodId, setPaymentMethodId] = useState('')
@@ -77,18 +79,18 @@ export function PaymentModal({ isOpen, onClose, entityId, entityName, type }: Pa
     e.preventDefault()
 
     if (!amount || parseFloat(amount) <= 0) {
-      alert('Ingrese un monto válido')
+      dialog.warning('Ingrese un monto válido')
       return
     }
 
     if (!paymentMethodId) {
-      alert('Seleccione un método de pago')
+      dialog.warning('Seleccione un método de pago')
       return
     }
 
     const selectedMethod = paymentMethods?.find((pm: any) => pm.id === paymentMethodId)
     if (!selectedMethod) {
-      alert('Método de pago no encontrado')
+      dialog.warning('Método de pago no encontrado')
       return
     }
 
@@ -131,7 +133,7 @@ export function PaymentModal({ isOpen, onClose, entityId, entityName, type }: Pa
             onClick={onClose}
             className="text-gray-400 hover:text-gray-500"
           >
-            <XMarkIcon className="h-6 w-6" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 
@@ -271,8 +273,8 @@ export function PaymentModal({ isOpen, onClose, entityId, entityName, type }: Pa
                     </tbody>
                   </table>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  💡 El pago se aplicará automáticamente a los comprobantes pendientes más antiguos
+                <p className="text-sm text-gray-500 mt-2 flex items-center gap-1">
+                  <Lightbulb className="h-4 w-4" /> El pago se aplicará automáticamente a los comprobantes pendientes más antiguos
                 </p>
               </div>
             ) : (
@@ -304,6 +306,8 @@ export function PaymentModal({ isOpen, onClose, entityId, entityName, type }: Pa
           </div>
         </form>
       </div>
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

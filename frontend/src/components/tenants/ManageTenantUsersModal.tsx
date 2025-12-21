@@ -8,6 +8,7 @@ import { Badge } from '../ui/Badge'
 import { tenantsApi, Tenant } from '../../api/tenants'
 import { usersApi } from '../../api/users'
 import { useAuthStore } from '../../stores/authStore'
+import { useDialog } from '../../hooks/useDialog'
 
 interface ManageTenantUsersModalProps {
   isOpen: boolean
@@ -18,6 +19,7 @@ interface ManageTenantUsersModalProps {
 export function ManageTenantUsersModal({ isOpen, onClose, tenant }: ManageTenantUsersModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<'admin' | 'user'>('user')
 
@@ -70,9 +72,11 @@ export function ManageTenantUsersModal({ isOpen, onClose, tenant }: ManageTenant
   }
 
   const handleRemove = (tenantUserId: string) => {
-    if (window.confirm('¿Está seguro de remover este usuario del tenant?')) {
-      removeMutation.mutate(tenantUserId)
-    }
+    dialog.confirm(
+      '¿Está seguro de remover este usuario del tenant?',
+      () => removeMutation.mutate(tenantUserId),
+      'Remover Usuario'
+    )
   }
 
   useEffect(() => {
@@ -204,6 +208,8 @@ export function ManageTenantUsersModal({ isOpen, onClose, tenant }: ManageTenant
           </Button>
         </div>
       </div>
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </Modal>
   )
 }

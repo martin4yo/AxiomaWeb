@@ -246,11 +246,14 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
       })
 
       if (!existingAfipConnection) {
+        // Quitar guiones del CUIT para AFIP (formato: solo números)
+        const cuitSinGuiones = data.cuit?.replace(/-/g, '') || ''
+
         afipConnection = await prisma.afipConnection.create({
           data: {
             tenantId: tenant.id,
             name: data.afipEnvironment === 'production' ? 'Producción AFIP' : 'Testing AFIP',
-            cuit: data.cuit,
+            cuit: cuitSinGuiones,
             environment: data.afipEnvironment || 'testing',
             certificate: data.afipCertificateContent, // Contenido del certificado PEM
             privateKey: data.afipPrivateKeyContent,   // Contenido de la clave privada PEM
@@ -282,15 +285,51 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
         where: { tenantId: tenant.id }
       })
 
+      // Actualizar los allowedVoucherTypes de cada condición de IVA según el tenant
+      // Esto determina qué comprobantes se pueden emitir a cada tipo de cliente
+      if (tenantVatCondition?.code === 'MT') {
+        // TENANT MONOTRIBUTISTA: Todos los clientes reciben FC, NCC, NDC
+        for (const vc of allVatConditions) {
+          await prisma.vatCondition.update({
+            where: { id: vc.id },
+            data: { allowedVoucherTypes: ['FC', 'NCC', 'NDC'] }
+          })
+        }
+      } else if (tenantVatCondition?.code === 'RI') {
+        // TENANT RESPONSABLE INSCRIPTO:
+        // - Clientes RI y MT reciben FA, NCA, NDA
+        // - Clientes EX, CF, NR reciben FB, NCB, NDB
+        for (const vc of allVatConditions) {
+          if (vc.code === 'RI' || vc.code === 'MT') {
+            await prisma.vatCondition.update({
+              where: { id: vc.id },
+              data: { allowedVoucherTypes: ['FA', 'NCA', 'NDA'] }
+            })
+          } else {
+            await prisma.vatCondition.update({
+              where: { id: vc.id },
+              data: { allowedVoucherTypes: ['FB', 'NCB', 'NDB'] }
+            })
+          }
+        }
+      } else if (tenantVatCondition?.code === 'EX') {
+        // TENANT EXENTO: Todos los clientes reciben FB, NCB, NDB
+        for (const vc of allVatConditions) {
+          await prisma.vatCondition.update({
+            where: { id: vc.id },
+            data: { allowedVoucherTypes: ['FB', 'NCB', 'NDB'] }
+          })
+        }
+      }
+
       // Determinar los códigos de comprobantes según condición IVA del TENANT
       let allowedVoucherCodes: string[] = []
 
       if (tenantVatCondition?.code === 'MT') {
         // MONOTRIBUTISTA: Solo puede emitir Factura C, NC C, ND C y Presupuesto
-        // NO puede emitir A ni B
         allowedVoucherCodes = ['FC', 'NCC', 'NDC', 'PRE']
       } else if (tenantVatCondition?.code === 'RI') {
-        // RESPONSABLE INSCRIPTO: Puede emitir A (para RI) y B (para otros)
+        // RESPONSABLE INSCRIPTO: Puede emitir A (para RI/MT) y B (para otros)
         allowedVoucherCodes = ['FA', 'FB', 'NCA', 'NCB', 'NDA', 'NDB', 'PRE']
       } else if (tenantVatCondition?.code === 'EX') {
         // EXENTO: Solo puede emitir B y Presupuesto
@@ -316,23 +355,25 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
         printTemplate: 'NO_LEGAL'
       }
 
-      // Si el tenant es RI, crear configuraciones por condición de IVA del cliente
+      // Crear configuraciones según condición IVA del TENANT
       if (tenantVatCondition?.code === 'RI') {
+        // TENANT RESPONSABLE INSCRIPTO:
+        // - Cliente RI o MT → FA, NCA, NDA, PRE
+        // - Cliente EX, CF, NR → FB, NCB, NDB, PRE
         for (const vatCond of allVatConditions) {
-          // Determinar qué comprobantes corresponden a cada condición de cliente
-          let voucherTypesForCondition: typeof voucherTypes = []
+          let voucherCodesForCondition: string[] = []
 
-          if (vatCond.code === 'RI') {
-            // Cliente RI recibe Factura A
-            voucherTypesForCondition = voucherTypes.filter(vt =>
-              ['FA', 'NCA', 'NDA', 'PRE'].includes(vt.code)
-            )
+          if (vatCond.code === 'RI' || vatCond.code === 'MT') {
+            // Cliente RI o Monotributista recibe Factura A
+            voucherCodesForCondition = ['FA', 'NCA', 'NDA', 'PRE']
           } else {
-            // Cliente no-RI (CF, MT, EX, NR) recibe Factura B
-            voucherTypesForCondition = voucherTypes.filter(vt =>
-              ['FB', 'NCB', 'NDB', 'PRE'].includes(vt.code)
-            )
+            // Cliente EX, CF, NR recibe Factura B
+            voucherCodesForCondition = ['FB', 'NCB', 'NDB', 'PRE']
           }
+
+          const voucherTypesForCondition = voucherTypes.filter(vt =>
+            voucherCodesForCondition.includes(vt.code)
+          )
 
           for (const voucherType of voucherTypesForCondition) {
             const existing = await prisma.voucherConfiguration.findFirst({
@@ -344,14 +385,13 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
             })
 
             if (!existing) {
-              // Presupuesto tiene configuración especial
               const isPresupuesto = voucherType.code === 'PRE'
               const printTemplate = isPresupuesto
                 ? presupuestoConfig.printTemplate
                 : (data.printConfigs?.[voucherType.code] || 'LEGAL')
               const printFormat = isPresupuesto
                 ? presupuestoConfig.printFormat
-                : (data.printConfigs?.[voucherType.code] ? 'THERMAL' : 'PDF')
+                : 'PDF'
 
               await prisma.voucherConfiguration.create({
                 data: {
@@ -370,27 +410,30 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
             }
           }
         }
-      } else {
-        // Para Monotributistas, Exentos u otros: crear configuración sin vatConditionId
-        // Ya que todos los clientes reciben el mismo tipo de comprobante
-        for (const voucherType of voucherTypes) {
+      } else if (tenantVatCondition?.code === 'MT') {
+        // TENANT MONOTRIBUTISTA:
+        // - Cualquier cliente → FC, NCC, NDC, PRE (sin vatConditionId)
+        const voucherCodesForMT = ['FC', 'NCC', 'NDC', 'PRE']
+        const voucherTypesForMT = voucherTypes.filter(vt =>
+          voucherCodesForMT.includes(vt.code)
+        )
+
+        for (const voucherType of voucherTypesForMT) {
           const existing = await prisma.voucherConfiguration.findFirst({
             where: {
               tenantId: tenant.id,
-              voucherTypeId: voucherType.id,
-              vatConditionId: null
+              voucherTypeId: voucherType.id
             }
           })
 
           if (!existing) {
-            // Presupuesto tiene configuración especial
             const isPresupuesto = voucherType.code === 'PRE'
             const printTemplate = isPresupuesto
               ? presupuestoConfig.printTemplate
               : (data.printConfigs?.[voucherType.code] || 'LEGAL')
             const printFormat = isPresupuesto
               ? presupuestoConfig.printFormat
-              : (data.printConfigs?.[voucherType.code] ? 'THERMAL' : 'PDF')
+              : 'PDF'
 
             await prisma.voucherConfiguration.create({
               data: {
@@ -399,7 +442,48 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
                 branchId: branch.id,
                 afipConnectionId: voucherType.requiresCae ? (afipConnection?.id || null) : null,
                 salesPointId: salesPoint.id,
-                vatConditionId: null, // Sin condición específica - aplica para todos
+                vatConditionId: null, // Aplica para todos los clientes
+                nextVoucherNumber: 1,
+                printFormat: printFormat,
+                printTemplate: printTemplate,
+                isActive: true
+              }
+            })
+          }
+        }
+      } else if (tenantVatCondition?.code === 'EX') {
+        // TENANT EXENTO:
+        // - Cualquier cliente → FB, NCB, NDB, PRE (sin vatConditionId)
+        const voucherCodesForEX = ['FB', 'NCB', 'NDB', 'PRE']
+        const voucherTypesForEX = voucherTypes.filter(vt =>
+          voucherCodesForEX.includes(vt.code)
+        )
+
+        for (const voucherType of voucherTypesForEX) {
+          const existing = await prisma.voucherConfiguration.findFirst({
+            where: {
+              tenantId: tenant.id,
+              voucherTypeId: voucherType.id
+            }
+          })
+
+          if (!existing) {
+            const isPresupuesto = voucherType.code === 'PRE'
+            const printTemplate = isPresupuesto
+              ? presupuestoConfig.printTemplate
+              : (data.printConfigs?.[voucherType.code] || 'LEGAL')
+            const printFormat = isPresupuesto
+              ? presupuestoConfig.printFormat
+              : 'PDF'
+
+            await prisma.voucherConfiguration.create({
+              data: {
+                tenantId: tenant.id,
+                voucherTypeId: voucherType.id,
+                branchId: branch.id,
+                afipConnectionId: voucherType.requiresCae ? (afipConnection?.id || null) : null,
+                salesPointId: salesPoint.id,
+                vatConditionId: null, // Aplica para todos los clientes
                 nextVoucherNumber: 1,
                 printFormat: printFormat,
                 printTemplate: printTemplate,
@@ -420,14 +504,6 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
     })
 
     if (!existingConsumidorFinal) {
-      // Buscar la condición de IVA "Consumidor Final"
-      const cfVatCondition = await prisma.vatCondition.findFirst({
-        where: {
-          tenantId: tenant.id,
-          code: 'CF'
-        }
-      })
-
       await prisma.entity.create({
         data: {
           tenantId: tenant.id,
@@ -438,8 +514,8 @@ router.put('/:tenantSlug/onboarding/complete', tenantMiddleware, authMiddleware,
           isEmployee: false,
           country: 'AR',
           currency: 'ARS',
-          cuit: cfVatCondition?.code || null,
-          ivaCondition: cfVatCondition?.code || null,
+          taxId: '11111111', // DNI genérico para Consumidor Final
+          ivaCondition: 'CF',
           isDefaultCustomer: true,
           customerPaymentTerms: 0,
           customerCreditLimit: 0

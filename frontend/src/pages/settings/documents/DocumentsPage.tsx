@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
 import { api } from '../../../services/api'
+import { useDialog } from '../../../hooks/useDialog'
 
 const documentTypeSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -32,6 +33,7 @@ type DocumentTypeForm = z.infer<typeof documentTypeSchema>
 export default function DocumentsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedDocumentType, setSelectedDocumentType] = useState<any>(null)
@@ -111,9 +113,11 @@ export default function DocumentsPage() {
   }
 
   const handleDelete = (documentType: any) => {
-    if (confirm(`¿Estás seguro de eliminar el tipo de comprobante "${documentType.name}"?`)) {
-      deleteDocumentType.mutate(documentType.id)
-    }
+    dialog.confirm(
+      `¿Estás seguro de eliminar el tipo de comprobante "${documentType.name}"?`,
+      () => deleteDocumentType.mutate(documentType.id),
+      'Eliminar Comprobante'
+    )
   }
 
   const onSubmit = (data: DocumentTypeForm) => {
@@ -401,6 +405,9 @@ export default function DocumentsPage() {
           </div>
         </form>
       </Modal>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

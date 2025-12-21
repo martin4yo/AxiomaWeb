@@ -44,6 +44,8 @@ interface CreateSaleInput {
   documentClass?: 'invoice' | 'credit_note' | 'debit_note' | 'quote'
   forceWithoutCAE?: boolean  // Permitir guardar sin CAE cuando hay desincronización
   originSaleId?: string  // ID de la venta original (para NC/ND)
+  orderId?: string  // ID del pedido origen (para trazabilidad)
+  quoteId?: string  // ID del presupuesto origen (para trazabilidad)
 }
 
 export class SalesService {
@@ -77,7 +79,9 @@ export class SalesService {
       discountPercent = 0,
       documentClass = 'invoice',
       forceWithoutCAE = false,
-      originSaleId
+      originSaleId,
+      orderId,
+      quoteId
     } = data
 
     let shouldInvoice = data.shouldInvoice || false
@@ -233,7 +237,7 @@ export class SalesService {
     discriminateVAT = finalVoucherType.includes('A') // FA, NCA, NDA discriminan IVA
 
     // 6. Obtener tasa de IVA por defecto (21% para Argentina)
-    const defaultTaxRate = tenant.tenantVatCondition?.taxRate || new Decimal(21)
+    const defaultTaxRate = new Decimal(21)
 
     // 7. Procesar items y validar stock
     const processedItems: Array<{
@@ -488,6 +492,8 @@ export class SalesService {
           warehouseId,
           documentClass: documentClass.toUpperCase() as any,
           originSaleId: originSaleId || null,
+          orderId: orderId || null,
+          quoteId: quoteId || null,
           notes: notes || null,
           status: 'completed',
           createdBy: this.userId,

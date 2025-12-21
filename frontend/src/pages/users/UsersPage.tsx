@@ -10,10 +10,12 @@ import { UserModal } from '../../components/users/UserModal'
 import { ChangePasswordModal } from '../../components/users/ChangePasswordModal'
 import { usersApi, User } from '../../api/users'
 import { useAuthStore } from '../../stores/authStore'
+import { useDialog } from '../../hooks/useDialog'
 
 export function UsersPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [showModal, setShowModal] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | undefined>()
@@ -42,9 +44,11 @@ export function UsersPage() {
   }
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Esta seguro de desactivar este usuario?')) {
-      deleteMutation.mutate(id)
-    }
+    dialog.confirm(
+      '¿Está seguro de desactivar este usuario?',
+      () => deleteMutation.mutate(id),
+      'Desactivar Usuario'
+    )
   }
 
   const handleCloseModal = () => {
@@ -256,6 +260,9 @@ export function UsersPage() {
         onClose={handleClosePasswordModal}
         user={selectedUser}
       />
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

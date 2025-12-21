@@ -5,9 +5,12 @@
  */
 
 import { useState, useEffect } from 'react';
+import { AlertTriangle, Printer } from 'lucide-react';
 import { qzTrayService } from '../services/qz-tray';
+import { useDialog } from '../hooks/useDialog';
 
 export function QZTrayStatus() {
+  const dialog = useDialog();
   const [status, setStatus] = useState<{
     connected: boolean;
     version?: string;
@@ -54,7 +57,7 @@ export function QZTrayStatus() {
       await qzTrayService.initialize();
       await checkStatus();
     } catch (error: any) {
-      alert(error.message || 'Error conectando a QZ Tray');
+      dialog.error(error.message || 'Error conectando a QZ Tray');
     } finally {
       setLoading(false);
     }
@@ -62,7 +65,7 @@ export function QZTrayStatus() {
 
   const handleSavePrinter = async () => {
     if (!selectedPrinter) {
-      alert('Selecciona una impresora');
+      dialog.warning('Selecciona una impresora');
       return;
     }
 
@@ -71,9 +74,9 @@ export function QZTrayStatus() {
       await qzTrayService.configure(selectedPrinter, 'simple');
       await checkStatus();
       setShowConfig(false);
-      alert('✅ Impresora configurada correctamente');
+      dialog.success('Impresora configurada correctamente');
     } catch (error) {
-      alert('Error configurando impresora');
+      dialog.error('Error configurando impresora');
     } finally {
       setLoading(false);
     }
@@ -113,8 +116,8 @@ export function QZTrayStatus() {
         <>
           {status.printerName && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
-              <p className="text-sm font-medium text-green-900">
-                🖨️ Impresora configurada: {status.printerName}
+              <p className="text-sm font-medium text-green-900 flex items-center gap-1">
+                <Printer className="h-4 w-4" /> Impresora configurada: {status.printerName}
               </p>
             </div>
           )}
@@ -170,8 +173,8 @@ export function QZTrayStatus() {
 
       {!status.connected && (
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-          <p className="text-sm text-yellow-900">
-            ⚠️ QZ Tray no está conectado.{' '}
+          <p className="text-sm text-yellow-900 flex items-center gap-1 flex-wrap">
+            <AlertTriangle className="h-4 w-4" /> QZ Tray no está conectado.{' '}
             <a
               href="https://qz.io/download/"
               target="_blank"
@@ -183,6 +186,9 @@ export function QZTrayStatus() {
           </p>
         </div>
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   );
 }

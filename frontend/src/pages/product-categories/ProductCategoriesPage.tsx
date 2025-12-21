@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Plus, Pencil, Trash2, Search, Tag } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../components/ui/TextArea'
 import { productCategoriesApi } from '../../api/product-categories'
+import { useDialog } from '../../hooks/useDialog'
 
 const categorySchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -24,6 +25,7 @@ type CategoryForm = z.infer<typeof categorySchema>
 export default function ProductCategoriesPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<any>(null)
@@ -97,9 +99,11 @@ export default function ProductCategoriesPage() {
   }
 
   const handleDelete = (category: any) => {
-    if (confirm(`¿Estás seguro de eliminar la categoría "${category.name}"?`)) {
-      deleteCategory.mutate(category.id)
-    }
+    dialog.confirm(
+      `¿Estás seguro de eliminar la categoría "${category.name}"?`,
+      () => deleteCategory.mutate(category.id),
+      'Eliminar Categoría'
+    )
   }
 
   const onSubmit = (data: CategoryForm) => {
@@ -113,7 +117,7 @@ export default function ProductCategoriesPage() {
   const actions = [
     {
       label: 'Nueva Categoría',
-      icon: PlusIcon,
+      icon: Plus,
       onClick: handleCreate,
       variant: 'primary' as const
     }
@@ -133,7 +137,7 @@ export default function ProductCategoriesPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Buscar categorías..."
@@ -162,9 +166,7 @@ export default function ProductCategoriesPage() {
             </div>
           ) : !categories || categories.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                🏷️
-              </div>
+              <Tag className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Sin categorías</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {search
@@ -174,7 +176,7 @@ export default function ProductCategoriesPage() {
               {!search && (
                 <div className="mt-6">
                   <Button onClick={handleCreate}>
-                    <PlusIcon className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Nueva Categoría
                   </Button>
                 </div>
@@ -202,14 +204,14 @@ export default function ProductCategoriesPage() {
                         size="sm"
                         onClick={() => handleEdit(category)}
                       >
-                        <PencilIcon className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(category)}
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -254,6 +256,9 @@ export default function ProductCategoriesPage() {
           </div>
         </form>
       </Modal>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

@@ -14,6 +14,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../components/ui/TextArea'
+import { useDialog } from '../../hooks/useDialog'
 
 const brandSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -25,6 +26,7 @@ type BrandForm = z.infer<typeof brandSchema>
 export default function ProductBrandsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedBrand, setSelectedBrand] = useState<any>(null)
@@ -104,9 +106,11 @@ export default function ProductBrandsPage() {
   }
 
   const handleDelete = (brand: any) => {
-    if (confirm(`¿Estás seguro de eliminar la marca "${brand.name}"?`)) {
-      deleteBrand.mutate(brand.id)
-    }
+    dialog.confirm(
+      `¿Estás seguro de eliminar la marca "${brand.name}"?`,
+      () => deleteBrand.mutate(brand.id),
+      'Eliminar Marca'
+    )
   }
 
   const onSubmit = (data: BrandForm) => {
@@ -259,6 +263,9 @@ export default function ProductBrandsPage() {
           </div>
         </form>
       </Modal>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

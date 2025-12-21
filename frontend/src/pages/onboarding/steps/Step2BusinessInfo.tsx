@@ -26,14 +26,17 @@ export function Step2BusinessInfo({ wizardData, onUpdate }: Step2Props) {
     console.log('🔍 Loading VAT conditions for tenant:', currentTenant.slug)
     try {
       const response = await api.get(`/${currentTenant.slug}/vat-conditions`)
-      console.log('📥 VAT conditions response:', response.data)
       // El backend retorna { conditions: [...] }
       const data = response.data.conditions || []
-      console.log('✅ VAT conditions loaded:', data.length, 'items')
-      setVatConditions(data)
+      // Filtrar solo condiciones válidas para un TENANT (empresa)
+      // CF (Consumidor Final) y NR (No Responsable) son solo para clientes particulares
+      const validForTenant = data.filter((vc: any) =>
+        ['RI', 'MT', 'EX'].includes(vc.code)
+      )
+      setVatConditions(validForTenant)
     } catch (error) {
-      console.error('❌ Error loading VAT conditions:', error)
-      setVatConditions([]) // Fallback a array vacío
+      console.error('Error loading VAT conditions:', error)
+      setVatConditions([])
     }
   }
 
@@ -189,7 +192,14 @@ export function Step2BusinessInfo({ wizardData, onUpdate }: Step2Props) {
           </label>
           <select
             value={wizardData.vatConditionId || ''}
-            onChange={(e) => handleChange('vatConditionId', e.target.value)}
+            onChange={(e) => {
+              const selectedId = e.target.value
+              const selectedVc = vatConditions.find(vc => vc.id === selectedId)
+              onUpdate({
+                vatConditionId: selectedId,
+                vatConditionCode: selectedVc?.code || null
+              })
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             required
           >

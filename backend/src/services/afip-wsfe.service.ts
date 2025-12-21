@@ -144,18 +144,23 @@ export class AfipWSFEService {
       // Condición de IVA del receptor (RG 5616)
       const ivaReceptor = voucherData.customerVatConditionAfipCode || 5 // Default: Consumidor Final
 
-      // Helper para redondear a 2 decimales
-      const round2 = (num: number) => Math.round(num * 100) / 100
+      // Helper para redondear a 2 decimales (devuelve número con 2 decimales)
+      const round2 = (num: number) => Number((Math.round(num * 100) / 100).toFixed(2))
 
       // Determinar si es comprobante tipo C (no discrimina IVA)
       // Códigos AFIP: 11=FC, 12=NDC, 13=NCC
       const isTypeC = [11, 12, 13].includes(voucherData.voucherTypeCode)
 
+      // DocNro: si está vacío o es Consumidor Final (DocTipo 99), usar 0
+      const docNro = voucherData.customerDocNumber && voucherData.customerDocNumber.trim() !== ''
+        ? voucherData.customerDocNumber.replace(/\D/g, '') // Solo números
+        : 0
+
       // Preparar request base
       const feCAEDetRequest: any = {
         Concepto: 1, // 1=Productos, 2=Servicios, 3=Productos y Servicios
         DocTipo: voucherData.customerDocType,
-        DocNro: voucherData.customerDocNumber,
+        DocNro: docNro,
         CbteDesde: voucherData.voucherNumber,
         CbteHasta: voucherData.voucherNumber,
         CbteFch: voucherData.documentDate.toISOString().slice(0, 10).replace(/-/g, ''),

@@ -26,7 +26,12 @@
       "Bash(xargs kill:*)",
       "Bash(PGPASSWORD=postgres psql:*)",
       "Bash(git log:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(taskkill:*)",
+      "Bash(timeout /t 2)",
+      "Bash(dir:*)",
+      "Bash(tasklist /FI \"IMAGENAME eq node.exe\")",
+      "Bash(findstr:*)"
     ]
   }
 }

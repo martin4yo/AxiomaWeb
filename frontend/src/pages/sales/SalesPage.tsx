@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { salesApi } from '../../api/sales'
 import { AFIPProgressModal } from '../../components/sales/AFIPProgressModal'
-import { RefreshCw, Printer, FileText, Receipt, Loader2, Mail, XCircle } from 'lucide-react'
+import { TraceabilityModal } from '../../components/traceability/TraceabilityModal'
+import { useDialog } from '../../hooks/useDialog'
+import { RefreshCw, Printer, FileText, Receipt, Loader2, Mail, XCircle, GitBranch } from 'lucide-react'
 
 // Función para formatear números con separadores de miles y decimales
 const formatNumber = (value: string | number, decimals: number = 2): string => {
@@ -17,6 +19,7 @@ const formatNumber = (value: string | number, decimals: number = 2): string => {
 
 export default function SalesPage() {
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const [paymentStatus, setPaymentStatus] = useState('')
@@ -49,6 +52,15 @@ export default function SalesPage() {
   }>({
     show: false,
     sale: null
+  })
+
+  // Traceability Modal
+  const [traceabilityModal, setTraceabilityModal] = useState<{
+    show: boolean
+    saleId: string | null
+  }>({
+    show: false,
+    saleId: null
   })
 
   // AFIP Progress Modal
@@ -89,10 +101,10 @@ export default function SalesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sales'] })
       setCancelModal({ show: false, sale: null })
-      alert('Venta anulada correctamente')
+      dialog.success('Venta anulada correctamente')
     },
     onError: (error: any) => {
-      alert(`Error al anular venta: ${error.response?.data?.error || error.message}`)
+      dialog.error(error.response?.data?.error || error.message)
     }
   })
 
@@ -192,7 +204,7 @@ export default function SalesPage() {
       setTimeout(() => window.URL.revokeObjectURL(url), 100)
     } catch (error: any) {
       console.error('Error al generar PDF:', error)
-      alert(`Error al generar PDF: ${error.response?.data?.error || error.message}`)
+      dialog.error(error.response?.data?.error || error.message)
     }
   }
 
@@ -208,7 +220,7 @@ export default function SalesPage() {
       console.log(`✅ ${response.message} (método: ${response.method})`)
     } catch (error: any) {
       console.error('Error al imprimir ticket:', error)
-      alert(`Error al imprimir: ${error.message || 'Error desconocido'}`)
+      dialog.error(error.message || 'Error desconocido')
     } finally {
       // Quitar spinner después de un pequeño delay para que se vea el diálogo de impresión
       setTimeout(() => setPrintingId(null), 500)
@@ -539,6 +551,15 @@ export default function SalesPage() {
                           <Mail className="w-4 h-4" />
                         </button>
 
+                        {/* Botón de trazabilidad */}
+                        <button
+                          onClick={() => setTraceabilityModal({ show: true, saleId: sale.id })}
+                          className="inline-flex items-center px-2 py-1 text-xs font-medium text-purple-600 hover:text-purple-800"
+                          title="Ver trazabilidad"
+                        >
+                          <GitBranch className="w-4 h-4" />
+                        </button>
+
                         {/* Botón de reintentar CAE - solo si aplica */}
                         {(sale.afipStatus === 'error' || sale.afipStatus === 'not_sent' || sale.afipStatus === 'pending') &&
                          (sale.voucherType || sale.voucherTypeRelation) &&
@@ -634,6 +655,14 @@ export default function SalesPage() {
           setAfipProgressModal({ show: false, steps: [], canClose: false, saleId: null })
           queryClient.invalidateQueries({ queryKey: ['sales'] })
         }}
+      />
+
+      {/* Traceability Modal */}
+      <TraceabilityModal
+        isOpen={traceabilityModal.show}
+        onClose={() => setTraceabilityModal({ show: false, saleId: null })}
+        documentType="sale"
+        documentId={traceabilityModal.saleId || ''}
       />
 
       {/* Email Modal */}
@@ -765,6 +794,10 @@ export default function SalesPage() {
           </div>
         </div>
       )}
+
+      {/* Dialogs personalizados */}
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

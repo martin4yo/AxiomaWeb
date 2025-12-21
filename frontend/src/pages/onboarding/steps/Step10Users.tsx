@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
+import { useDialog } from '../../../hooks/useDialog'
 
 interface Step10Props {
   wizardData: WizardData
@@ -10,6 +11,7 @@ interface Step10Props {
 export function Step10Users({ wizardData, onUpdate }: Step10Props) {
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'admin' | 'user'>('user')
+  const dialog = useDialog()
   const invitedUsers = wizardData.invitedUsers || []
 
   const addUser = () => {
@@ -17,12 +19,12 @@ export function Step10Users({ wizardData, onUpdate }: Step10Props) {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      alert('Email inválido')
+      dialog.warning('Email inválido')
       return
     }
 
     if (invitedUsers.some((u) => u.email === email)) {
-      alert('Este usuario ya fue invitado')
+      dialog.warning('Este usuario ya fue invitado')
       return
     }
 
@@ -149,6 +151,8 @@ export function Step10Users({ wizardData, onUpdate }: Step10Props) {
           </div>
         )}
       </div>
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </WizardStep>
   )
 }

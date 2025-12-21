@@ -70,6 +70,8 @@ model Tenant {
   entityMovements       EntityMovement[]
   entityPayments        EntityPayment[]
   quotes                Quote[]
+  customerOrders        CustomerOrder[]
+  stockReservations     StockReservation[]
 
   @@map("tenants")
 }
@@ -99,6 +101,7 @@ model User {
   createdCashMovements    CashMovement[]    @relation("CashMovementCreatedBy")
   createdEntityPayments   EntityPayment[]   @relation("EntityPaymentCreatedBy")
   createdQuotes           Quote[]
+  createdOrders           CustomerOrder[]   @relation("OrderCreatedBy")
 
   @@map("users")
 }
@@ -201,6 +204,7 @@ model Entity {
   accountMovements   EntityMovement[]
   accountPayments    EntityPayment[]
   quotes             Quote[]
+  orders             CustomerOrder[]          @relation("OrderCustomer")
 
   @@unique([tenantId, code])
   @@map("entities")
@@ -315,7 +319,6 @@ model VatCondition {
   name                String
   code                String
   description         String?
-  taxRate             Decimal? @map("tax_rate") @db.Decimal(5, 2)
   isExempt            Boolean  @default(false) @map("is_exempt")
   isActive            Boolean  @default(true) @map("is_active")
   afipCode            Int?     @map("afip_code") // Código de condición IVA para AFIP (1=RI, 3=NR, 4=EX, 5=CF, 6=MT)
@@ -337,29 +340,29 @@ model VatCondition {
 
 // 💰 IMPUESTOS
 model Tax {
-  id                String   @id @default(cuid())
-  tenantId          String   @map("tenant_id")
-  code              String   // Código corto: IVA21, IVA105, IIBB, etc
-  name              String   // Nombre descriptivo: "IVA 21%", "Percepción IIBB"
-  description       String?
-  rate              Decimal  @db.Decimal(5, 2) // Alícuota: 21.00, 10.50, 3.00, etc
-  taxType           String   @map("tax_type") // Tipo: IVA, PERCEPTION, INTERNAL, OTHER
-  isActive          Boolean  @default(true) @map("is_active")
+  id          String  @id @default(cuid())
+  tenantId    String  @map("tenant_id")
+  code        String // Código corto: IVA21, IVA105, IIBB, etc
+  name        String // Nombre descriptivo: "IVA 21%", "Percepción IIBB"
+  description String?
+  rate        Decimal @db.Decimal(5, 2) // Alícuota: 21.00, 10.50, 3.00, etc
+  taxType     String  @map("tax_type") // Tipo: IVA, PERCEPTION, INTERNAL, OTHER
+  isActive    Boolean @default(true) @map("is_active")
 
   // Control de aplicabilidad según condición IVA del tenant
-  applicableToRI    Boolean  @default(true) @map("applicable_to_ri") // Se aplica si el tenant es Responsable Inscripto
-  applicableToMT    Boolean  @default(false) @map("applicable_to_mt") // Se aplica si el tenant es Monotributista
-  applicableToEX    Boolean  @default(false) @map("applicable_to_ex") // Se aplica si el tenant es Exento
+  applicableToRI Boolean @default(true) @map("applicable_to_ri") // Se aplica si el tenant es Responsable Inscripto
+  applicableToMT Boolean @default(false) @map("applicable_to_mt") // Se aplica si el tenant es Monotributista
+  applicableToEX Boolean @default(false) @map("applicable_to_ex") // Se aplica si el tenant es Exento
 
   // Configuración de cálculo
-  calculationBase   String   @default("NET") @map("calculation_base") // NET, GROSS, SUBTOTAL
-  displayInInvoice  Boolean  @default(true) @map("display_in_invoice") // Si se muestra separado en la factura
+  calculationBase  String  @default("NET") @map("calculation_base") // NET, GROSS, SUBTOTAL
+  displayInInvoice Boolean @default(true) @map("display_in_invoice") // Si se muestra separado en la factura
 
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   productTaxes ProductTax[]
   entityTaxes  EntityTax[]
 
@@ -435,6 +438,8 @@ model Product {
   saleItems         SaleItem[]
   purchaseItems     PurchaseItem[]           @relation("PurchaseItemProduct")
   quoteItems        QuoteItem[]
+  orderItems        CustomerOrderItem[]      @relation("OrderItemProduct")
+  stockReservations StockReservation[]       @relation("ProductReservations")
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -508,25 +513,27 @@ model DocumentItem {
 
 // 🏭 ALMACENES
 model Warehouse {
-  id                  String   @id @default(cuid())
-  tenantId            String   @map("tenant_id")
-  code                String
-  name                String
-  description         String?
-  address             String?
-  isActive            Boolean  @default(true) @map("is_active")
-  isDefault           Boolean  @default(false) @map("is_default")
-  allowNegativeStock  Boolean  @default(false) @map("allow_negative_stock")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(cuid())
+  tenantId           String   @map("tenant_id")
+  code               String
+  name               String
+  description        String?
+  address            String?
+  isActive           Boolean  @default(true) @map("is_active")
+  isDefault          Boolean  @default(false) @map("is_default")
+  allowNegativeStock Boolean  @default(false) @map("allow_negative_stock")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  warehouseStocks  WarehouseStock[]
-  stockMovements   StockMovement[]
-  stockAdjustments StockAdjustment[]
-  sales            Sale[]
-  purchases        Purchase[]        @relation("PurchaseWarehouse")
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  warehouseStocks   WarehouseStock[]
+  stockMovements    StockMovement[]
+  stockAdjustments  StockAdjustment[]
+  sales             Sale[]
+  purchases         Purchase[]         @relation("PurchaseWarehouse")
+  orders            CustomerOrder[]    @relation("OrderWarehouse")
+  stockReservations StockReservation[] @relation("WarehouseReservations")
 
   @@unique([tenantId, code])
   @@map("warehouses")
@@ -720,6 +727,9 @@ model Sale {
   // Venta original (para notas de crédito y débito)
   originSaleId String? @map("origin_sale_id")
 
+  // Pedido origen (si se factura desde un pedido)
+  orderId String? @map("order_id")
+
   // Tipo de cliente
   customerType String @default("final") @map("customer_type") // "registered", "final"
 
@@ -747,6 +757,7 @@ model Sale {
   voucherConfiguration VoucherConfiguration? @relation(fields: [voucherConfigurationId], references: [id])
   originSale           Sale?                 @relation("SaleCreditDebitNotes", fields: [originSaleId], references: [id], onDelete: Restrict)
   creditDebitNotes     Sale[]                @relation("SaleCreditDebitNotes")
+  originOrder          CustomerOrder?        @relation("SaleFromOrder", fields: [orderId], references: [id], onDelete: SetNull)
   items                SaleItem[]
   payments             SalePayment[]
   cashMovements        CashMovement[]        @relation("CashMovementSale")
@@ -762,6 +773,7 @@ model Sale {
   @@index([voucherTypeId])
   @@index([fullVoucherNumber])
   @@index([quoteId])
+  @@index([orderId])
   @@map("sales")
 }
 
@@ -979,22 +991,23 @@ model VoucherType {
 
 // ⚙️ CONFIGURACIÓN DE COMPROBANTES
 model VoucherConfiguration {
-  id                String   @id @default(cuid())
-  tenantId          String   @map("tenant_id")
-  voucherTypeId     String   @map("voucher_type_id")
-  branchId          String?  @map("branch_id")
-  afipConnectionId  String?  @map("afip_connection_id")
-  salesPointId      String?  @map("sales_point_id")
-  vatConditionId    String?  @map("vat_condition_id") // Condición de IVA para la cual aplica este comprobante (null = aplica para todas)
-  nextVoucherNumber Int      @default(1) @map("next_voucher_number")
-  isActive          Boolean  @default(true) @map("is_active")
-  isDefault         Boolean  @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
-  printTemplateId    String?  @map("print_template_id") // ID del template de impresión a usar (ej: 'ticket-venta-80mm', 'factura-a-80mm')
-  printFormat        String?  @default("NONE") @map("print_format") // Formato de impresión por defecto: "THERMAL" | "PDF" | "NONE"
-  printTemplate      String?  @default("LEGAL") @map("print_template") // Template específico: "LEGAL" (con QR/datos fiscales) | "SIMPLE" (sin datos fiscales)
-  thermalPrinterName String?  @map("thermal_printer_name") // Nombre de la impresora térmica configurada para este comprobante
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+  id                 String        @id @default(cuid())
+  tenantId           String        @map("tenant_id")
+  voucherTypeId      String        @map("voucher_type_id")
+  branchId           String?       @map("branch_id")
+  afipConnectionId   String?       @map("afip_connection_id")
+  salesPointId       String?       @map("sales_point_id")
+  vatConditionId     String?       @map("vat_condition_id") // Condición de IVA para la cual aplica este comprobante (null = aplica para todas)
+  nextVoucherNumber  Int           @default(1) @map("next_voucher_number")
+  stockBehavior      StockBehavior @default(DEDUCT) @map("stock_behavior") // Comportamiento de stock al facturar
+  isActive           Boolean       @default(true) @map("is_active")
+  isDefault          Boolean       @default(false) @map("is_default") // Indica si es la configuración por defecto para el tipo de comprobante
+  printTemplateId    String?       @map("print_template_id") // ID del template de impresión a usar (ej: 'ticket-venta-80mm', 'factura-a-80mm')
+  printFormat        String?       @default("NONE") @map("print_format") // Formato de impresión por defecto: "THERMAL" | "PDF" | "NONE"
+  printTemplate      String?       @default("LEGAL") @map("print_template") // Template específico: "LEGAL" (con QR/datos fiscales) | "SIMPLE" (sin datos fiscales)
+  thermalPrinterName String?       @map("thermal_printer_name") // Nombre de la impresora térmica configurada para este comprobante
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
 
   // Relations
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1050,13 +1063,13 @@ model Purchase {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  supplier      Entity            @relation("PurchaseSupplier", fields: [supplierId], references: [id])
-  warehouse     Warehouse         @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
-  creator       User              @relation("PurchaseCreatedBy", fields: [createdBy], references: [id])
+  tenant          Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier        Entity            @relation("PurchaseSupplier", fields: [supplierId], references: [id])
+  warehouse       Warehouse         @relation("PurchaseWarehouse", fields: [warehouseId], references: [id])
+  creator         User              @relation("PurchaseCreatedBy", fields: [createdBy], references: [id])
   items           PurchaseItem[]
   payments        PurchasePayment[]
-  cashMovements   CashMovement[]      @relation("CashMovementPurchase")
+  cashMovements   CashMovement[]    @relation("CashMovementPurchase")
   entityMovements EntityMovement[]
 
   @@unique([tenantId, purchaseNumber])
@@ -1233,41 +1246,42 @@ model CashMovement {
   @@index([paymentMethodId])
   @@map("cash_movements")
 }
+
 // 📊 CUENTA CORRIENTE - MOVIMIENTOS DE ENTIDADES
 model EntityMovement {
-  id          String   @id @default(cuid())
-  tenantId    String   @map("tenant_id")
-  entityId    String   @map("entity_id")
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  entityId String @map("entity_id")
 
   // Tipo y naturaleza del movimiento
-  type        String   // SALE, SALE_PAYMENT, PURCHASE, PURCHASE_PAYMENT, CREDIT_NOTE, DEBIT_NOTE, ADJUSTMENT, INITIAL_BALANCE
-  nature      String   // DEBIT (aumenta saldo) o CREDIT (disminuye saldo)
+  type   String // SALE, SALE_PAYMENT, PURCHASE, PURCHASE_PAYMENT, CREDIT_NOTE, DEBIT_NOTE, ADJUSTMENT, INITIAL_BALANCE
+  nature String // DEBIT (aumenta saldo) o CREDIT (disminuye saldo)
 
   // Monto
-  amount      Decimal  @db.Decimal(15, 2)
+  amount Decimal @db.Decimal(15, 2)
 
   // Balance acumulado DESPUÉS de este movimiento
-  balance     Decimal  @db.Decimal(15, 2)
+  balance Decimal @db.Decimal(15, 2)
 
   // Referencia al documento que generó el movimiento (opcional)
-  saleId      String?  @map("sale_id")
-  purchaseId  String?  @map("purchase_id")
-  paymentId   String?  @map("payment_id")
+  saleId     String? @map("sale_id")
+  purchaseId String? @map("purchase_id")
+  paymentId  String? @map("payment_id")
 
   // Detalles
   description String?
   notes       String?
 
   // Fechas
-  date        DateTime @db.Date // Fecha del movimiento (fecha de venta/compra/pago)
-  createdAt   DateTime @default(now()) @map("created_at")
+  date      DateTime @db.Date // Fecha del movimiento (fecha de venta/compra/pago)
+  createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  entity      Entity         @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  sale        Sale?          @relation(fields: [saleId], references: [id], onDelete: SetNull)
-  purchase    Purchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
-  payment     EntityPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity   Entity         @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  sale     Sale?          @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  purchase Purchase?      @relation(fields: [purchaseId], references: [id], onDelete: SetNull)
+  payment  EntityPayment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, entityId, date])
   @@index([tenantId, entityId, type])
@@ -1279,38 +1293,38 @@ model EntityMovement {
 
 // 💳 CUENTA CORRIENTE - PAGOS DE ENTIDADES
 model EntityPayment {
-  id                String   @id @default(cuid())
-  tenantId          String   @map("tenant_id")
-  entityId          String   @map("entity_id")
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+  entityId String @map("entity_id")
 
   // Tipo de pago
-  type              String   // CUSTOMER_PAYMENT (cobro) o SUPPLIER_PAYMENT (pago)
+  type String // CUSTOMER_PAYMENT (cobro) o SUPPLIER_PAYMENT (pago)
 
   // Monto total del pago
-  amount            Decimal  @db.Decimal(15, 2)
+  amount Decimal @db.Decimal(15, 2)
 
   // Forma de pago
-  paymentMethodId   String   @map("payment_method_id")
-  paymentMethodName String   @map("payment_method_name")
+  paymentMethodId   String @map("payment_method_id")
+  paymentMethodName String @map("payment_method_name")
 
   // Referencias (cheque, transferencia, etc.)
-  reference         String?
-  referenceDate     DateTime? @map("reference_date") @db.Date
+  reference     String?
+  referenceDate DateTime? @map("reference_date") @db.Date
 
   // Detalles
-  notes             String?
+  notes String?
 
   // Fechas
-  date              DateTime @db.Date // Fecha del pago
-  createdAt         DateTime @default(now()) @map("created_at")
-  createdBy         String   @map("created_by")
+  date      DateTime @db.Date // Fecha del pago
+  createdAt DateTime @default(now()) @map("created_at")
+  createdBy String   @map("created_by")
 
   // Relations
-  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  entity            Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
-  paymentMethod     PaymentMethod    @relation(fields: [paymentMethodId], references: [id])
-  createdByUser     User             @relation("EntityPaymentCreatedBy", fields: [createdBy], references: [id])
-  movements         EntityMovement[] // Un pago genera 1+ movimientos
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entity        Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod    @relation(fields: [paymentMethodId], references: [id])
+  createdByUser User             @relation("EntityPaymentCreatedBy", fields: [createdBy], references: [id])
+  movements     EntityMovement[] // Un pago genera 1+ movimientos
 
   @@index([tenantId, entityId, date])
   @@index([paymentMethodId])
@@ -1322,45 +1336,45 @@ model EntityPayment {
 // ===============================================
 
 model Quote {
-  id                String      @id @default(cuid())
-  tenantId          String      @map("tenant_id")
-  quoteNumber       String      @map("quote_number") // PRE-00001
-  quoteDate         DateTime    @default(now()) @map("quote_date")
-  validUntil        DateTime?   @map("valid_until") @db.Date // Fecha de vencimiento del presupuesto
+  id          String    @id @default(cuid())
+  tenantId    String    @map("tenant_id")
+  quoteNumber String    @map("quote_number") // PRE-00001
+  quoteDate   DateTime  @default(now()) @map("quote_date")
+  validUntil  DateTime? @map("valid_until") @db.Date // Fecha de vencimiento del presupuesto
 
   // Cliente
-  customerId        String?     @map("customer_id")
-  customer          Entity?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  customerName      String      @map("customer_name") // Denormalizado para histórico
+  customerId   String? @map("customer_id")
+  customer     Entity? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String  @map("customer_name") // Denormalizado para histórico
 
   // Montos
-  subtotal          Decimal     @db.Decimal(15, 2)
-  discountAmount    Decimal     @default(0) @map("discount_amount") @db.Decimal(15, 2)
-  discountPercent   Decimal     @default(0) @map("discount_percent") @db.Decimal(5, 2)
-  taxAmount         Decimal     @default(0) @map("tax_amount") @db.Decimal(15, 2)
-  totalAmount       Decimal     @map("total_amount") @db.Decimal(15, 2)
+  subtotal        Decimal @db.Decimal(15, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  taxAmount       Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal @map("total_amount") @db.Decimal(15, 2)
 
   // Datos adicionales
-  notes             String?     @db.Text
-  termsAndConditions String?   @map("terms_and_conditions") @db.Text
-  internalNotes     String?     @map("internal_notes") @db.Text // Notas internas no visibles en PDF
+  notes              String? @db.Text
+  termsAndConditions String? @map("terms_and_conditions") @db.Text
+  internalNotes      String? @map("internal_notes") @db.Text // Notas internas no visibles en PDF
 
   // Estado
-  status            QuoteStatus @default(PENDING)
+  status QuoteStatus @default(PENDING)
 
   // Conversión (puede haber múltiples conversiones parciales)
-  convertedToSales   Sale[]
-  // convertedToOrders  CustomerOrder[] // TODO: Implementar en FASE 2
+  convertedToSales  Sale[]
+  convertedToOrders CustomerOrder[] @relation("OrderFromQuote")
 
   // Relaciones
-  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  items             QuoteItem[]
+  tenant Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items  QuoteItem[]
 
   // Auditoría
-  createdBy         String      @map("created_by")
-  creator           User        @relation(fields: [createdBy], references: [id])
-  createdAt         DateTime    @default(now()) @map("created_at")
-  updatedAt         DateTime    @updatedAt @map("updated_at")
+  createdBy String   @map("created_by")
+  creator   User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([tenantId, quoteNumber])
   @@index([tenantId])
@@ -1371,49 +1385,209 @@ model Quote {
 }
 
 enum QuoteStatus {
-  PENDING               // Pendiente de respuesta del cliente
-  APPROVED              // Cliente aprobó
-  REJECTED              // Cliente rechazó
-  EXPIRED               // Venció la validez
-  PARTIALLY_CONVERTED   // Conversión parcial en progreso
-  FULLY_CONVERTED       // Totalmente convertido
-  CANCELLED             // Cancelado por el negocio
+  PENDING // Pendiente de respuesta del cliente
+  APPROVED // Cliente aprobó
+  REJECTED // Cliente rechazó
+  EXPIRED // Venció la validez
+  PARTIALLY_CONVERTED // Conversión parcial en progreso
+  FULLY_CONVERTED // Totalmente convertido
+  CANCELLED // Cancelado por el negocio
+}
+
+// 📦 ESTADO DE PEDIDO
+enum OrderStatus {
+  DRAFT // Borrador - editable
+  CONFIRMED // Confirmado - esperando preparación
+  PROCESSING // En preparación
+  READY // Listo para entregar
+  PARTIALLY_INVOICED // Parcialmente facturado
+  COMPLETED // Completado (totalmente facturado)
+  CANCELLED // Cancelado
+}
+
+// 📊 COMPORTAMIENTO DE STOCK
+enum StockBehavior {
+  NONE // Sin afectar stock
+  RESERVE // Reservar stock (no disponible para otras ventas)
+  DEDUCT // Descontar stock inmediatamente
 }
 
 model QuoteItem {
-  id              String   @id @default(cuid())
-  quoteId         String   @map("quote_id")
-  quote           Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  id      String @id @default(cuid())
+  quoteId String @map("quote_id")
+  quote   Quote  @relation(fields: [quoteId], references: [id], onDelete: Cascade)
 
-  lineNumber      Int      @map("line_number")
+  lineNumber Int @map("line_number")
 
   // Producto
-  productId       String?  @map("product_id")
-  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productSku      String?  @map("product_sku")
-  productName     String   @map("product_name")
-  description     String?  @db.Text
+  productId   String?  @map("product_id")
+  product     Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productSku  String?  @map("product_sku")
+  productName String   @map("product_name")
+  description String?  @db.Text
 
   // Cantidades y precios
-  quantity        Decimal  @db.Decimal(15, 3)
-  unitPrice       Decimal  @map("unit_price") @db.Decimal(15, 2)
+  quantity  Decimal @db.Decimal(15, 3)
+  unitPrice Decimal @map("unit_price") @db.Decimal(15, 2)
 
   // Control de conversión parcial
   quantityConverted Decimal @default(0) @map("quantity_converted") @db.Decimal(15, 3) // Cantidad ya convertida a pedidos/ventas
   quantityPending   Decimal @map("quantity_pending") @db.Decimal(15, 3) // Calculado: quantity - quantityConverted
 
   // Descuentos
-  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(5, 2)
-  discountAmount  Decimal  @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(15, 2)
 
   // Impuestos
-  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(5, 2)
-  taxAmount       Decimal  @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  taxRate   Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
 
   // Totales
-  subtotal        Decimal  @db.Decimal(15, 2) // quantity * unitPrice
-  lineTotal       Decimal  @map("line_total") @db.Decimal(15, 2) // subtotal - discount + tax
+  subtotal  Decimal @db.Decimal(15, 2) // quantity * unitPrice
+  lineTotal Decimal @map("line_total") @db.Decimal(15, 2) // subtotal - discount + tax
 
   @@index([quoteId])
   @@map("quote_items")
+}
+
+// ===============================================
+// 📦 PEDIDOS (CUSTOMER ORDERS)
+// ===============================================
+
+model CustomerOrder {
+  id           String    @id @default(cuid())
+  tenantId     String    @map("tenant_id")
+  orderNumber  String    @map("order_number") // PED-00001
+  orderDate    DateTime  @default(now()) @map("order_date")
+  expectedDate DateTime? @map("expected_date") @db.Date // Fecha esperada de entrega
+
+  // Cliente
+  customerId   String? @map("customer_id")
+  customer     Entity? @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String  @map("customer_name") // Denormalizado para histórico
+
+  // Almacén
+  warehouseId String?    @map("warehouse_id")
+  warehouse   Warehouse? @relation("OrderWarehouse", fields: [warehouseId], references: [id], onDelete: SetNull)
+
+  // Montos
+  subtotal        Decimal @db.Decimal(15, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(15, 2)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  taxAmount       Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  totalAmount     Decimal @map("total_amount") @db.Decimal(15, 2)
+
+  // Montos facturados
+  invoicedAmount Decimal @default(0) @map("invoiced_amount") @db.Decimal(15, 2)
+  pendingAmount  Decimal @map("pending_amount") @db.Decimal(15, 2) // totalAmount - invoicedAmount
+
+  // Comportamiento de stock
+  stockBehavior StockBehavior @default(NONE) @map("stock_behavior")
+
+  // Datos adicionales
+  notes         String? @db.Text
+  internalNotes String? @map("internal_notes") @db.Text
+
+  // Estado
+  status OrderStatus @default(DRAFT)
+
+  // Presupuesto origen (opcional)
+  quoteId String? @map("quote_id")
+  quote   Quote?  @relation("OrderFromQuote", fields: [quoteId], references: [id], onDelete: SetNull)
+
+  // Relaciones
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items             CustomerOrderItem[]
+  sales             Sale[]              @relation("SaleFromOrder")
+  stockReservations StockReservation[]
+
+  // Auditoría
+  createdBy String   @map("created_by")
+  creator   User     @relation("OrderCreatedBy", fields: [createdBy], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId])
+  @@index([customerId])
+  @@index([status])
+  @@index([orderDate])
+  @@index([quoteId])
+  @@map("customer_orders")
+}
+
+// 📝 ITEMS DE PEDIDO
+model CustomerOrderItem {
+  id      String        @id @default(cuid())
+  orderId String        @map("order_id")
+  order   CustomerOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  lineNumber Int @map("line_number")
+
+  // Producto
+  productId   String?  @map("product_id")
+  product     Product? @relation("OrderItemProduct", fields: [productId], references: [id], onDelete: SetNull)
+  productSku  String?  @map("product_sku")
+  productName String   @map("product_name")
+  description String?  @db.Text
+
+  // Cantidades
+  quantity         Decimal @db.Decimal(15, 3)
+  quantityInvoiced Decimal @default(0) @map("quantity_invoiced") @db.Decimal(15, 3)
+  quantityPending  Decimal @map("quantity_pending") @db.Decimal(15, 3) // quantity - quantityInvoiced
+
+  // Precios
+  unitPrice Decimal @map("unit_price") @db.Decimal(15, 2)
+
+  // Descuentos
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  discountAmount  Decimal @default(0) @map("discount_amount") @db.Decimal(15, 2)
+
+  // Impuestos
+  taxRate   Decimal @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+
+  // Totales
+  subtotal  Decimal @db.Decimal(15, 2) // quantity * unitPrice
+  lineTotal Decimal @map("line_total") @db.Decimal(15, 2) // subtotal - discount + tax
+
+  @@index([orderId])
+  @@map("customer_order_items")
+}
+
+// 📊 RESERVAS DE STOCK
+model StockReservation {
+  id       String @id @default(cuid())
+  tenantId String @map("tenant_id")
+
+  // Origen de la reserva
+  orderId String        @map("order_id")
+  order   CustomerOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // Producto y almacén
+  productId   String    @map("product_id")
+  product     Product   @relation("ProductReservations", fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId String    @map("warehouse_id")
+  warehouse   Warehouse @relation("WarehouseReservations", fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  // Cantidades
+  quantity         Decimal @db.Decimal(15, 3) // Cantidad original reservada
+  quantityUsed     Decimal @default(0) @map("quantity_used") @db.Decimal(15, 3) // Consumido al facturar
+  quantityReleased Decimal @default(0) @map("quantity_released") @db.Decimal(15, 3) // Liberado por cancelación
+
+  // Estado
+  status String @default("active") // active, consumed, released
+
+  // Auditoría
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([orderId])
+  @@index([productId, warehouseId])
+  @@index([status])
+  @@map("stock_reservations")
 }

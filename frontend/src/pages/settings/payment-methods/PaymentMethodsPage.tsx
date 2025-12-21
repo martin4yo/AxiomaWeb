@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Plus, Pencil, Trash2, Search, CreditCard } from 'lucide-react'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { TextArea } from '../../../components/ui/TextArea'
 import { api } from '../../../services/api'
+import { useDialog } from '../../../hooks/useDialog'
 
 const paymentMethodSchema = z.object({
   name: z.string().min(1, 'El nombre es requerido'),
@@ -30,6 +31,7 @@ type PaymentMethodForm = z.infer<typeof paymentMethodSchema>
 export default function PaymentMethodsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<any>(null)
@@ -122,9 +124,11 @@ export default function PaymentMethodsPage() {
   }
 
   const handleDelete = (paymentMethod: any) => {
-    if (confirm(`¿Estás seguro de eliminar la forma de pago "${paymentMethod.name}"?`)) {
-      deletePaymentMethod.mutate(paymentMethod.id)
-    }
+    dialog.confirm(
+      `¿Estás seguro de eliminar la forma de pago "${paymentMethod.name}"?`,
+      () => deletePaymentMethod.mutate(paymentMethod.id),
+      'Eliminar Forma de Pago'
+    )
   }
 
   const onSubmit = (data: PaymentMethodForm) => {
@@ -149,7 +153,7 @@ export default function PaymentMethodsPage() {
   const actions = [
     {
       label: 'Nueva Forma de Pago',
-      icon: PlusIcon,
+      icon: Plus,
       onClick: handleCreate,
       variant: 'primary' as const
     }
@@ -169,7 +173,7 @@ export default function PaymentMethodsPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Buscar formas de pago..."
@@ -198,9 +202,7 @@ export default function PaymentMethodsPage() {
             </div>
           ) : !paymentMethods || paymentMethods.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                💳
-              </div>
+              <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Sin formas de pago</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {search
@@ -210,7 +212,7 @@ export default function PaymentMethodsPage() {
               {!search && (
                 <div className="mt-6">
                   <Button onClick={handleCreate}>
-                    <PlusIcon className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Nueva Forma de Pago
                   </Button>
                 </div>
@@ -256,14 +258,14 @@ export default function PaymentMethodsPage() {
                         size="sm"
                         onClick={() => handleEdit(paymentMethod)}
                       >
-                        <PencilIcon className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(paymentMethod)}
                       >
-                        <TrashIcon className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -370,6 +372,9 @@ export default function PaymentMethodsPage() {
           </div>
         </form>
       </Modal>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

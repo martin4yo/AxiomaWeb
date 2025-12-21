@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { Plus, Pencil, Search, Users } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -58,7 +58,7 @@ export default function CustomersPage() {
   const actions = [
     {
       label: 'Nuevo Cliente',
-      icon: PlusIcon,
+      icon: Plus,
       onClick: handleCreate,
       variant: 'primary' as const
     }
@@ -78,7 +78,7 @@ export default function CustomersPage() {
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Buscar por nombre, código o CUIT..."
@@ -118,9 +118,7 @@ export default function CustomersPage() {
             </div>
           ) : !customers || customers.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                👥
-              </div>
+              <Users className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Sin clientes</h3>
               <p className="mt-1 text-sm text-gray-500">
                 {search || categoryFilter
@@ -130,7 +128,7 @@ export default function CustomersPage() {
               {!search && !categoryFilter && (
                 <div className="mt-6">
                   <Button onClick={handleCreate}>
-                    <PlusIcon className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-2" />
                     Nuevo Cliente
                   </Button>
                 </div>
@@ -217,7 +215,7 @@ export default function CustomersPage() {
                             size="sm"
                             onClick={() => handleEdit(customer)}
                           >
-                            <PencilIcon className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>

@@ -89,7 +89,8 @@ export class QuoteService {
       calculation: SaleItemResult
     }> = []
 
-    const defaultTaxRate = tenant.tenantVatCondition?.taxRate || new Decimal(21)
+    // Usar tasa de IVA por defecto de 21%
+    const defaultTaxRate = new Decimal(21)
 
     for (const itemInput of itemsInput) {
       const product = await this.prisma.product.findFirst({
@@ -216,6 +217,65 @@ export class QuoteService {
     }
 
     return 'PRE-00000001'
+  }
+
+  /**
+   * Obtener datos pendientes para convertir presupuesto a pedido
+   * Retorna solo items con cantidad pendiente > 0
+   */
+  async getDataForOrderConversion(quoteId: string) {
+    const quote = await this.prisma.quote.findFirst({
+      where: {
+        id: quoteId,
+        tenantId: this.tenantId
+      },
+      include: {
+        items: true,
+        customer: true
+      }
+    })
+
+    if (!quote) {
+      throw new AppError('Presupuesto no encontrado', 404)
+    }
+
+    if (quote.status === 'FULLY_CONVERTED') {
+      throw new AppError('Este presupuesto ya fue totalmente convertido', 400)
+    }
+
+    if (quote.status === 'CANCELLED') {
+      throw new AppError('No se puede convertir un presupuesto cancelado', 400)
+    }
+
+    // Filtrar solo items con cantidad pendiente
+    const itemsWithPending = quote.items
+      .map(item => {
+        const quantityPending = Number(item.quantity) - Number(item.quantityConverted)
+        return {
+          ...item,
+          quantityPending
+        }
+      })
+      .filter(item => item.quantityPending > 0)
+
+    return {
+      quoteId: quote.id,
+      quoteNumber: quote.quoteNumber,
+      customerId: quote.customerId,
+      customerName: quote.customerName,
+      items: itemsWithPending.map(item => ({
+        quoteItemId: item.id,
+        productId: item.productId!,
+        productName: item.productName,
+        quantity: item.quantityPending,
+        maxQuantity: item.quantityPending,
+        unitPrice: Number(item.unitPrice),
+        discountPercent: Number(item.discountPercent),
+        taxRate: Number(item.taxRate),
+        description: item.description
+      })),
+      notes: quote.notes
+    }
   }
 
   /**

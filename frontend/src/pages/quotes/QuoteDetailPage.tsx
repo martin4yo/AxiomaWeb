@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { quotesApi } from '@/api/quotes'
-import { ArrowLeft, Calendar, User, FileText, CheckCircle, XCircle, Clock, AlertCircle, Ban } from 'lucide-react'
+import { useDialog } from '@/hooks/useDialog'
+import { ArrowLeft, Calendar, User, FileText, CheckCircle, XCircle, Clock, AlertCircle, Ban, Download, Mail, Loader2, ClipboardList, GitBranch } from 'lucide-react'
+import { TraceabilityModal } from '@/components/traceability/TraceabilityModal'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -9,6 +12,15 @@ const QuoteDetailPage = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
+
+  // Estado para modal de email
+  const [emailModal, setEmailModal] = useState<{ show: boolean; email: string }>({
+    show: false,
+    email: ''
+  })
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [showTraceability, setShowTraceability] = useState(false)
 
   // Fetch quote data
   const { data: quote, isLoading, error } = useQuery({
@@ -17,28 +29,86 @@ const QuoteDetailPage = () => {
     enabled: !!id
   })
 
+  // Mutation para enviar email
+  const sendEmailMutation = useMutation({
+    mutationFn: ({ quoteId, email }: { quoteId: string; email: string }) =>
+      quotesApi.sendEmail(quoteId, email),
+    onSuccess: () => {
+      dialog.success('Presupuesto enviado exitosamente')
+      setEmailModal({ show: false, email: '' })
+    },
+    onError: (error: any) => {
+      dialog.error(error.response?.data?.error || error.message)
+    }
+  })
+
+  // Handler para descargar PDF
+  const handleDownloadPDF = async () => {
+    if (!quote) return
+    setDownloadingPDF(true)
+    try {
+      await quotesApi.downloadPDF(id!, quote.quoteNumber)
+    } catch (error: any) {
+      dialog.error(error.message)
+    } finally {
+      setDownloadingPDF(false)
+    }
+  }
+
+  // Handler para abrir modal de email
+  const handleOpenEmailModal = () => {
+    const customerEmail = quote?.customer?.email || ''
+    setEmailModal({ show: true, email: customerEmail })
+  }
+
+  // Handler para enviar email
+  const handleSendEmail = () => {
+    if (!emailModal.email) {
+      dialog.warning('Ingrese un email válido')
+      return
+    }
+    sendEmailMutation.mutate({ quoteId: id!, email: emailModal.email })
+  }
+
   const handleChangeStatus = async (newStatus: string) => {
     if (!id) return
 
+    const statusLabels: Record<string, string> = {
+      PENDING: 'Pendiente',
+      APPROVED: 'Aprobado',
+      REJECTED: 'Rechazado',
+      EXPIRED: 'Vencido',
+      CANCELLED: 'Cancelado'
+    }
+
     const confirmMessage = newStatus === 'CANCELLED'
       ? '¿Está seguro de cancelar este presupuesto?'
-      : `¿Cambiar estado a ${newStatus}?`
+      : `¿Cambiar estado a ${statusLabels[newStatus] || newStatus}?`
 
-    if (!window.confirm(confirmMessage)) return
-
-    try {
-      await quotesApi.updateQuoteStatus(id, newStatus)
-      queryClient.invalidateQueries({ queryKey: ['quote', id] })
-      queryClient.invalidateQueries({ queryKey: ['quotes'] })
-      alert('Estado actualizado exitosamente')
-    } catch (err: any) {
-      console.error('Error updating status:', err)
-      alert(err.response?.data?.error || 'Error al actualizar estado')
-    }
+    dialog.showConfirm(
+      newStatus === 'CANCELLED' ? 'Cancelar Presupuesto' : 'Cambiar Estado',
+      confirmMessage,
+      async () => {
+        try {
+          await quotesApi.updateQuoteStatus(id, newStatus)
+          queryClient.invalidateQueries({ queryKey: ['quote', id] })
+          queryClient.invalidateQueries({ queryKey: ['quotes'] })
+          dialog.success('Estado actualizado exitosamente')
+        } catch (err: any) {
+          console.error('Error updating status:', err)
+          dialog.error(err.response?.data?.error || 'Error al actualizar estado')
+        }
+      },
+      newStatus === 'CANCELLED' ? 'danger' : 'info'
+    )
   }
 
   const handleConvertToSale = () => {
     navigate(`/sales/new?fromQuote=${id}`)
+  }
+
+  const handleConvertToOrder = () => {
+    navigate(`/orders/new?fromQuote=${id}`)
   }
 
   if (isLoading) {
@@ -103,13 +173,54 @@ const QuoteDetailPage = () => {
           </div>
 
           <div className="flex gap-2">
+            {/* Botón Descargar PDF */}
+            <button
+              onClick={handleDownloadPDF}
+              disabled={downloadingPDF}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              {downloadingPDF ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              PDF
+            </button>
+
+            {/* Botón Enviar Email */}
+            <button
+              onClick={handleOpenEmailModal}
+              className="flex items-center gap-2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Enviar
+            </button>
+
+            {/* Botón Trazabilidad */}
+            <button
+              onClick={() => setShowTraceability(true)}
+              className="flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200 transition-colors"
+            >
+              <GitBranch className="w-4 h-4" />
+              Trazabilidad
+            </button>
+
             {canConvert && (
-              <button
-                onClick={handleConvertToSale}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Convertir a Venta
-              </button>
+              <>
+                <button
+                  onClick={handleConvertToOrder}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  Convertir a Pedido
+                </button>
+                <button
+                  onClick={handleConvertToSale}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Convertir a Venta
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -370,6 +481,69 @@ const QuoteDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de envío por email */}
+      {emailModal.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Enviar Presupuesto por Email</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email del destinatario
+              </label>
+              <input
+                type="email"
+                value={emailModal.email}
+                onChange={(e) => setEmailModal({ ...emailModal, email: e.target.value })}
+                placeholder="cliente@ejemplo.com"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+            <p className="text-sm text-gray-500 mb-4">
+              Se enviará el presupuesto {quote?.quoteNumber} en formato PDF al email indicado.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setEmailModal({ show: false, email: '' })}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                disabled={sendEmailMutation.isPending}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={sendEmailMutation.isPending || !emailModal.email}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {sendEmailMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Enviando...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    Enviar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialogs personalizados */}
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
+
+      {/* Traceability Modal */}
+      <TraceabilityModal
+        isOpen={showTraceability}
+        onClose={() => setShowTraceability(false)}
+        documentType="quote"
+        documentId={id || ''}
+      />
     </div>
   )
 }

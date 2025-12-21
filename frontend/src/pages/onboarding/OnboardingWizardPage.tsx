@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWizard } from '../../hooks/useWizard'
 import { useAuthStore } from '../../stores/authStore' // Usado en handleNext para logout
+import { useDialog } from '../../hooks/useDialog'
 import { WizardContainer } from '../../components/wizard/WizardContainer'
 import { WizardProgress } from '../../components/wizard/WizardProgress'
 import { WizardNavigation } from '../../components/wizard/WizardNavigation'
@@ -19,6 +20,7 @@ import { Step11Summary } from './steps/Step11Summary'
 
 export default function OnboardingWizardPage() {
   const navigate = useNavigate()
+  const dialog = useDialog()
   const {
     currentStep,
     totalSteps,
@@ -68,36 +70,36 @@ export default function OnboardingWizardPage() {
           !wizardData.vatConditionId ||
           !wizardData.activityStartDate
         ) {
-          alert('Por favor completa todos los campos requeridos')
+          dialog.warning('Por favor completa todos los campos requeridos')
           return false
         }
         break
       case 4: // Tipos de comprobantes
         if (!wizardData.voucherTypes || wizardData.voucherTypes.length === 0) {
-          alert('Debes seleccionar al menos un tipo de comprobante')
+          dialog.warning('Debes seleccionar al menos un tipo de comprobante')
           return false
         }
         const hasFactura = wizardData.voucherTypes.some((t) => ['FA', 'FB', 'FC'].includes(t))
         if (!hasFactura) {
-          alert('Debes seleccionar al menos un tipo de factura (A, B o C)')
+          dialog.warning('Debes seleccionar al menos un tipo de factura (A, B o C)')
           return false
         }
         break
       case 6: // Formas de pago
         if (!wizardData.paymentMethods || wizardData.paymentMethods.length === 0) {
-          alert('Debes seleccionar al menos una forma de pago')
+          dialog.warning('Debes seleccionar al menos una forma de pago')
           return false
         }
         break
       case 7: // Categorías
         if (!wizardData.categories || wizardData.categories.length === 0) {
-          alert('Debes seleccionar al menos una categoría')
+          dialog.warning('Debes seleccionar al menos una categoría')
           return false
         }
         break
       case 8: // Almacenes
         if (!wizardData.warehouses || wizardData.warehouses.length === 0) {
-          alert('Debes configurar al menos un almacén')
+          dialog.warning('Debes configurar al menos un almacén')
           return false
         }
         break
@@ -172,6 +174,9 @@ export default function OnboardingWizardPage() {
         isLastStep={currentStep === totalSteps}
         isNextDisabled={isNextDisabled()}
       />
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </WizardContainer>
   )
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { Search, Eye, Wallet } from 'lucide-react'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
@@ -70,7 +70,7 @@ export default function EntityAccountsListPage({ type }: EntityAccountsListPageP
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="text"
                   placeholder="Buscar por nombre o código..."
@@ -110,9 +110,7 @@ export default function EntityAccountsListPage({ type }: EntityAccountsListPageP
             </div>
           ) : !balances || balances.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                💰
-              </div>
+              <Wallet className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">
                 Sin {isCustomer ? 'clientes' : 'proveedores'}
               </h3>
@@ -190,7 +188,7 @@ export default function EntityAccountsListPage({ type }: EntityAccountsListPageP
                           onClick={() => handleViewAccount(balance.entityId)}
                           title="Ver cuenta corriente"
                         >
-                          <EyeIcon className="h-4 w-4 mr-1" />
+                          <Eye className="h-4 w-4 mr-1" />
                           Ver Cuenta
                         </Button>
                       </td>

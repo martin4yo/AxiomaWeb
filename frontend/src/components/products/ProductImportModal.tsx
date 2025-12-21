@@ -5,6 +5,7 @@ import { Button } from '../ui/Button'
 import { useAuthStore } from '../../stores/authStore'
 import { api } from '../../services/api'
 import { ArrowUpTrayIcon, DocumentTextIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
+import { useDialog } from '../../hooks/useDialog'
 
 interface ProductImportModalProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ interface ImportResult {
 export function ProductImportModal({ isOpen, onClose }: ProductImportModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
@@ -48,7 +50,7 @@ export function ProductImportModal({ isOpen, onClose }: ProductImportModalProps)
     },
     onError: (error: any) => {
       console.error('Error importing products:', error)
-      alert(error.response?.data?.error || 'Error al importar productos')
+      dialog.error(error.response?.data?.error || 'Error al importar productos')
     }
   })
 
@@ -80,7 +82,7 @@ export function ProductImportModal({ isOpen, onClose }: ProductImportModalProps)
         setSelectedFile(file)
         setImportResult(null)
       } else {
-        alert('Solo se permiten archivos Excel (.xls, .xlsx)')
+        dialog.warning('Solo se permiten archivos Excel (.xls, .xlsx)')
       }
     }
   }
@@ -290,6 +292,8 @@ export function ProductImportModal({ isOpen, onClose }: ProductImportModalProps)
           </>
         )}
       </div>
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </Modal>
   )
 }

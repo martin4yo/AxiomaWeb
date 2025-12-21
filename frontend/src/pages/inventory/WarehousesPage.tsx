@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { api } from '../../services/api'
+import { useDialog } from '../../hooks/useDialog'
 
 const warehouseSchema = z.object({
   code: z.string().min(1, 'El código es requerido'),
@@ -20,6 +21,7 @@ type WarehouseForm = z.infer<typeof warehouseSchema>
 export default function WarehousesPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [showModal, setShowModal] = useState(false)
   const [selectedWarehouse, setSelectedWarehouse] = useState<any>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
@@ -54,16 +56,16 @@ export default function WarehousesPage() {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] })
       reset()
       setShowModal(false)
-      alert('Almacén creado exitosamente')
+      dialog.success('Almacén creado exitosamente')
     },
     onError: (error: any) => {
       console.error('[ERROR] Error al crear almacén:', error)
       console.error('[ERROR] Detalle del error:', error.response?.data)
       const errorMessage = error.response?.data?.error || error.message || 'Error al crear almacén'
       if (errorMessage.includes('Unique constraint') || errorMessage.includes('unique constraint')) {
-        alert('Ya existe un almacén con ese código. Por favor, use un código diferente.')
+        dialog.error('Ya existe un almacén con ese código. Por favor, use un código diferente.')
       } else {
-        alert(errorMessage)
+        dialog.error(errorMessage)
       }
     }
   })
@@ -78,10 +80,10 @@ export default function WarehousesPage() {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] })
       setShowModal(false)
       setSelectedWarehouse(null)
-      alert('Almacén actualizado exitosamente')
+      dialog.success('Almacén actualizado exitosamente')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al actualizar almacén')
+      dialog.error(error.response?.data?.error || 'Error al actualizar almacén')
     }
   })
 
@@ -93,10 +95,10 @@ export default function WarehousesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['warehouses'] })
-      alert('Almacén eliminado exitosamente')
+      dialog.success('Almacén eliminado exitosamente')
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al eliminar almacén')
+      dialog.error(error.response?.data?.error || 'Error al eliminar almacén')
     }
   })
 
@@ -115,9 +117,11 @@ export default function WarehousesPage() {
   }
 
   const handleDelete = (warehouse: any) => {
-    if (confirm(`¿Estás seguro de eliminar el almacén "${warehouse.name}"?`)) {
-      deleteWarehouse.mutate(warehouse.id)
-    }
+    dialog.confirm(
+      `¿Estás seguro de eliminar el almacén "${warehouse.name}"?`,
+      () => deleteWarehouse.mutate(warehouse.id),
+      'Eliminar Almacén'
+    )
   }
 
   const onSubmit = (data: WarehouseForm) => {
@@ -328,6 +332,9 @@ export default function WarehousesPage() {
           </div>
         </div>
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

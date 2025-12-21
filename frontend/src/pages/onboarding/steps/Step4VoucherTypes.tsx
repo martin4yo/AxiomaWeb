@@ -1,9 +1,7 @@
 import { useEffect, useMemo } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
-import { useAuthStore } from '../../../stores/authStore'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '../../../services/api'
 
 interface Step4Props {
   wizardData: WizardData
@@ -24,60 +22,41 @@ const allVoucherOptions = [
 ]
 
 export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
-  const { currentTenant } = useAuthStore()
-
-  // Obtener condiciones de IVA para determinar cuál seleccionó el tenant
-  const { data: vatConditions } = useQuery({
-    queryKey: [currentTenant?.slug, 'vat-conditions'],
-    queryFn: async () => {
-      const response = await api.get(`/${currentTenant?.slug}/vat-conditions`)
-      return response.data
-    },
-    enabled: !!currentTenant?.slug
-  })
-
-  // Determinar la condición de IVA seleccionada en el paso 2
-  const selectedVatCondition = useMemo(() => {
-    if (!vatConditions || !wizardData.vatConditionId) return null
-    return vatConditions.find((vc: any) => vc.id === wizardData.vatConditionId)
-  }, [vatConditions, wizardData.vatConditionId])
+  // Usar el código de condición IVA guardado en el paso 2
+  const vatConditionCode = wizardData.vatConditionCode
 
   // Filtrar comprobantes según condición de IVA del tenant
   const voucherOptions = useMemo(() => {
-    if (!selectedVatCondition) return allVoucherOptions
+    if (!vatConditionCode) return allVoucherOptions
 
-    const code = selectedVatCondition.code
-    if (code === 'MT') {
+    if (vatConditionCode === 'MT') {
       // Monotributista: Solo C y Presupuesto
       return allVoucherOptions.filter(v => v.group === 'C' || v.group === 'PRE')
-    } else if (code === 'RI') {
+    } else if (vatConditionCode === 'RI') {
       // Responsable Inscripto: A, B y Presupuesto
       return allVoucherOptions.filter(v => v.group === 'A' || v.group === 'B' || v.group === 'PRE')
-    } else if (code === 'EX') {
+    } else if (vatConditionCode === 'EX') {
       // Exento: Solo B y Presupuesto
       return allVoucherOptions.filter(v => v.group === 'B' || v.group === 'PRE')
     }
     return allVoucherOptions
-  }, [selectedVatCondition])
+  }, [vatConditionCode])
 
   const selectedTypes = wizardData.voucherTypes || []
 
-  // useEffect para inicializar los valores por defecto al montar o cambiar las opciones
+  // useEffect para inicializar/actualizar los comprobantes cuando cambia la condición IVA
   useEffect(() => {
-    if (voucherOptions.length > 0) {
-      // Filtrar los seleccionados actuales para mantener solo los válidos
-      const validCodes = voucherOptions.map(v => v.code)
-      const currentValid = selectedTypes.filter(code => validCodes.includes(code))
+    const validCodes = voucherOptions.map(v => v.code)
+    const currentValid = selectedTypes.filter(code => validCodes.includes(code))
 
-      // Si no hay selección o la selección actual no tiene comprobantes válidos, seleccionar todos
-      if (currentValid.length === 0) {
-        onUpdate({ voucherTypes: validCodes })
-      } else if (currentValid.length !== selectedTypes.length) {
-        // Si hay diferencia, actualizar para quitar los inválidos
-        onUpdate({ voucherTypes: currentValid })
-      }
+    // Si no hay selección válida, seleccionar todos los disponibles
+    if (currentValid.length === 0) {
+      onUpdate({ voucherTypes: validCodes })
+    } else if (currentValid.length !== selectedTypes.length) {
+      // Si hay diferencia, actualizar para quitar los inválidos
+      onUpdate({ voucherTypes: currentValid })
     }
-  }, [voucherOptions])
+  }, [vatConditionCode, voucherOptions.length])
 
   const toggleVoucherType = (code: string) => {
     const newTypes = selectedTypes.includes(code)
@@ -139,13 +118,13 @@ export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
 
         {!hasFacturaSelected && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-yellow-800">
-              ⚠️ Debes seleccionar al menos un tipo de factura
+            <p className="text-sm text-yellow-800 flex items-center gap-1">
+              <AlertTriangle className="h-4 w-4" /> Debes seleccionar al menos un tipo de factura
             </p>
           </div>
         )}
 
-        {selectedVatCondition?.code === 'MT' && (
+        {vatConditionCode === 'MT' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
               <strong>Monotributista:</strong> Solo puedes emitir comprobantes tipo C (Factura C, NC C, ND C) y Presupuestos.
@@ -153,10 +132,18 @@ export function Step4VoucherTypes({ wizardData, onUpdate }: Step4Props) {
           </div>
         )}
 
-        {selectedVatCondition?.code === 'RI' && (
+        {vatConditionCode === 'RI' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800">
               <strong>Responsable Inscripto:</strong> Emitirás Factura A para clientes RI, y Factura B para Consumidor Final, Monotributo y Exento.
+            </p>
+          </div>
+        )}
+
+        {vatConditionCode === 'EX' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Exento:</strong> Solo puedes emitir comprobantes tipo B y Presupuestos.
             </p>
           </div>
         )}

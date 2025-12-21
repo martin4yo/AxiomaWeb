@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Trash2, ChevronDown, ChevronUp, Edit3 } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp, Edit3, AlertTriangle, Zap, X, Check } from 'lucide-react'
 import { api as axios } from '../../services/api'
 import { salesApi, SaleItem as APISaleItem, SalePayment as APISalePayment } from '../../api/sales'
 import { quotesApi } from '../../api/quotes'
+import { ordersApi } from '../../api/orders'
 import { useAuthStore } from '../../stores/authStore'
 import { AlertDialog } from '../../components/ui/AlertDialog'
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
@@ -92,6 +93,7 @@ export default function NewSalePage() {
   const { currentTenant } = useAuthStore()
   const [searchParams] = useSearchParams()
   const fromQuoteId = searchParams.get('fromQuote')
+  const fromOrderId = searchParams.get('fromOrder')
   const inputRef = useRef<HTMLInputElement>(null)
   const quantityRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   const priceRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
@@ -119,6 +121,7 @@ export default function NewSalePage() {
   const [alertDialog, setAlertDialog] = useState<{ show: boolean; title: string; message: string; type: 'error' | 'warning' | 'info' | 'success' }>({ show: false, title: '', message: '', type: 'info' })
   const [originSale, setOriginSale] = useState<any>(null)
   const [originQuoteId, setOriginQuoteId] = useState<string | null>(null)
+  const [originOrderId, setOriginOrderId] = useState<string | null>(null)
   const [showSaleSearchModal, setShowSaleSearchModal] = useState(false)
 
   // AFIP Progress Modal
@@ -302,6 +305,28 @@ export default function NewSalePage() {
           queryClient.invalidateQueries({ queryKey: ['quotes'] })
         } catch (error: any) {
           console.error('[QuoteConversion] Error registering conversion:', error)
+          // No bloquear el flujo por error en conversión, solo logear
+        }
+      }
+
+      // Si viene de un pedido, registrar la conversión
+      if (originOrderId) {
+        try {
+          console.log('[OrderConversion] Registering conversion for order:', originOrderId)
+          // Construir array de items convertidos desde el carrito
+          const itemsConverted = cart.map(item => ({
+            orderItemId: item.lineId, // lineId contiene el orderItemId original
+            quantityConverted: item.quantity
+          }))
+
+          // Registrar conversión en el backend
+          await ordersApi.recordSaleConversion(originOrderId, itemsConverted, response.sale.id)
+          console.log('[OrderConversion] Conversion registered successfully')
+
+          // Invalidar queries de pedidos
+          queryClient.invalidateQueries({ queryKey: ['orders'] })
+        } catch (error: any) {
+          console.error('[OrderConversion] Error registering conversion:', error)
           // No bloquear el flujo por error en conversión, solo logear
         }
       }
@@ -504,12 +529,64 @@ export default function NewSalePage() {
 
       } catch (error: any) {
         console.error('[LoadFromQuote] Error loading quote:', error)
-        alert(`Error al cargar presupuesto: ${error.response?.data?.error || error.message}`)
+        showAlert('Error', `Error al cargar presupuesto: ${error.response?.data?.error || error.message}`, 'error')
       }
     }
 
     loadFromQuote()
   }, [fromQuoteId, currentTenant, customersData])
+
+  // Load data from order if fromOrder parameter is present
+  useEffect(() => {
+    const loadFromOrder = async () => {
+      if (!fromOrderId || !currentTenant || !customersData) return
+
+      try {
+        console.log('[LoadFromOrder] Loading order data:', fromOrderId)
+        const conversionData = await ordersApi.getConversionData(fromOrderId)
+        console.log('[LoadFromOrder] Order data loaded:', conversionData)
+
+        // Set customer
+        if (conversionData.customerId) {
+          const customer = customersData.find((c: Customer) => c.id === conversionData.customerId)
+          if (customer) {
+            setSelectedCustomer(customer)
+          }
+        }
+
+        // Set notes
+        if (conversionData.notes) {
+          setNotes(conversionData.notes)
+        }
+
+        // Set cart items
+        if (conversionData.items && conversionData.items.length > 0) {
+          const cartItems: SaleItem[] = conversionData.items.map((item: any) => ({
+            lineId: item.orderItemId, // Use orderItemId as lineId to track conversion
+            productId: item.productId,
+            productSku: '', // Will be filled when product data is available
+            productName: item.productName,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discountPercent: item.discountPercent || 0,
+            lineTotal: item.quantity * item.unitPrice * (1 - (item.discountPercent || 0) / 100)
+          }))
+          setCart(cartItems)
+          console.log('[LoadFromOrder] Cart loaded with', cartItems.length, 'items')
+        }
+
+        // Store order ID for later use when creating the sale
+        setOriginOrderId(fromOrderId)
+
+      } catch (error: any) {
+        console.error('[LoadFromOrder] Error loading order:', error)
+        showAlert('Error', `Error al cargar pedido: ${error.response?.data?.error || error.message}`, 'error')
+      }
+    }
+
+    loadFromOrder()
+  }, [fromOrderId, currentTenant, customersData])
 
   // Auto-select default warehouse when data changes or warehouse is null
   useEffect(() => {
@@ -568,12 +645,14 @@ export default function NewSalePage() {
       console.log('[Voucher] Determining voucher type...', {
         hasCustomer: !!selectedCustomer,
         hasTenant: !!currentTenant,
+        hasBranch: !!selectedBranch,
         documentClass,
         branchId: selectedBranch?.id
       })
 
-      if (!selectedCustomer || !currentTenant) {
-        console.log('[Voucher] Missing customer or tenant, clearing voucherInfo')
+      // Esperar a que todos los datos necesarios estén disponibles
+      if (!selectedCustomer || !currentTenant || !selectedBranch) {
+        console.log('[Voucher] Missing required data (customer, tenant, or branch), clearing voucherInfo')
         setVoucherInfo(null)
         return
       }
@@ -584,12 +663,12 @@ export default function NewSalePage() {
           customerName: selectedCustomer.name,
           customerIvaCondition: selectedCustomer.ivaCondition,
           documentClass,
-          branchId: selectedBranch?.id
+          branchId: selectedBranch.id
         })
         const response = await axios.post(`/${currentTenant.slug}/voucher/determine`, {
           customerId: selectedCustomer.id,
           documentClass,
-          branchId: selectedBranch?.id
+          branchId: selectedBranch.id
         })
         console.log('[Voucher] API response:', response.data)
         setVoucherInfo(response.data)
@@ -1012,7 +1091,9 @@ export default function NewSalePage() {
       notes: notes || undefined,
       shouldInvoice: voucherInfo?.requiresCae || false,
       documentClass,
-      originSaleId: originSale?.id
+      originSaleId: originSale?.id,
+      orderId: originOrderId || undefined,
+      quoteId: originQuoteId || undefined
     }
 
     createSaleMutation.mutate(saleData)
@@ -1078,7 +1159,9 @@ export default function NewSalePage() {
         notes: notes || undefined,
         shouldInvoice: voucherInfo?.requiresCae || false,
         documentClass,
-        originSaleId: originSale?.id
+        originSaleId: originSale?.id,
+        orderId: originOrderId || undefined,
+        quoteId: originQuoteId || undefined
       }
 
       createSaleMutation.mutate(saleData)
@@ -1319,7 +1402,7 @@ export default function NewSalePage() {
                 </div>
                 {voucherInfo.requiresCae && (
                   <div className="text-xs text-blue-700">
-                    ⚡ Requiere CAE de AFIP
+                    <Zap className="h-3 w-3 inline mr-1" />Requiere CAE de AFIP
                   </div>
                 )}
                 {voucherInfo.salesPoint && (
@@ -1488,8 +1571,8 @@ export default function NewSalePage() {
                           </div>
                         )}
                         {hasError && (
-                          <div className="text-xs text-red-600 font-semibold mt-1">
-                            ⚠ Cantidad o precio no puede ser 0
+                          <div className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" /> Cantidad o precio no puede ser 0
                           </div>
                         )}
                       </div>
@@ -1725,7 +1808,7 @@ export default function NewSalePage() {
                           onClick={() => setPayments(payments.filter((_, i) => i !== index))}
                           className="text-red-600 hover:text-red-700"
                         >
-                          ✕
+                          <X className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -1756,7 +1839,7 @@ export default function NewSalePage() {
                     </>
                   ) : (
                     <>
-                      <span className="text-green-600">✓ Completo</span>
+                      <span className="text-green-600 flex items-center gap-1"><Check className="h-4 w-4" /> Completo</span>
                     </>
                   )}
                 </div>

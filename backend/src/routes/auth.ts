@@ -98,15 +98,16 @@ router.post('/register', async (req, res, next) => {
       })
 
       // Create default VAT conditions
+      // afipDocumentType: 80=CUIT, 96=DNI (para CF)
       const defaultVatConditions = [
         {
           tenantId: tenant.id,
           code: 'RI',
           name: 'Responsable Inscripto',
           description: 'Responsable Inscripto en IVA',
-          taxRate: 21,
           isExempt: false,
           afipCode: 1,
+          afipDocumentType: 80, // CUIT
           canIssueA: true,
           issuesOnlyC: false,
           allowedVoucherTypes: ['FA', 'NCA', 'NDA', 'FB', 'NCB', 'NDB', 'FC', 'NCC']
@@ -116,9 +117,9 @@ router.post('/register', async (req, res, next) => {
           code: 'MT',
           name: 'Monotributo',
           description: 'Régimen Simplificado (Monotributo)',
-          taxRate: 0,
           isExempt: true,
           afipCode: 6,
+          afipDocumentType: 80, // CUIT
           canIssueA: false,
           issuesOnlyC: true,
           allowedVoucherTypes: ['FC', 'NCC']
@@ -128,9 +129,9 @@ router.post('/register', async (req, res, next) => {
           code: 'CF',
           name: 'Consumidor Final',
           description: 'Consumidor Final',
-          taxRate: 21,
           isExempt: false,
           afipCode: 5,
+          afipDocumentType: 96, // DNI
           canIssueA: false,
           issuesOnlyC: true,
           allowedVoucherTypes: ['FB', 'NCB', 'NDB', 'FC', 'NCC']
@@ -140,9 +141,9 @@ router.post('/register', async (req, res, next) => {
           code: 'EX',
           name: 'Exento',
           description: 'Sujeto Exento',
-          taxRate: 0,
           isExempt: true,
           afipCode: 4,
+          afipDocumentType: 80, // CUIT
           canIssueA: false,
           issuesOnlyC: false,
           allowedVoucherTypes: ['FB', 'NCB', 'FC', 'NCC']
@@ -152,9 +153,9 @@ router.post('/register', async (req, res, next) => {
           code: 'NR',
           name: 'No Responsable',
           description: 'No Responsable',
-          taxRate: 0,
           isExempt: false,
           afipCode: 7,
+          afipDocumentType: 80, // CUIT
           canIssueA: false,
           issuesOnlyC: true,
           allowedVoucherTypes: ['FC', 'NCC']
@@ -222,13 +223,13 @@ router.post('/login', async (req, res, next) => {
     })
 
     if (!user || !user.isActive) {
-      throw new AppError('Invalid credentials', 401)
+      throw new AppError('Credenciales inválidas', 401)
     }
 
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash)
     if (!isPasswordValid) {
-      throw new AppError('Invalid credentials', 401)
+      throw new AppError('Credenciales inválidas', 401)
     }
 
     // Update last login

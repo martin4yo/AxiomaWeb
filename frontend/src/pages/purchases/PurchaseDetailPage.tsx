@@ -2,12 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { purchasesApi } from '../../api/purchases';
 import { useAuthStore } from '../../stores/authStore';
+import { useDialog } from '../../hooks/useDialog';
 
 export default function PurchaseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentTenant } = useAuthStore();
   const queryClient = useQueryClient();
+  const dialog = useDialog();
 
   const { data: purchase, isLoading } = useQuery({
     queryKey: ['purchase', currentTenant?.slug, id],
@@ -20,17 +22,19 @@ export default function PurchaseDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase', currentTenant?.slug, id] });
       queryClient.invalidateQueries({ queryKey: ['purchases', currentTenant?.slug] });
-      alert('Compra cancelada exitosamente');
+      dialog.success('Compra cancelada exitosamente');
     },
     onError: (error: any) => {
-      alert(error.response?.data?.error || 'Error al cancelar la compra');
+      dialog.error(error.response?.data?.error || 'Error al cancelar la compra');
     },
   });
 
   const handleCancel = () => {
-    if (confirm('¿Estás seguro de que deseas cancelar esta compra? Esta acción revertirá el stock.')) {
-      cancelMutation.mutate();
-    }
+    dialog.confirm(
+      '¿Estás seguro de que deseas cancelar esta compra? Esta acción revertirá el stock.',
+      () => cancelMutation.mutate(),
+      'Cancelar Compra'
+    );
   };
 
   const getStatusBadge = (status: string) => {
@@ -315,6 +319,9 @@ export default function PurchaseDetailPage() {
           </button>
         )}
       </div>
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   );
 }

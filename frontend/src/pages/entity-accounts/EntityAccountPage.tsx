@@ -1,12 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useNavigate } from 'react-router-dom'
-import {
-  ArrowLeftIcon,
-  PlusIcon,
-  DocumentArrowDownIcon,
-  CalendarIcon
-} from '@heroicons/react/24/outline'
+import { ArrowLeft, Plus, FileDown, Calendar, ClipboardList } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { Card } from '../../components/ui/Card'
@@ -17,11 +12,13 @@ import { useAuthStore } from '../../stores/authStore'
 import { entityAccountService } from '../../services/entityAccountService'
 import { PaymentModal } from '../../components/entity-accounts/PaymentModal'
 import { api } from '../../services/api'
+import { useDialog } from '../../hooks/useDialog'
 
 export default function EntityAccountPage() {
   const { entityId } = useParams<{ entityId: string }>()
   const navigate = useNavigate()
   const { currentTenant } = useAuthStore()
+  const dialog = useDialog()
 
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -64,7 +61,7 @@ export default function EntityAccountPage() {
 
       // TODO: Implementar generación de PDF
       console.log('Export PDF:', statement)
-      alert('Exportación a PDF próximamente')
+      dialog.info('Exportación a PDF próximamente')
     } catch (error) {
       console.error('Error exporting PDF:', error)
     }
@@ -112,13 +109,13 @@ export default function EntityAccountPage() {
   const actions = [
     {
       label: 'Exportar PDF',
-      icon: DocumentArrowDownIcon,
+      icon: FileDown,
       onClick: handleExportPDF,
       variant: 'secondary' as const
     },
     {
       label: 'Registrar Pago',
-      icon: PlusIcon,
+      icon: Plus,
       onClick: () => setShowPaymentModal(true),
       variant: 'primary' as const
     }
@@ -134,7 +131,7 @@ export default function EntityAccountPage() {
             size="sm"
             onClick={() => navigate(-1)}
           >
-            <ArrowLeftIcon className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
@@ -210,7 +207,7 @@ export default function EntityAccountPage() {
                 Desde
               </label>
               <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="date"
                   value={dateFrom}
@@ -224,7 +221,7 @@ export default function EntityAccountPage() {
                 Hasta
               </label>
               <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   type="date"
                   value={dateTo}
@@ -299,9 +296,7 @@ export default function EntityAccountPage() {
             </div>
           ) : !movementsData || movementsData.movements.length === 0 ? (
             <div className="text-center py-12">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                📋
-              </div>
+              <ClipboardList className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">Sin movimientos</h3>
               <p className="mt-1 text-sm text-gray-500">
                 No hay movimientos en el período seleccionado.
@@ -380,6 +375,9 @@ export default function EntityAccountPage() {
           type={entity.isCustomer ? 'customer' : 'supplier'}
         />
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Check } from 'lucide-react'
 import { WizardStep } from '../../../components/wizard/WizardStep'
 import { WizardData } from '../../../hooks/useWizard'
 
@@ -103,8 +104,8 @@ export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {(certFileName || wizardData.afipCertificateContent) && (
-              <p className="text-xs text-green-600 mt-1">
-                ✓ {certFileName || 'Certificado cargado'}
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <Check className="h-3 w-3" /> {certFileName || 'Certificado cargado'}
               </p>
             )}
           </div>
@@ -122,8 +123,8 @@ export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             {(keyFileName || wizardData.afipPrivateKeyContent) && (
-              <p className="text-xs text-green-600 mt-1">
-                ✓ {keyFileName || 'Clave cargada'}
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <Check className="h-3 w-3" /> {keyFileName || 'Clave cargada'}
               </p>
             )}
           </div>
@@ -164,7 +165,7 @@ export function Step3AfipConfig({ wizardData, onUpdate }: Step3Props) {
               {testStatus === 'testing'
                 ? 'Probando conexión...'
                 : testStatus === 'success'
-                ? '✓ Conexión exitosa'
+                ? 'Conexión exitosa'
                 : 'Probar conexión con AFIP'}
             </button>
           </div>

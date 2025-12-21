@@ -107,7 +107,26 @@ async function deleteTenant(slug: string) {
   // 4. Eliminar el tenant (cascade borra todo lo relacionado)
   console.log('\n🗑️  Eliminando tenant y todos sus datos...')
 
-  // Primero eliminar el tenant (cascade eliminará TenantUser y todo lo relacionado)
+  // Primero eliminar registros que pueden tener FK problemáticas
+  // Borrar pagos de ventas
+  await prisma.salePayment.deleteMany({
+    where: { sale: { tenantId: tenant.id } }
+  })
+  console.log(`   ✓ Pagos de ventas eliminados`)
+
+  // Borrar items de ventas
+  await prisma.saleItem.deleteMany({
+    where: { sale: { tenantId: tenant.id } }
+  })
+  console.log(`   ✓ Items de ventas eliminados`)
+
+  // Borrar ventas
+  await prisma.sale.deleteMany({
+    where: { tenantId: tenant.id }
+  })
+  console.log(`   ✓ Ventas eliminadas`)
+
+  // Ahora eliminar el tenant (cascade eliminará TenantUser y todo lo relacionado)
   await prisma.tenant.delete({
     where: { id: tenant.id }
   })

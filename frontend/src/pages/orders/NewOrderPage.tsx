@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Trash2, Edit3, X, Save, Check } from 'lucide-react'
+import { Trash2, Edit3, X, Save, Check, AlertTriangle } from 'lucide-react'
 import { api as axios } from '../../services/api'
-import { quotesApi } from '../../api/quotes'
+import { ordersApi, StockBehavior } from '../../api/orders'
+import { quotesOrderApi } from '../../api/orders'
 import { useAuthStore } from '../../stores/authStore'
 import { useDialog } from '../../hooks/useDialog'
 
@@ -23,7 +24,13 @@ interface Customer {
   email?: string
 }
 
-interface QuoteItem {
+interface Warehouse {
+  id: string
+  name: string
+  isActive: boolean
+}
+
+interface OrderItem {
   lineId: string
   productId: string
   productSku: string
@@ -33,10 +40,13 @@ interface QuoteItem {
   unitPrice: number
   discountPercent: number
   lineTotal: number
+  quoteItemId?: string // Para conversion desde presupuesto
 }
 
-export default function NewQuotePage() {
+export default function NewOrderPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const fromQuoteId = searchParams.get('fromQuote')
   const { currentTenant } = useAuthStore()
   const dialog = useDialog()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -48,19 +58,14 @@ export default function NewQuotePage() {
   const [hasAutoSwitched, setHasAutoSwitched] = useState(false)
   const [productSearchTerm, setProductSearchTerm] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [cart, setCart] = useState<QuoteItem[]>([])
+  const [selectedWarehouse, setSelectedWarehouse] = useState<Warehouse | null>(null)
+  const [stockBehavior, setStockBehavior] = useState<StockBehavior>('NONE')
+  const [cart, setCart] = useState<OrderItem[]>([])
   const [notes, setNotes] = useState('')
-  const [termsAndConditions, setTermsAndConditions] = useState('')
   const [internalNotes, setInternalNotes] = useState('')
-
-  // Set default validity date to 15 days from today
-  const getDefaultValidityDate = () => {
-    const date = new Date()
-    date.setDate(date.getDate() + 15)
-    return date.toISOString().split('T')[0]
-  }
-  const [validUntil, setValidUntil] = useState(getDefaultValidityDate())
+  const [expectedDate, setExpectedDate] = useState('')
   const [editingDescription, setEditingDescription] = useState<{ lineId: string; description: string } | null>(null)
+  const [quoteNumber, setQuoteNumber] = useState<string | null>(null)
 
   // Queries
   const { data: customersData } = useQuery({
@@ -70,6 +75,15 @@ export default function NewQuotePage() {
         params: { isCustomer: true, limit: 1000 }
       })
       return response.data.entities
+    },
+    enabled: !!currentTenant
+  })
+
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses', currentTenant?.slug],
+    queryFn: async () => {
+      const response = await axios.get(`/${currentTenant!.slug}/inventory/warehouses`)
+      return response.data
     },
     enabled: !!currentTenant
   })
@@ -85,27 +99,69 @@ export default function NewQuotePage() {
     enabled: !!currentTenant
   })
 
-  // Mutation para crear presupuesto
-  const createQuoteMutation = useMutation({
+  // Query para cargar datos del presupuesto si viene de conversion
+  const { data: quoteConversionData, isLoading: isLoadingQuote } = useQuery({
+    queryKey: ['quote-order-conversion', fromQuoteId],
+    queryFn: () => quotesOrderApi.getOrderConversionData(fromQuoteId!),
+    enabled: !!fromQuoteId && !!currentTenant
+  })
+
+  // Cargar datos del presupuesto
+  useEffect(() => {
+    if (quoteConversionData && customersData) {
+      setQuoteNumber(quoteConversionData.quoteNumber)
+
+      // Seleccionar cliente
+      if (quoteConversionData.customerId) {
+        const customer = customersData.find((c: Customer) => c.id === quoteConversionData.customerId)
+        if (customer) setSelectedCustomer(customer)
+      }
+
+      // Cargar items
+      const items: OrderItem[] = quoteConversionData.items.map((item: any, index: number) => ({
+        lineId: `line-${Date.now()}-${index}`,
+        productId: item.productId,
+        productSku: '',
+        productName: item.productName,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountPercent: item.discountPercent,
+        lineTotal: item.quantity * item.unitPrice * (1 - item.discountPercent / 100),
+        quoteItemId: item.quoteItemId
+      }))
+      setCart(items)
+
+      // Notas
+      if (quoteConversionData.notes) setNotes(quoteConversionData.notes)
+
+      // Ir a la tab de productos
+      setActiveTab('products')
+      setHasAutoSwitched(true)
+    }
+  }, [quoteConversionData, customersData])
+
+  // Mutation para crear pedido
+  const createOrderMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await quotesApi.createQuote(data)
+      return await ordersApi.createOrder(data)
     },
     onSuccess: () => {
-      dialog.success('Presupuesto creado exitosamente')
-      navigate('/quotes')
+      dialog.success('Pedido creado exitosamente')
+      navigate('/orders')
     },
     onError: (error: any) => {
       dialog.error(error.response?.data?.error || error.message)
     }
   })
 
-  // Auto-switch to products tab when header is complete (only once)
+  // Auto-switch to products tab when header is complete
   useEffect(() => {
-    if (selectedCustomer && !hasAutoSwitched) {
+    if (selectedCustomer && !hasAutoSwitched && !fromQuoteId) {
       setActiveTab('products')
       setHasAutoSwitched(true)
     }
-  }, [selectedCustomer, hasAutoSwitched])
+  }, [selectedCustomer, hasAutoSwitched, fromQuoteId])
 
   // Focus input when switching to products tab
   useEffect(() => {
@@ -119,35 +175,29 @@ export default function NewQuotePage() {
     const existingItem = cart.find(item => item.productId === product.id)
 
     if (existingItem) {
-      // Incrementar cantidad
       const newQuantity = existingItem.quantity + 1
-      const newLineTotal = Number(newQuantity) * Number(existingItem.unitPrice) * (1 - Number(existingItem.discountPercent) / 100)
+      const newLineTotal = newQuantity * existingItem.unitPrice * (1 - existingItem.discountPercent / 100)
       setCart(cart.map(item =>
         item.productId === product.id
           ? { ...item, quantity: newQuantity, lineTotal: newLineTotal }
           : item
       ))
-
-      // Focus en el input de cantidad
       setTimeout(() => {
         quantityRefs.current[existingItem.lineId]?.select()
       }, 100)
     } else {
-      // Agregar nuevo item
       const unitPrice = Number(product.salePrice)
-      const newItem: QuoteItem = {
+      const newItem: OrderItem = {
         lineId: `line-${Date.now()}`,
         productId: product.id,
         productSku: product.sku,
         productName: product.name,
         quantity: 1,
-        unitPrice: unitPrice,
+        unitPrice,
         discountPercent: 0,
         lineTotal: unitPrice
       }
       setCart([...cart, newItem])
-
-      // Focus en el input de cantidad del nuevo item
       setTimeout(() => {
         quantityRefs.current[newItem.lineId]?.select()
       }, 100)
@@ -157,7 +207,6 @@ export default function NewQuotePage() {
     inputRef.current?.focus()
   }
 
-  // Actualizar cantidad
   const updateQuantity = (lineId: string, value: string) => {
     const quantity = Number(value) || 0
     if (quantity <= 0) {
@@ -166,45 +215,41 @@ export default function NewQuotePage() {
     }
     setCart(cart.map(item => {
       if (item.lineId === lineId) {
-        const lineTotal = Number(quantity) * Number(item.unitPrice) * (1 - Number(item.discountPercent) / 100)
+        const lineTotal = quantity * item.unitPrice * (1 - item.discountPercent / 100)
         return { ...item, quantity, lineTotal }
       }
       return item
     }))
   }
 
-  // Actualizar precio
   const updatePrice = (lineId: string, value: string) => {
     const unitPrice = Number(value) || 0
     if (unitPrice < 0) return
     setCart(cart.map(item => {
       if (item.lineId === lineId) {
-        const lineTotal = Number(item.quantity) * Number(unitPrice) * (1 - Number(item.discountPercent) / 100)
+        const lineTotal = item.quantity * unitPrice * (1 - item.discountPercent / 100)
         return { ...item, unitPrice, lineTotal }
       }
       return item
     }))
   }
 
-  // Actualizar descuento
   const updateDiscount = (lineId: string, value: string) => {
     const discountPercent = Number(value) || 0
     if (discountPercent < 0 || discountPercent > 100) return
     setCart(cart.map(item => {
       if (item.lineId === lineId) {
-        const lineTotal = Number(item.quantity) * Number(item.unitPrice) * (1 - Number(discountPercent) / 100)
+        const lineTotal = item.quantity * item.unitPrice * (1 - discountPercent / 100)
         return { ...item, discountPercent, lineTotal }
       }
       return item
     }))
   }
 
-  // Eliminar item
   const removeItem = (lineId: string) => {
     setCart(cart.filter(item => item.lineId !== lineId))
   }
 
-  // Abrir modal de edición de descripción
   const openDescriptionEditor = (lineId: string) => {
     const item = cart.find(i => i.lineId === lineId)
     if (item) {
@@ -212,7 +257,6 @@ export default function NewQuotePage() {
     }
   }
 
-  // Guardar descripción editada
   const saveDescription = () => {
     if (editingDescription) {
       setCart(cart.map(item =>
@@ -224,44 +268,47 @@ export default function NewQuotePage() {
     }
   }
 
-  // Calcular totales
   const calculateTotals = () => {
-    const subtotal = cart.reduce((sum, item) => sum + Number(item.lineTotal), 0)
-
-    // Si el cliente es exento de IVA, no calculamos IVA
+    const subtotal = cart.reduce((sum, item) => sum + item.lineTotal, 0)
     const isExempt = selectedCustomer?.ivaCondition === 'EX' || selectedCustomer?.ivaCondition === 'MT'
     const taxRate = isExempt ? 0 : 21
-    const tax = Number(subtotal) * (taxRate / 100)
-    const total = Number(subtotal) + Number(tax)
-
+    const tax = subtotal * (taxRate / 100)
+    const total = subtotal + tax
     return { subtotal, tax, total, taxRate }
   }
 
   const { subtotal, tax, total } = calculateTotals()
 
-  // Crear presupuesto
-  const handleCreateQuote = async () => {
+  const handleCreateOrder = async () => {
     if (cart.length === 0) {
       dialog.warning('Debe agregar al menos un producto')
       return
     }
 
-    const quoteData = {
+    if (stockBehavior !== 'NONE' && !selectedWarehouse) {
+      dialog.warning('Debe seleccionar un almacen para reservar o descontar stock')
+      return
+    }
+
+    const orderData = {
       customerId: selectedCustomer?.id,
+      warehouseId: selectedWarehouse?.id,
+      stockBehavior,
       items: cart.map(item => ({
         productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discountPercent: item.discountPercent,
-        description: item.description
+        description: item.description,
+        quoteItemId: item.quoteItemId
       })),
       notes,
-      termsAndConditions,
       internalNotes,
-      validUntil: validUntil || undefined
+      expectedDate: expectedDate || undefined,
+      quoteId: fromQuoteId || undefined
     }
 
-    createQuoteMutation.mutate(quoteData)
+    createOrderMutation.mutate(orderData)
   }
 
   const formatCurrency = (value: number) => {
@@ -273,13 +320,24 @@ export default function NewQuotePage() {
 
   const headerComplete = !!selectedCustomer
 
+  if (isLoadingQuote) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Cargando datos del presupuesto...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Nuevo Presupuesto</h1>
-          <p className="text-gray-600">Crea un presupuesto para tus clientes</p>
+          <h1 className="text-3xl font-bold text-gray-900">Nuevo Pedido</h1>
+          {quoteNumber && (
+            <p className="text-blue-600">Desde presupuesto: {quoteNumber}</p>
+          )}
+          {!quoteNumber && <p className="text-gray-600">Crea un pedido de cliente</p>}
         </div>
         <div className="flex items-center gap-4">
           {cart.length > 0 && (
@@ -299,16 +357,16 @@ export default function NewQuotePage() {
                 </div>
               </div>
               <button
-                onClick={handleCreateQuote}
-                disabled={createQuoteMutation.isPending}
+                onClick={handleCreateOrder}
+                disabled={createOrderMutation.isPending}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-semibold"
               >
-                {createQuoteMutation.isPending ? 'Guardando...' : 'Guardar'}
+                {createOrderMutation.isPending ? 'Guardando...' : 'Guardar Pedido'}
               </button>
             </>
           )}
           <button
-            onClick={() => navigate('/quotes')}
+            onClick={() => navigate('/orders')}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Cancelar
@@ -329,7 +387,7 @@ export default function NewQuotePage() {
               }`}
             >
               <div className="flex items-center gap-2">
-                Datos del Presupuesto
+                Datos del Pedido
                 {headerComplete && (
                   <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center">
                     <Check className="h-3 w-3" />
@@ -387,18 +445,69 @@ export default function NewQuotePage() {
                 </select>
               </div>
 
-              {/* Validez */}
+              {/* Fecha esperada */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Válido hasta
+                  Fecha Esperada de Entrega
                 </label>
                 <input
                   type="date"
-                  value={validUntil}
-                  onChange={(e) => setValidUntil(e.target.value)}
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Comportamiento de stock */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comportamiento de Stock
+                </label>
+                <select
+                  value={stockBehavior}
+                  onChange={(e) => setStockBehavior(e.target.value as StockBehavior)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="NONE">Sin afectar stock</option>
+                  <option value="RESERVE">Reservar stock</option>
+                  <option value="DEDUCT">Descontar stock inmediatamente</option>
+                </select>
+                {stockBehavior === 'RESERVE' && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    El stock quedara reservado y no disponible para otras ventas
+                  </p>
+                )}
+                {stockBehavior === 'DEDUCT' && (
+                  <p className="text-xs text-orange-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    El stock se descontara inmediatamente
+                  </p>
+                )}
+              </div>
+
+              {/* Almacen (requerido si stockBehavior != NONE) */}
+              {stockBehavior !== 'NONE' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Almacen *
+                  </label>
+                  <select
+                    value={selectedWarehouse?.id || ''}
+                    onChange={(e) => {
+                      const warehouse = warehousesData?.find((w: Warehouse) => w.id === e.target.value)
+                      setSelectedWarehouse(warehouse || null)
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Seleccionar almacen...</option>
+                    {warehousesData?.filter((w: Warehouse) => w.isActive).map((warehouse: Warehouse) => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Notas */}
               <div>
@@ -408,21 +517,7 @@ export default function NewQuotePage() {
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Notas visibles para el cliente..."
-                  rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Términos y Condiciones */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Términos y Condiciones
-                </label>
-                <textarea
-                  value={termsAndConditions}
-                  onChange={(e) => setTermsAndConditions(e.target.value)}
-                  placeholder="Términos y condiciones..."
+                  placeholder="Notas del pedido..."
                   rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -436,7 +531,7 @@ export default function NewQuotePage() {
                 <textarea
                   value={internalNotes}
                   onChange={(e) => setInternalNotes(e.target.value)}
-                  placeholder="Notas internas (no visibles para el cliente)..."
+                  placeholder="Notas internas (solo uso interno)..."
                   rows={2}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 />
@@ -448,13 +543,13 @@ export default function NewQuotePage() {
         {activeTab === 'products' && (
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Lista de productos - Izquierda */}
+              {/* Lista de productos */}
               <div className="flex flex-col h-[600px]">
                 <h3 className="font-semibold mb-3">Productos Disponibles</h3>
                 <input
                   ref={inputRef}
                   type="text"
-                  placeholder="Buscar por nombre, SKU o código de barras..."
+                  placeholder="Buscar por nombre, SKU o codigo..."
                   value={productSearchTerm}
                   onChange={(e) => setProductSearchTerm(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
@@ -484,89 +579,94 @@ export default function NewQuotePage() {
                 </div>
               </div>
 
-              {/* Carrito - Derecha */}
+              {/* Carrito */}
               <div className="flex flex-col h-[600px]">
-                <h3 className="font-semibold mb-3">Items del Presupuesto</h3>
+                <h3 className="font-semibold mb-3">Items del Pedido</h3>
                 <div className="flex-1 border border-gray-300 rounded-lg overflow-y-auto p-3">
                   {cart.length === 0 ? (
                     <div className="flex items-center justify-center h-full text-gray-500">
-                      No hay productos en el presupuesto
+                      No hay productos en el pedido
                     </div>
                   ) : (
                     <div className="space-y-2">
-                    {cart.map((item) => (
-                      <div key={item.lineId} className="border border-gray-200 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <div className="font-medium">{item.productName}</div>
-                            <div className="text-xs text-gray-500">SKU: {item.productSku}</div>
-                            {item.description && (
-                              <div className="text-sm text-gray-600 mt-1 italic">{item.description}</div>
-                            )}
+                      {cart.map((item) => (
+                        <div key={item.lineId} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <div className="font-medium">{item.productName}</div>
+                              {item.productSku && (
+                                <div className="text-xs text-gray-500">SKU: {item.productSku}</div>
+                              )}
+                              {item.quoteItemId && (
+                                <div className="text-xs text-blue-500">Desde presupuesto</div>
+                              )}
+                              {item.description && (
+                                <div className="text-sm text-gray-600 mt-1 italic">{item.description}</div>
+                              )}
+                            </div>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => openDescriptionEditor(item.lineId)}
+                                className="p-1 hover:bg-gray-100 rounded"
+                                title="Editar descripcion"
+                              >
+                                <Edit3 className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <button
+                                onClick={() => removeItem(item.lineId)}
+                                className="p-1 hover:bg-red-50 rounded"
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => openDescriptionEditor(item.lineId)}
-                              className="p-1 hover:bg-gray-100 rounded"
-                              title="Editar descripción"
-                            >
-                              <Edit3 className="h-4 w-4 text-gray-600" />
-                            </button>
-                            <button
-                              onClick={() => removeItem(item.lineId)}
-                              className="p-1 hover:bg-red-50 rounded"
-                              title="Eliminar"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-600" />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2 text-sm">
-                          <div>
-                            <label className="text-xs text-gray-500">Cant.</label>
-                            <input
-                              ref={(el) => (quantityRefs.current[item.lineId] = el)}
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) => updateQuantity(item.lineId, e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                              min="0.01"
-                              step="0.01"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500">Precio</label>
-                            <input
-                              ref={(el) => (priceRefs.current[item.lineId] = el)}
-                              type="number"
-                              value={item.unitPrice}
-                              onChange={(e) => updatePrice(item.lineId, e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500">Desc %</label>
-                            <input
-                              type="number"
-                              value={item.discountPercent}
-                              onChange={(e) => updateDiscount(item.lineId, e.target.value)}
-                              className="w-full px-2 py-1 border border-gray-300 rounded"
-                              min="0"
-                              max="100"
-                              step="0.01"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500">Total</label>
-                            <div className="px-2 py-1 bg-gray-50 rounded font-medium">
-                              ${formatCurrency(item.lineTotal)}
+                          <div className="grid grid-cols-4 gap-2 text-sm">
+                            <div>
+                              <label className="text-xs text-gray-500">Cant.</label>
+                              <input
+                                ref={(el) => (quantityRefs.current[item.lineId] = el)}
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateQuantity(item.lineId, e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded"
+                                min="0.01"
+                                step="0.01"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Precio</label>
+                              <input
+                                ref={(el) => (priceRefs.current[item.lineId] = el)}
+                                type="number"
+                                value={item.unitPrice}
+                                onChange={(e) => updatePrice(item.lineId, e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded"
+                                min="0"
+                                step="0.01"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Desc %</label>
+                              <input
+                                type="number"
+                                value={item.discountPercent}
+                                onChange={(e) => updateDiscount(item.lineId, e.target.value)}
+                                className="w-full px-2 py-1 border border-gray-300 rounded"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500">Total</label>
+                              <div className="px-2 py-1 bg-gray-50 rounded font-medium">
+                                ${formatCurrency(item.lineTotal)}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                     </div>
                   )}
                 </div>
@@ -576,11 +676,11 @@ export default function NewQuotePage() {
         )}
       </div>
 
-      {/* Modal de edición de descripción */}
+      {/* Modal de edicion de descripcion */}
       {editingDescription && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Editar Descripción</h3>
+            <h3 className="text-lg font-semibold mb-4">Editar Descripcion</h3>
             <textarea
               value={editingDescription.description}
               onChange={(e) => setEditingDescription({ ...editingDescription, description: e.target.value })}
@@ -608,7 +708,6 @@ export default function NewQuotePage() {
         </div>
       )}
 
-      {/* Dialogs personalizados */}
       <dialog.AlertComponent />
       <dialog.ConfirmComponent />
     </div>

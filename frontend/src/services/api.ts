@@ -58,7 +58,20 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
-      // Token expired or invalid
+      // Ignorar 401 en rutas de autenticación (login/register)
+      const url = error.config?.url || ''
+      const isAuthRoute = url.includes('/auth/login') || url.includes('/auth/register')
+
+      if (!isAuthRoute) {
+        // Token expired or invalid - redirect to login
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+      }
+    }
+
+    // Tenant not found - redirect to login
+    if (error.response?.status === 404 && error.response?.data?.error === 'Tenant not found') {
+      console.warn('[API] Tenant no encontrado, redirigiendo al login')
       useAuthStore.getState().logout()
       window.location.href = '/login'
     }

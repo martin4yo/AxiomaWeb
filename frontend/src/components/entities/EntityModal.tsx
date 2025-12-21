@@ -11,6 +11,7 @@ import { Tabs } from '../ui/Tabs'
 import { useAuthStore } from '../../stores/authStore'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { api } from '../../services/api'
+import { useDialog } from '../../hooks/useDialog'
 
 const deliveryAddressSchema = z.object({
   id: z.string().optional(),
@@ -68,6 +69,7 @@ interface EntityModalProps {
 export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps) {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [deliveryAddresses, setDeliveryAddresses] = useState<Array<z.infer<typeof deliveryAddressSchema>>>(
     entity?.deliveryAddresses || []
   )
@@ -188,7 +190,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
     },
     onError: (error: any) => {
       console.error('[EntityModal] Error creating entity:', error)
-      alert(`Error al crear: ${error.response?.data?.error || error.message}`)
+      dialog.error(`Error al crear: ${error.response?.data?.error || error.message}`)
     }
   })
 
@@ -206,7 +208,7 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
     },
     onError: (error: any) => {
       console.error('[EntityModal] Error updating entity:', error)
-      alert(`Error al actualizar: ${error.response?.data?.error || error.message}`)
+      dialog.error(`Error al actualizar: ${error.response?.data?.error || error.message}`)
     }
   })
 
@@ -649,6 +651,8 @@ export function EntityModal({ isOpen, onClose, entity, mode }: EntityModalProps)
           </Button>
         </div>
       </form>
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </Modal>
   )
 }

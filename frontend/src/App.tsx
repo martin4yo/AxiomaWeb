@@ -30,6 +30,9 @@ import NewSalePage from '@/pages/sales/NewSalePage'
 import QuotesPage from '@/pages/quotes/QuotesPage'
 import NewQuotePage from '@/pages/quotes/NewQuotePage'
 import QuoteDetailPage from '@/pages/quotes/QuoteDetailPage'
+import OrdersPage from '@/pages/orders/OrdersPage'
+import NewOrderPage from '@/pages/orders/NewOrderPage'
+import OrderDetailPage from '@/pages/orders/OrderDetailPage'
 import PurchasesPage from '@/pages/purchases/PurchasesPage'
 import NewPurchasePage from '@/pages/purchases/NewPurchasePage'
 import PurchaseDetailPage from '@/pages/purchases/PurchaseDetailPage'
@@ -47,6 +50,7 @@ import { TenantsPage } from '@/pages/tenants/TenantsPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import ErrorPage from '@/pages/ErrorPage'
 import OnboardingWizardPage from '@/pages/onboarding/OnboardingWizardPage'
+import TraceabilityPage from '@/pages/traceability/TraceabilityPage'
 
 function App() {
   const { isAuthenticated, currentTenant, _hasHydrated } = useAuthStore()
@@ -115,6 +119,10 @@ function App() {
         <Route path="quotes" element={<QuotesPage />} />
         <Route path="quotes/new" element={<NewQuotePage />} />
         <Route path="quotes/:id" element={<QuoteDetailPage />} />
+        <Route path="orders" element={<OrdersPage />} />
+        <Route path="orders/new" element={<NewOrderPage />} />
+        <Route path="orders/:id" element={<OrderDetailPage />} />
+        <Route path="traceability/:type/:id" element={<TraceabilityPage />} />
         <Route path="customer-accounts" element={<CustomerAccountsPage />} />
         <Route path="purchases" element={<PurchasesPage />} />
         <Route path="purchases/supplier-accounts" element={<OldSupplierAccountsPage />} />

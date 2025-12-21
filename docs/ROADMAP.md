@@ -13,16 +13,18 @@ Funcionalidades pendientes y mejoras planificadas para el sistema.
 - [x] API RESTful con TypeScript
 - [x] Base de datos PostgreSQL con Prisma
 
-#### Módulos de Negocio
-- [x] **Productos**: Gestión completa con SKU, stock, categorías, marcas
+#### Modulos de Negocio
+- [x] **Productos**: Gestion completa con SKU, stock, categorias, marcas
 - [x] **Clientes**: Entidades con condiciones fiscales
-- [x] **Proveedores**: Gestión de proveedores
-- [x] **Ventas**: Punto de venta con acceso rápido
-- [x] **Compras**: Gestión de compras y cuenta corriente de proveedores
-- [x] **Inventario**: Control de stock por almacén con movimientos
+- [x] **Proveedores**: Gestion de proveedores
+- [x] **Ventas**: Punto de venta con acceso rapido
+- [x] **Compras**: Gestion de compras y cuenta corriente de proveedores
+- [x] **Inventario**: Control de stock por almacen con movimientos
 - [x] **Sucursales**: Multi-sucursal
-- [x] **Almacenes**: Múltiples almacenes por tenant
+- [x] **Almacenes**: Multiples almacenes por tenant
 - [x] **Caja**: Cuentas de caja y movimientos
+- [x] **Presupuestos**: Cotizaciones con conversion a pedido/venta, envio por email, PDF
+- [x] **Pedidos**: Notas de venta con reserva de stock, estados operativos, facturacion parcial
 
 #### Facturación AFIP
 - [x] Autenticación WSAA con certificados
@@ -76,24 +78,69 @@ Funcionalidades pendientes y mejoras planificadas para el sistema.
 ---
 
 ### 2. Presupuestos/Cotizaciones Formales
-**Estado:** ⚠️ Parcial (existe template de impresión pero no flujo completo)
+**Estado:** ✅ Implementado (Diciembre 2025)
 
-**Funcionalidades:**
-- Crear presupuesto sin afectar stock
-- Convertir presupuesto a venta
-- Vencimiento de presupuestos
-- Estados: borrador, enviado, aceptado, rechazado, vencido
-- Envío por email
-- Seguimiento de presupuestos
+**Funcionalidades implementadas:**
+- [x] Crear presupuesto sin afectar stock
+- [x] Convertir presupuesto a venta (directo o via pedido)
+- [x] Vencimiento de presupuestos
+- [x] Estados: PENDING, SENT, PARTIALLY_CONVERTED, FULLY_CONVERTED, CANCELLED
+- [x] Envío por email con PDF adjunto
+- [x] Seguimiento de presupuestos con conversión parcial
+- [x] Conversión a Pedido con reserva de stock
 
-**Archivos a crear:**
+**Archivos creados:**
 - `backend/src/routes/quotes.ts`
 - `backend/src/services/quoteService.ts`
 - `frontend/src/pages/quotes/QuotesPage.tsx`
 - `frontend/src/pages/quotes/NewQuotePage.tsx`
+- `frontend/src/pages/quotes/QuoteDetailPage.tsx`
 - Modelo en Prisma: `Quote`, `QuoteItem`
 
-**Estimación:** 5-7 días
+### 2.1 Pedidos (CustomerOrders)
+**Estado:** ✅ Implementado (Diciembre 2025)
+
+**Funcionalidades implementadas:**
+- [x] Crear pedido (directo o desde presupuesto)
+- [x] Comportamiento de stock: NONE, RESERVE, DEDUCT
+- [x] Estados: DRAFT, CONFIRMED, PROCESSING, READY, PARTIALLY_INVOICED, COMPLETED, CANCELLED
+- [x] Facturación parcial de pedidos
+- [x] Reserva y liberación de stock
+- [x] Conversión a venta con actualización automática de estado
+
+**Archivos creados:**
+- `backend/src/routes/orders.ts`
+- `backend/src/services/orderService.ts`
+- `frontend/src/api/orders.ts`
+- `frontend/src/pages/orders/OrdersPage.tsx`
+- `frontend/src/pages/orders/NewOrderPage.tsx`
+- `frontend/src/pages/orders/OrderDetailPage.tsx`
+- Modelo en Prisma: `CustomerOrder`, `CustomerOrderItem`, `StockReservation`
+
+### 2.2 Trazabilidad de Documentos
+**Estado:** ✅ Implementado (Diciembre 2025)
+
+**Funcionalidades implementadas:**
+- [x] Ver cadena de documentos relacionados (Quote → Order → Sale → Payments → NC/ND)
+- [x] Visualización gráfica en árbol jerárquico
+- [x] Modal integrado en páginas de detalle (no navega a otra página)
+- [x] Sección "Origen" muestra documentos anteriores
+- [x] Sección "Derivados" muestra documentos generados
+- [x] Iconos y colores por tipo de documento
+- [x] Metadata visible (CAE, método de pago, comportamiento de stock)
+
+**Archivos creados:**
+- `backend/src/routes/traceability.ts`
+- `frontend/src/api/traceability.ts`
+- `frontend/src/components/traceability/TraceabilityModal.tsx`
+
+**Archivos modificados:**
+- `frontend/src/pages/sales/SalesPage.tsx` - Botón trazabilidad
+- `frontend/src/pages/quotes/QuoteDetailPage.tsx` - Botón trazabilidad
+- `frontend/src/pages/orders/OrderDetailPage.tsx` - Botón trazabilidad
+- `backend/src/routes/sales.ts` - Guardar orderId/quoteId
+- `backend/src/services/salesService.ts` - Guardar orderId/quoteId
+- `frontend/src/pages/sales/NewSalePage.tsx` - Enviar orderId/quoteId
 
 ---
 
@@ -496,15 +543,13 @@ Funcionalidades pendientes y mejoras planificadas para el sistema.
 
 Basado en impacto vs esfuerzo:
 
-1. **Semana 1-2:** Alertas de stock + Exportación de reportes
-2. **Semana 3-4:** Envío de emails + Cuenta corriente clientes
-3. **Semana 5-6:** Presupuestos/Cotizaciones
-4. **Semana 7-8:** Reportes avanzados (Libro IVA, Rentabilidad)
-5. **Semana 9-10:** Backup automático + Testing básico
-6. **Mes 3:** Lotes y vencimientos
-7. **Mes 4:** Permisos granulares + Auditoría
-8. **Mes 5-6:** Editor visual de templates
-9. **Mes 7+:** Features de largo plazo según prioridad del negocio
+1. ~~**Semana 1-2:** Presupuestos/Cotizaciones~~ ✅ COMPLETADO
+2. ~~**Semana 3-4:** Pedidos con reserva de stock~~ ✅ COMPLETADO
+3. **Siguiente:** Cuenta corriente clientes
+4. **Después:** Alertas de stock + Exportación de reportes
+5. **Luego:** Reportes avanzados (Libro IVA, Rentabilidad)
+6. **Futuro:** Backup automático + Testing básico
+7. **Largo plazo:** Lotes y vencimientos, Permisos granulares
 
 ---
 
@@ -517,5 +562,5 @@ Basado en impacto vs esfuerzo:
 
 ---
 
-**Última actualización:** 2025-01-02
+**Última actualización:** 2025-12-21
 **Próxima revisión:** Mensual

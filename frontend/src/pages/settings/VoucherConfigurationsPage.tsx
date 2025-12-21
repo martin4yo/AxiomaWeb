@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { Pencil } from 'lucide-react'
+import { Plus, Trash2, CheckCircle, XCircle, RefreshCw, Pencil, Check } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { voucherConfigurationsApi, type VoucherConfiguration } from '../../api/voucher-configurations'
 import { api } from '../../services/api'
+import { useDialog } from '../../hooks/useDialog'
 
 export default function VoucherConfigurationsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [afipCheckResult, setAfipCheckResult] = useState<{ show: boolean; data: any }>({ show: false, data: null })
   const [checkingConfigId, setCheckingConfigId] = useState<string | null>(null)
 
@@ -60,7 +61,7 @@ export default function VoucherConfigurationsPage() {
     },
     onError: (error: any) => {
       setCheckingConfigId(null)
-      alert(`Error: ${error.response?.data?.error || error.message}`)
+      dialog.error(error.response?.data?.error || error.message)
     }
   })
 
@@ -70,13 +71,17 @@ export default function VoucherConfigurationsPage() {
   }
 
   const handleDelete = async (config: VoucherConfiguration) => {
-    if (window.confirm(`¿Está seguro de eliminar la configuración para ${config.voucherType?.name}?`)) {
-      try {
-        await deleteMutation.mutateAsync(config.id)
-      } catch (error: any) {
-        alert(error.response?.data?.error || 'Error al eliminar la configuración')
-      }
-    }
+    dialog.confirm(
+      `¿Está seguro de eliminar la configuración para ${config.voucherType?.name}?`,
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(config.id)
+        } catch (error: any) {
+          dialog.error(error.response?.data?.error || 'Error al eliminar la configuración')
+        }
+      },
+      'Eliminar Configuración'
+    )
   }
 
   if (isLoading) {
@@ -101,7 +106,7 @@ export default function VoucherConfigurationsPage() {
             href="/settings/voucher-configurations/new"
             className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
           >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+            <Plus className="-ml-1 mr-2 h-5 w-5" />
             Nueva Configuración
           </a>
         </div>
@@ -113,7 +118,7 @@ export default function VoucherConfigurationsPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                <CheckCircle className="h-6 w-6 text-green-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -128,7 +133,7 @@ export default function VoucherConfigurationsPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-6 w-6 text-blue-400" />
+                <CheckCircle className="h-6 w-6 text-blue-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -143,7 +148,7 @@ export default function VoucherConfigurationsPage() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <CheckCircleIcon className="h-6 w-6 text-purple-400" />
+                <CheckCircle className="h-6 w-6 text-purple-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
@@ -232,7 +237,7 @@ export default function VoucherConfigurationsPage() {
                               {checkingConfigId === config.id ? (
                                 <div className="inline-block animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
                               ) : (
-                                <ArrowPathIcon className="h-5 w-5 inline" />
+                                <RefreshCw className="h-5 w-5 inline" />
                               )}
                             </button>
                           )}
@@ -248,7 +253,7 @@ export default function VoucherConfigurationsPage() {
                             className="text-red-600 hover:text-red-900"
                             title="Eliminar configuración"
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </td>
                       </tr>
@@ -273,7 +278,7 @@ export default function VoucherConfigurationsPage() {
               <div className="space-y-4">
                 <div className="bg-green-50 border border-green-200 rounded-md p-4">
                   <div className="flex items-center mb-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600 mr-2" />
+                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                     <span className="font-semibold text-green-900">Consulta Exitosa</span>
                   </div>
 
@@ -319,13 +324,13 @@ export default function VoucherConfigurationsPage() {
                   {afipCheckResult.data.wasUpdated ? (
                     <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
                       <p className="text-xs text-green-800">
-                        ✓ Número local actualizado al mayor entre BD local y AFIP + 1.
+                        Numero local actualizado al mayor entre BD local y AFIP + 1.
                       </p>
                     </div>
                   ) : (
                     <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded">
                       <p className="text-xs text-blue-800">
-                        ✓ La configuración ya está sincronizada.
+                        La configuracion ya esta sincronizada.
                       </p>
                     </div>
                   )}
@@ -334,7 +339,7 @@ export default function VoucherConfigurationsPage() {
             ) : (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex items-center mb-2">
-                  <XCircleIcon className="h-5 w-5 text-red-600 mr-2" />
+                  <XCircle className="h-5 w-5 text-red-600 mr-2" />
                   <span className="font-semibold text-red-900">Error en la Consulta</span>
                 </div>
                 <p className="text-sm text-red-700 mt-2">{afipCheckResult.data.error}</p>
@@ -356,6 +361,9 @@ export default function VoucherConfigurationsPage() {
           </div>
         </div>
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

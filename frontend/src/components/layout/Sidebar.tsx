@@ -56,8 +56,9 @@ const navigation: NavigationItem[] = [
     name: 'Ventas',
     icon: ShoppingCart,
     children: [
-      { name: 'Listado', href: '/sales', icon: ShoppingCart },
       { name: 'Presupuestos', href: '/quotes', icon: FileText },
+      { name: 'Pedidos', href: '/orders', icon: ClipboardList },
+      { name: 'Ventas', href: '/sales', icon: ShoppingCart },
       { name: 'Clientes', href: '/customers', icon: Users },
       { name: 'Categorías', href: '/customer-categories', icon: LayoutGrid },
       { name: 'Cuentas Corrientes', href: '/customer-accounts', icon: Wallet },

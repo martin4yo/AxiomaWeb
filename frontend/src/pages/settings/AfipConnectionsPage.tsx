@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { PlusIcon, PencilIcon, TrashIcon, WifiIcon } from '@heroicons/react/24/outline'
+import { Plus, Pencil, Trash2, Wifi, Check, X, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../stores/authStore'
 import { afipConnectionsApi, type AfipConnection } from '../../api/afip-connections'
 import AfipConnectionModal from '../../components/settings/AfipConnectionModal'
+import { useDialog } from '../../hooks/useDialog'
 
 export default function AfipConnectionsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedConnection, setSelectedConnection] = useState<AfipConnection | null>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
@@ -60,13 +62,17 @@ export default function AfipConnectionsPage() {
   }
 
   const handleDelete = async (connection: AfipConnection) => {
-    if (window.confirm(`¿Está seguro de eliminar la conexión "${connection.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(connection.id)
-      } catch (error: any) {
-        alert(error.response?.data?.error || 'Error al eliminar la conexión')
-      }
-    }
+    dialog.confirm(
+      `¿Está seguro de eliminar la conexión "${connection.name}"?`,
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(connection.id)
+        } catch (error: any) {
+          dialog.error(error.response?.data?.error || 'Error al eliminar la conexión')
+        }
+      },
+      'Eliminar Conexión'
+    )
   }
 
   const handleTest = async (connection: AfipConnection) => {
@@ -110,7 +116,7 @@ export default function AfipConnectionsPage() {
             onClick={handleCreate}
             className="inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto"
           >
-            <PlusIcon className="-ml-1 mr-2 h-5 w-5" />
+            <Plus className="-ml-1 mr-2 h-5 w-5" />
             Nueva Conexión
           </button>
         </div>
@@ -173,7 +179,7 @@ export default function AfipConnectionsPage() {
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                           {connection.certificate ? (
-                            <span className="text-green-600">✓ Configurado</span>
+                            <span className="text-green-600 flex items-center gap-1"><Check className="h-4 w-4" /> Configurado</span>
                           ) : (
                             <span className="text-gray-400">No configurado</span>
                           )}
@@ -182,7 +188,7 @@ export default function AfipConnectionsPage() {
                           {connection.lastTest ? (
                             <div>
                               <div className={connection.lastTestStatus === 'success' ? 'text-green-600' : 'text-red-600'}>
-                                {connection.lastTestStatus === 'success' ? '✓ Exitosa' : '✗ Error'}
+                                {connection.lastTestStatus === 'success' ? 'Exitosa' : 'Error'}
                               </div>
                               <div className="text-xs text-gray-400">
                                 {new Date(connection.lastTest).toLocaleString()}
@@ -202,20 +208,20 @@ export default function AfipConnectionsPage() {
                             {testMutation.isPending ? (
                               <div className="animate-spin h-5 w-5 border-2 border-green-600 border-t-transparent rounded-full"></div>
                             ) : (
-                              <WifiIcon className="h-5 w-5" />
+                              <Wifi className="h-5 w-5" />
                             )}
                           </button>
                           <button
                             onClick={() => handleEdit(connection)}
                             className="text-blue-600 hover:text-blue-900 mr-4"
                           >
-                            <PencilIcon className="h-5 w-5" />
+                            <Pencil className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDelete(connection)}
                             className="text-red-600 hover:text-red-900"
                           >
-                            <TrashIcon className="h-5 w-5" />
+                            <Trash2 className="h-5 w-5" />
                           </button>
                         </td>
                       </tr>
@@ -244,9 +250,9 @@ export default function AfipConnectionsPage() {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="mb-4">
               {testResultModal.result.success ? (
-                <h2 className="text-2xl font-bold text-green-600">✓ Conexión Exitosa</h2>
+                <h2 className="text-2xl font-bold text-green-600 flex items-center gap-2"><Check className="h-6 w-6" /> Conexión Exitosa</h2>
               ) : (
-                <h2 className="text-2xl font-bold text-red-600">✗ Error en la Conexión</h2>
+                <h2 className="text-2xl font-bold text-red-600 flex items-center gap-2"><X className="h-6 w-6" /> Error en la Conexión</h2>
               )}
             </div>
 
@@ -287,9 +293,9 @@ export default function AfipConnectionsPage() {
                   >
                     <div className="flex items-start">
                       <div className="flex-shrink-0 mt-0.5">
-                        {step.status === 'success' && <span className="text-green-600 font-bold">✓</span>}
-                        {step.status === 'error' && <span className="text-red-600 font-bold">✗</span>}
-                        {step.status === 'running' && <span className="text-yellow-600 font-bold">⟳</span>}
+                        {step.status === 'success' && <Check className="h-4 w-4 text-green-600" />}
+                        {step.status === 'error' && <X className="h-4 w-4 text-red-600" />}
+                        {step.status === 'running' && <RefreshCw className="h-4 w-4 text-yellow-600 animate-spin" />}
                       </div>
                       <div className="ml-3 flex-1">
                         <p className={`text-sm font-medium ${
@@ -329,6 +335,9 @@ export default function AfipConnectionsPage() {
           </div>
         </div>
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

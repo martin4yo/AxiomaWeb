@@ -10,7 +10,10 @@ const router = Router();
  */
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { isCustomer, isSupplier, hasBalance, search } = req.query;
 
     const balances = await entityAccountService.getEntitiesWithBalance(tenantId, {
@@ -33,7 +36,10 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:entityId/balance', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
 
     const balance = await entityAccountService.getEntityBalance(tenantId, entityId);
@@ -51,7 +57,10 @@ router.get('/:entityId/balance', async (req: Request, res: Response) => {
  */
 router.get('/:entityId/movements', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
     const { dateFrom, dateTo, type, page, limit } = req.query;
 
@@ -77,7 +86,10 @@ router.get('/:entityId/movements', async (req: Request, res: Response) => {
  */
 router.get('/:entityId/pending', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
     const { type } = req.query;
 
@@ -105,7 +117,10 @@ router.get('/:entityId/pending', async (req: Request, res: Response) => {
  */
 router.get('/:entityId/statement', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
     const { dateFrom, dateTo } = req.query;
 
@@ -137,7 +152,11 @@ router.get('/:entityId/statement', async (req: Request, res: Response) => {
  */
 router.post('/:entityId/payments', async (req: Request, res: Response) => {
   try {
-    const { tenantId, userId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    const userId = (req as any).user?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
     const { type, amount, paymentMethodId, paymentMethodName, date, reference, referenceDate, notes } = req.body;
 
@@ -208,7 +227,10 @@ router.post('/:entityId/payments', async (req: Request, res: Response) => {
  */
 router.post('/:entityId/movements', async (req: Request, res: Response) => {
   try {
-    const { tenantId } = req as any;
+    const tenantId = (req as any).tenant?.id;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'Tenant no identificado' });
+    }
     const { entityId } = req.params;
     const { type, nature, amount, date, description, notes } = req.body;
 

@@ -4,10 +4,12 @@ import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useAuthStore } from '../../stores/authStore'
 import { salesPointsApi, type SalesPoint } from '../../api/sales-points'
 import SalesPointModal from '../../components/settings/SalesPointModal'
+import { useDialog } from '../../hooks/useDialog'
 
 export default function SalesPointsPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedSalesPoint, setSelectedSalesPoint] = useState<SalesPoint | null>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
@@ -40,13 +42,17 @@ export default function SalesPointsPage() {
   }
 
   const handleDelete = async (salesPoint: SalesPoint) => {
-    if (window.confirm(`¿Está seguro de eliminar el punto de venta "${salesPoint.number} - ${salesPoint.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(salesPoint.id)
-      } catch (error: any) {
-        alert(error.response?.data?.error || 'Error al eliminar el punto de venta')
-      }
-    }
+    dialog.confirm(
+      `¿Está seguro de eliminar el punto de venta "${salesPoint.number} - ${salesPoint.name}"?`,
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(salesPoint.id)
+        } catch (error: any) {
+          dialog.error(error.response?.data?.error || 'Error al eliminar el punto de venta')
+        }
+      },
+      'Eliminar Punto de Venta'
+    )
   }
 
   const getStatusBadge = (isActive: boolean) => {
@@ -170,6 +176,9 @@ export default function SalesPointsPage() {
           mode={modalMode}
         />
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

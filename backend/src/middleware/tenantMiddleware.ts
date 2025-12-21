@@ -72,7 +72,10 @@ export const tenantMiddleware = async (
               'WarehouseStock',
               'StockMovement',
               'TenantUser',
-              'CashMovement'
+              'CashMovement',
+              'QuoteItem',
+              'CustomerOrderItem',
+              'StockReservation'
             ]
 
             if (skipModels.includes(model)) {

@@ -46,7 +46,9 @@ const createSaleSchema = z.object({
   discountPercent: z.number().min(0).max(100).optional(),
   documentClass: z.enum(['invoice', 'credit_note', 'debit_note', 'quote']).optional(),
   forceWithoutCAE: z.boolean().optional(),
-  originSaleId: z.string().optional()
+  originSaleId: z.string().optional(),
+  orderId: z.string().optional(),
+  quoteId: z.string().optional()
 })
 
 // POST /api/:tenantSlug/sales - Crear venta
@@ -291,20 +293,18 @@ router.get('/:id/pdf', authMiddleware, async (req, res, next) => {
     // 1. Si viene en query, usar ese
     // 2. Si no, usar el de la configuración del comprobante
     // 3. Si no, usar 'legal' por defecto
-    let template = (req.query.template as string) ||
-                   sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
-                   'legal'
+    const rawTemplate = (req.query.template as string) ||
+                        sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
+                        'legal'
 
-    // Mapear 'simple' a 'quote' para PDFs
-    if (template === 'simple') {
+    // Mapear valores a templates válidos
+    let template: 'legal' | 'quote' = 'legal'
+    if (rawTemplate === 'simple' || rawTemplate === 'quote') {
       template = 'quote'
+    } else if (rawTemplate === 'legal') {
+      template = 'legal'
     }
-
-    if (template !== 'legal' && template !== 'quote') {
-      return res.status(400).json({
-        error: 'Invalid template. Use "legal", "quote" or "simple"'
-      })
-    }
+    // Para cualquier otro valor (none, thermal, etc), usar 'legal' por defecto
 
     // Generar PDF
     const pdfService = new PDFService()
@@ -340,20 +340,18 @@ router.get('/:id/pdf/preview', authMiddleware, async (req, res, next) => {
     // 1. Si viene en query, usar ese
     // 2. Si no, usar el de la configuración del comprobante
     // 3. Si no, usar 'legal' por defecto
-    let template = (req.query.template as string) ||
-                   sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
-                   'legal'
+    const rawTemplate = (req.query.template as string) ||
+                        sale.voucherConfiguration?.printTemplate?.toLowerCase() ||
+                        'legal'
 
-    // Mapear 'simple' a 'quote' para PDFs
-    if (template === 'simple') {
+    // Mapear valores a templates válidos
+    let template: 'legal' | 'quote' = 'legal'
+    if (rawTemplate === 'simple' || rawTemplate === 'quote') {
       template = 'quote'
+    } else if (rawTemplate === 'legal') {
+      template = 'legal'
     }
-
-    if (template !== 'legal' && template !== 'quote') {
-      return res.status(400).json({
-        error: 'Invalid template. Use "legal" or "quote"'
-      })
-    }
+    // Para cualquier otro valor (none, thermal, etc), usar 'legal' por defecto
 
     // Generar PDF
     const pdfService = new PDFService()

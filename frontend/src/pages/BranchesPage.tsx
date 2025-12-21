@@ -5,10 +5,12 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { useAuthStore } from '../stores/authStore'
 import { branchesApi, type Branch } from '../api/branches'
 import BranchModal from '../components/settings/BranchModal'
+import { useDialog } from '../hooks/useDialog'
 
 export default function BranchesPage() {
   const { currentTenant } = useAuthStore()
   const queryClient = useQueryClient()
+  const dialog = useDialog()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedBranch, setSelectedBranch] = useState<Branch | null>(null)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
@@ -41,13 +43,17 @@ export default function BranchesPage() {
   }
 
   const handleDelete = async (branch: Branch) => {
-    if (window.confirm(`¿Está seguro de eliminar la sucursal "${branch.name}"?`)) {
-      try {
-        await deleteMutation.mutateAsync(branch.id)
-      } catch (error: any) {
-        alert(error.response?.data?.error || 'Error al eliminar la sucursal')
-      }
-    }
+    dialog.confirm(
+      `¿Está seguro de eliminar la sucursal "${branch.name}"?`,
+      async () => {
+        try {
+          await deleteMutation.mutateAsync(branch.id)
+        } catch (error: any) {
+          dialog.error(error.response?.data?.error || 'Error al eliminar la sucursal')
+        }
+      },
+      'Eliminar Sucursal'
+    )
   }
 
   const getStatusBadge = (isActive: boolean) => {
@@ -194,6 +200,9 @@ export default function BranchesPage() {
           mode={modalMode}
         />
       )}
+
+      <dialog.AlertComponent />
+      <dialog.ConfirmComponent />
     </div>
   )
 }

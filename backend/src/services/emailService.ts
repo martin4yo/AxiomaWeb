@@ -164,4 +164,135 @@ export class EmailService {
       ]
     }, tenantName)
   }
+
+  async sendQuote(
+    to: string,
+    quoteNumber: string,
+    totalAmount: number,
+    pdfBuffer: Buffer,
+    filename: string,
+    tenantName: string,
+    customerName: string,
+    validUntil: string | null
+  ): Promise<void> {
+    const subject = `Presupuesto ${quoteNumber} - ${tenantName}`
+
+    const validityText = validUntil
+      ? `<p>Este presupuesto tiene validez hasta el <strong>${validUntil}</strong>.</p>`
+      : `<p>Este presupuesto tiene una validez de 15 días desde la fecha de emisión.</p>`
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+            }
+            .container {
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+            }
+            .header {
+              background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+              color: white;
+              padding: 30px;
+              text-align: center;
+              border-radius: 8px 8px 0 0;
+            }
+            .content {
+              background: #f8f9fa;
+              padding: 30px;
+              border-radius: 0 0 8px 8px;
+            }
+            .info-box {
+              background: white;
+              padding: 20px;
+              border-radius: 8px;
+              margin: 20px 0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .total {
+              font-size: 28px;
+              font-weight: bold;
+              color: #3498db;
+              margin: 15px 0;
+            }
+            .cta-button {
+              display: inline-block;
+              background: #27ae60;
+              color: white;
+              padding: 12px 30px;
+              text-decoration: none;
+              border-radius: 5px;
+              margin-top: 15px;
+              font-weight: bold;
+            }
+            .footer {
+              text-align: center;
+              margin-top: 30px;
+              padding-top: 20px;
+              border-top: 1px solid #ddd;
+              color: #666;
+              font-size: 12px;
+            }
+            .validity {
+              background: #fff3cd;
+              border: 1px solid #ffc107;
+              padding: 10px 15px;
+              border-radius: 5px;
+              margin-top: 15px;
+              color: #856404;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1 style="margin: 0;">${tenantName}</h1>
+              <p style="margin: 10px 0 0 0; font-size: 18px;">Presupuesto</p>
+            </div>
+            <div class="content">
+              <p>Estimado/a <strong>${customerName}</strong>,</p>
+              <p>Es un placer hacerle llegar el presupuesto solicitado. A continuación encontrará el detalle:</p>
+
+              <div class="info-box">
+                <p><strong>Número de Presupuesto:</strong> ${quoteNumber}</p>
+                <div class="total">Total: $${totalAmount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div class="validity">
+                  ${validityText}
+                </div>
+              </div>
+
+              <p>Adjuntamos el presupuesto detallado en formato PDF para su revisión.</p>
+
+              <p>Si tiene alguna consulta o desea proceder con el pedido, no dude en contactarnos. Estaremos encantados de atenderle.</p>
+
+              <div class="footer">
+                <p>Gracias por considerarnos para su proyecto.</p>
+                <p>&copy; ${new Date().getFullYear()} ${tenantName}. Todos los derechos reservados.</p>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `
+
+    await this.sendEmail({
+      to,
+      subject,
+      html,
+      attachments: [
+        {
+          filename,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        }
+      ]
+    }, tenantName)
+  }
 }
